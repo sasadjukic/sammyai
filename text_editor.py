@@ -19,9 +19,7 @@ from llm.client import LLMConfig
 from llm.chat_manager import ChatManager, MessageRole
 
 # Chat UI
-from chat_panel import ChatPanel
-
-
+from ui.chat_panel import ChatPanel
 
 
 class SearchWidget(QWidget):
@@ -709,11 +707,22 @@ class TextEditor(QMainWindow):
             self.chat_panel.close_button.clicked.connect(lambda: self.chat_dock.hide() if self.chat_dock else None)
             # When a message is sent from the UI, handle it
             self.chat_panel.message_sent.connect(self._on_chat_message_sent)
+            # When the model selection changes in the UI, attempt to switch clients
+            self.chat_panel.model_selected.connect(self._on_model_selected)
 
             self.chat_dock = QDockWidget("Sammy AI", self)
             self.chat_dock.setAllowedAreas(Qt.RightDockWidgetArea | Qt.LeftDockWidgetArea)
             self.chat_dock.setWidget(self.chat_panel)
             self.addDockWidget(Qt.RightDockWidgetArea, self.chat_dock)
+            # Set the combo to the currently configured model
+            try:
+                current_model = self.llm_config.model_key if hasattr(self, "llm_config") else None
+                if current_model and hasattr(self.chat_panel, "model_combo"):
+                    idx = self.chat_panel.model_combo.findText(current_model)
+                    if idx >= 0:
+                        self.chat_panel.model_combo.setCurrentIndex(idx)
+            except Exception:
+                pass
         except Exception as e:
             QMessageBox.critical(self, "Chat Panel Error", str(e))
 
@@ -759,6 +768,43 @@ class TextEditor(QMainWindow):
 
         t = threading.Thread(target=worker, daemon=True)
         t.start()
+
+    def _on_model_selected(self, model_key: str):
+        """Handle a model selection change from the UI.
+
+        Attempt to update the LLM config and recreate the client. If creation
+        fails (e.g., missing API key for cloud models), report back to the UI
+        and keep the previous configuration.
+        """
+        # Store old setting in case we need to roll back
+        old_model = None
+        try:
+            old_model = self.llm_config.model_key
+        except Exception:
+            old_model = None
+
+        try:
+            # Update config and create client
+            self.llm_config.model_key = model_key
+            new_client = self.llm_config.create_client()
+            self.llm_client = new_client
+            if self.chat_panel:
+                self.chat_panel.add_system_message(f"Switched model to {model_key}")
+            # Also show a short statusbar message
+            try:
+                self.statusBar().showMessage(f"Using model: {model_key}", 3000)
+            except Exception:
+                pass
+        except Exception as e:
+            # Rollback model_key if possible
+            try:
+                if old_model is not None:
+                    self.llm_config.model_key = old_model
+            except Exception:
+                pass
+            # Inform the user in the chat panel
+            if self.chat_panel:
+                self.chat_panel.add_system_message(f"Failed to switch model to {model_key}: {e}")
 
 
     # --- Edit action handlers (TextEditor forwards to the editor widget) ---
