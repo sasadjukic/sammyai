@@ -4,14 +4,22 @@ import os
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QPlainTextEdit, QFileDialog, QMessageBox, QToolBar,
     QToolButton, QMenu, QWidget, QLabel, QStatusBar, QInputDialog, QLineEdit,
-    QHBoxLayout, QPushButton, QVBoxLayout
+    QHBoxLayout, QPushButton, QVBoxLayout, QDockWidget
 )
 from PySide6.QtGui import QAction, QKeySequence, QIcon, QPainter, QColor, QFont, QTextFormat, QPalette, QTextCursor, QPixmap
 from PySide6.QtSvg import QSvgRenderer
-from PySide6.QtCore import Qt, QRect, QSize
+from PySide6.QtCore import Qt, QRect, QSize, QTimer
+import threading
 from PySide6.QtWidgets import QSizePolicy
 from PySide6.QtWidgets import QApplication, QStyle, QTextEdit
 from api_key_manager import APIKeyDialog, APIKeyManager
+
+# LLM integration
+from llm.client import LLMConfig
+from llm.chat_manager import ChatManager, MessageRole
+
+# Chat UI
+from chat_panel import ChatPanel
 
 
 
@@ -183,6 +191,29 @@ class TextEditor(QMainWindow):
         self.untitled_count = 1
         self.update_window_title()
 
+        # --- Initialize LLM and chat manager ---
+        # Chat sessions will be stored under the package's llm/chat_sessions folder (if present)
+        try:
+            sessions_dir = os.path.join(os.path.dirname(__file__), "llm", "chat_sessions")
+            self.chat_manager = ChatManager(storage_dir=sessions_dir)
+        except Exception:
+            # Fall back to in-memory manager
+            self.chat_manager = ChatManager()
+
+        # Create default LLM client via LLMConfig; handle initialization errors gracefully
+        try:
+            self.llm_config = LLMConfig()
+            self.llm_client = self.llm_config.create_client()
+            self.statusBar().showMessage("LLM client initialized", 3000)
+        except Exception as e:
+            self.llm_client = None
+            # Non-fatal; show status so user knows LLM features aren't ready
+            self.statusBar().showMessage(f"LLM client not initialized: {e}")
+
+        # Chat panel (created lazily when the agent button is pressed)
+        self.chat_dock: QDockWidget | None = None
+        self.chat_panel: ChatPanel | None = None
+
 
     def create_actions(self):
         # New File
@@ -267,7 +298,9 @@ class TextEditor(QMainWindow):
 
         # Extra placeholder actions (icons only, no functionality yet)
         self.agent_action = QAction("Agent", self)
-        self.agent_action.setEnabled(False)
+        self.agent_action.setEnabled(True)
+        self.agent_action.setToolTip("Open Sammy AI chat panel")
+        self.agent_action.triggered.connect(self._toggle_chat_panel)
 
         self.key_action = QAction("API Key", self)
         self.key_action.setToolTip("Configure API Key")
@@ -653,6 +686,79 @@ class TextEditor(QMainWindow):
                 return True
         
         return super().eventFilter(obj, event)
+
+
+    # --- Chat panel integration ---
+    def _toggle_chat_panel(self):
+        """Show or hide the chat panel dock."""
+        if self.chat_dock and not self.chat_dock.isHidden():
+            self.chat_dock.hide()
+            return
+
+        if not self.chat_dock:
+            self._create_chat_panel()
+
+        if self.chat_dock:
+            self.chat_dock.show()
+            self.chat_panel.setFocus()
+
+    def _create_chat_panel(self):
+        """Create the chat panel and dock widget and wire up messaging."""
+        try:
+            self.chat_panel = ChatPanel(self)
+            self.chat_panel.close_button.clicked.connect(lambda: self.chat_dock.hide() if self.chat_dock else None)
+            # When a message is sent from the UI, handle it
+            self.chat_panel.message_sent.connect(self._on_chat_message_sent)
+
+            self.chat_dock = QDockWidget("Sammy AI", self)
+            self.chat_dock.setAllowedAreas(Qt.RightDockWidgetArea | Qt.LeftDockWidgetArea)
+            self.chat_dock.setWidget(self.chat_panel)
+            self.addDockWidget(Qt.RightDockWidgetArea, self.chat_dock)
+        except Exception as e:
+            QMessageBox.critical(self, "Chat Panel Error", str(e))
+
+    def _on_chat_message_sent(self, message: str):
+        """Handle message sent from chat panel UI: store in session and query LLM in background."""
+        if not message:
+            return
+
+        # Add user message to session
+        try:
+            self.chat_manager.add_message(MessageRole.USER, message)
+        except Exception:
+            pass
+
+        # Immediately show user message in UI
+        if self.chat_panel:
+            self.chat_panel.add_user_message(message)
+
+        # If LLM not available, inform the user
+        if not self.llm_client:
+            if self.chat_panel:
+                self.chat_panel.add_system_message("LLM client not initialized. Configure API key or check environment.")
+            return
+
+        # Run LLM query in background thread to avoid blocking UI
+        def worker():
+            try:
+                # Prepare messages for the LLM using the chat manager's active session
+                msgs = self.chat_manager.get_messages_for_llm()
+                # Call the synchronous chat API (blocking) in the thread
+                reply = self.llm_client.chat(msgs)
+
+                # Add assistant message to session
+                try:
+                    self.chat_manager.add_message(MessageRole.ASSISTANT, reply)
+                except Exception:
+                    pass
+
+                # Append assistant message on main thread
+                QTimer.singleShot(0, lambda: self.chat_panel.add_assistant_message(reply) if self.chat_panel else None)
+            except Exception as e:
+                QTimer.singleShot(0, lambda: self.chat_panel.add_system_message(f"LLM error: {e}") if self.chat_panel else None)
+
+        t = threading.Thread(target=worker, daemon=True)
+        t.start()
 
 
     # --- Edit action handlers (TextEditor forwards to the editor widget) ---

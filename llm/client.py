@@ -6,7 +6,9 @@ Starts with a local Ollama instance but eventually may support multiple provider
 from typing import Optional, Dict, List, Callable
 from enum import Enum
 import ollama
-from system_prompt import SYSTEM_PROMPT
+# Use a package-relative import so importing `llm.client` works when the package
+# is loaded as `llm` (avoids ModuleNotFoundError when running from project root)
+from .system_prompt import SYSTEM_PROMPT
 
 
 # Model configuration
