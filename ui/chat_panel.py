@@ -29,14 +29,23 @@ class ChatPanel(QWidget):
     
     def setup_ui(self):
         """Set up the chat panel UI."""
-        layout = QVBoxLayout()
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(10)
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Container frame to allow background styling for the "layout"
+        self.container = QFrame()
+        self.container.setObjectName("chatContainer")
+        
+        layout = QVBoxLayout(self.container)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(20)
+        
+        main_layout.addWidget(self.container)
         
         # Header
         header_layout = QHBoxLayout()
-        header_label = QLabel("💬 Sammy AI Assistant")
-        header_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        header_label = QLabel("💬 SammyAI Assistant")
+        header_label.setStyleSheet("font-size: 18px; font-weight: bold; color: #dddddd;")
         # Model selection combo box
         try:
             # Import here to avoid cyclic imports at module import time
@@ -100,13 +109,27 @@ class ChatPanel(QWidget):
         
         input_layout.addLayout(button_layout)
         layout.addLayout(input_layout)
-        
-        self.setLayout(layout)
-        
+
+        self.setObjectName("chatPanel")
+
+        # Apply scoped stylesheet
+        self.setStyleSheet(
+            """
+            #chatContainer { background-color: #2d2d2d; }
+            #chatPanel { background-color: transparent; color: #dddddd; }
+            #chatContainer QTextEdit { background-color: #2d2d2d; color: #dddddd; border: 1px solid #444444; }
+            #chatContainer QPushButton { background-color: transparent; color: #dddddd; border: 1px solid transparent; padding: 6px 8px; }
+            #chatContainer QPushButton:hover { background-color: #3a3a3a; border-color: #555555; }
+            #chatContainer QComboBox { background-color: transparent; color: #dddddd; border: 1px solid #444444; padding: 4px; }
+            #chatContainer QLabel { color: #dddddd; }
+            #chatContainer QScrollArea { background-color: transparent; }
+            """
+        )
+
         # Connect signals
         self.send_button.clicked.connect(self._on_send_clicked)
         self.clear_button.clicked.connect(self._on_clear_clicked)
-        
+
         # Install event filter for Ctrl+Enter
         self.input_field.installEventFilter(self)
     
@@ -142,7 +165,7 @@ class ChatPanel(QWidget):
         """Add a user message to the chat display."""
         self.chat_display.append(f"<div style='margin-bottom: 10px;'>"
                                  f"<b style='color: #4A90E2;'>You:</b><br>"
-                                 f"<span style='color: #CCCCCC;'>{self._escape_html(message)}</span>"
+                                 f"<span style='color: #dddddd;'>{self._escape_html(message)}</span>"
                                  f"</div>")
         self._scroll_to_bottom()
     
@@ -150,7 +173,7 @@ class ChatPanel(QWidget):
         """Add an assistant message to the chat display."""
         self.chat_display.append(f"<div style='margin-bottom: 10px;'>"
                                  f"<b style='color: #50C878;'>Sammy:</b><br>"
-                                 f"<span style='color: #CCCCCC;'>{self._escape_html(message)}</span>"
+                                 f"<span style='color: #dddddd;'>{self._escape_html(message)}</span>"
                                  f"</div>")
         self._scroll_to_bottom()
     

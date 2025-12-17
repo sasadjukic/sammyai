@@ -724,7 +724,7 @@ class TextEditor(QMainWindow):
             # When the model selection changes in the UI, attempt to switch clients
             self.chat_panel.model_selected.connect(self._on_model_selected)
 
-            self.chat_dock = QDockWidget("Sammy AI", self)
+            self.chat_dock = QDockWidget("SammyAI", self)
             self.chat_dock.setAllowedAreas(Qt.RightDockWidgetArea | Qt.LeftDockWidgetArea)
             self.chat_dock.setWidget(self.chat_panel)
             self.addDockWidget(Qt.RightDockWidgetArea, self.chat_dock)
