@@ -118,9 +118,36 @@ class ChatPanel(QWidget):
             #chatContainer { background-color: #2d2d2d; }
             #chatPanel { background-color: transparent; color: #dddddd; }
             #chatContainer QTextEdit { background-color: #2d2d2d; color: #dddddd; border: 1px solid #444444; }
-            #chatContainer QPushButton { background-color: transparent; color: #dddddd; border: 1px solid transparent; padding: 6px 8px; }
-            #chatContainer QPushButton:hover { background-color: #3a3a3a; border-color: #555555; }
-            #chatContainer QComboBox { background-color: transparent; color: #dddddd; border: 1px solid #444444; padding: 4px; }
+            #chatContainer QPushButton { 
+                background-color: transparent; 
+                color: #dddddd; 
+                border: 1px solid #444444; 
+                border-radius: 4px; 
+                padding: 6px 12px; 
+            }
+            #chatContainer QPushButton:hover { 
+                background-color: #3a3a3a; 
+                border-color: #666666; 
+            }
+            #chatContainer QComboBox { 
+                background-color: #3d3d3d; 
+                color: #eeeeee; 
+                border: 1px solid #444444; 
+                border-radius: 4px;
+                padding: 4px; 
+            }
+            #chatContainer QComboBox:hover { 
+                background-color: #444444; 
+            }
+            #chatContainer QComboBox:on { 
+                background-color: #444444; 
+            }
+            #chatContainer QComboBox QAbstractItemView {
+                background-color: #2d2d2d;
+                color: #eeeeee;
+                selection-background-color: #444444;
+                border: 1px solid #444444;
+            }
             #chatContainer QLabel { color: #dddddd; }
             #chatContainer QScrollArea { background-color: transparent; }
             """
