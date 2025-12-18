@@ -26,6 +26,7 @@ class ChatPanel(QWidget):
         self.setMinimumWidth(300)
         self.setMaximumWidth(1000)
         self.setup_ui()
+        self._thinking_cursor = None
     
     def setup_ui(self):
         """Set up the chat panel UI."""
@@ -227,6 +228,35 @@ class ChatPanel(QWidget):
         """Enable or disable the input field and send button."""
         self.input_field.setEnabled(enabled)
         self.send_button.setEnabled(enabled)
+
+    def set_thinking(self, thinking: bool):
+        """Show or hide the 'Sammy is thinking...' message."""
+        if thinking:
+            if self._thinking_cursor is None:
+                # Add the thinking message
+                self.chat_display.append("<div id='thinking_msg' style='margin-bottom: 10px;'>"
+                                         "<i style='color: #888888;'>Sammy is thinking...</i>"
+                                         "</div>")
+                self._scroll_to_bottom()
+                
+                # Record the position to remove it later
+                # We move a cursor to the end and then find the block we just added
+                cursor = self.chat_display.textCursor()
+                cursor.movePosition(QTextCursor.End)
+                
+                # We'll use a specific technique to remove the last block
+                self._thinking_cursor = cursor
+        else:
+            if self._thinking_cursor is not None:
+                # Remove the last block (the thinking message)
+                cursor = self.chat_display.textCursor()
+                cursor.movePosition(QTextCursor.End)
+                cursor.select(QTextCursor.BlockUnderCursor)
+                cursor.removeSelectedText()
+                # Also remove the unnecessary empty line append leaves
+                cursor.deletePreviousChar()
+                self._thinking_cursor = None
+                self._scroll_to_bottom()
     
     def _scroll_to_bottom(self):
         """Scroll the chat display to the bottom."""

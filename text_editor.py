@@ -754,6 +754,7 @@ class TextEditor(QMainWindow):
         # Immediately show user message in UI
         if self.chat_panel:
             self.chat_panel.add_user_message(message)
+            self.chat_panel.set_thinking(True)
 
         # If LLM not available, inform the user
         if not self.llm_client:
@@ -787,12 +788,14 @@ class TextEditor(QMainWindow):
     def _handle_llm_response(self, reply: str):
         """Handle successful LLM response on main thread."""
         if self.chat_panel:
+            self.chat_panel.set_thinking(False)
             self.chat_panel.add_assistant_message(reply)
             
     @Slot(str)
     def _handle_llm_error(self, error_msg: str):
         """Handle LLM error on main thread."""
         if self.chat_panel:
+            self.chat_panel.set_thinking(False)
             self.chat_panel.add_system_message(f"LLM error: {error_msg}")
 
     def _on_model_selected(self, model_key: str):
