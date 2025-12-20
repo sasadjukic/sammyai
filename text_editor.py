@@ -936,6 +936,38 @@ class TextEditor(QMainWindow):
             pass
 
     # --- File operations ---
+    def _should_index_file(self, file_path: str, max_size_kb: int = 100) -> bool:
+        """
+        Check if a file should be indexed based on its size.
+        
+        Args:
+            file_path: Path to the file
+            max_size_kb: Maximum file size in KB to index (default 100KB)
+            
+        Returns:
+            True if file should be indexed, False otherwise
+        """
+        try:
+            file_size = os.path.getsize(file_path)
+            file_size_kb = file_size / 1024
+            
+            if file_size_kb > max_size_kb:
+                # Ask user if they want to index large files
+                reply = QMessageBox.question(
+                    self,
+                    "Large File Indexing",
+                    f"The file is {file_size_kb:.1f}KB. Indexing large files may temporarily freeze the UI.\n\n"
+                    f"Do you want to index this file for RAG context?",
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.No
+                )
+                return reply == QMessageBox.Yes
+            
+            return True
+        except Exception as e:
+            print(f"Error checking file size: {e}")
+            return False
+    
     def open_file(self):
         path, _ = QFileDialog.getOpenFileName(self, "Open File", "", "Text Files (*.txt)")
         if path:
@@ -947,21 +979,37 @@ class TextEditor(QMainWindow):
                 
                 # Index file in RAG system (in background thread to avoid blocking GUI)
                 if self.rag_system:
-                    self.statusBar().showMessage(f"Indexing {os.path.basename(path)}...", 1000)
-                    
-                    def index_worker():
+                    # Check if file should be indexed based on size
+                    if self._should_index_file(path):
+                        file_size_kb = os.path.getsize(path) / 1024
+                        self.statusBar().showMessage(
+                            f"Indexing {os.path.basename(path)} ({file_size_kb:.1f}KB)...", 1000
+                        )
+                        
+                        def index_worker():
+                            try:
+                                self.rag_system.index_file(path)
+                                self.rag_system.mark_active_file(path)
+                                # Update status on main thread
+                                QTimer.singleShot(0, lambda: self.statusBar().showMessage(
+                                    f"Indexed {os.path.basename(path)}", 2000))
+                            except Exception as e:
+                                print(f"Failed to index file: {e}")
+                                QTimer.singleShot(0, lambda: self.statusBar().showMessage(
+                                    f"Failed to index {os.path.basename(path)}", 3000))
+                        
+                        # Run indexing in background thread
+                        t = threading.Thread(target=index_worker, daemon=True)
+                        t.start()
+                    else:
+                        # User declined or file too large - just mark as active without indexing
                         try:
-                            self.rag_system.index_file(path)
                             self.rag_system.mark_active_file(path)
-                            # Update status on main thread
-                            QTimer.singleShot(0, lambda: self.statusBar().showMessage(
-                                f"Indexed {os.path.basename(path)}", 2000))
+                            self.statusBar().showMessage(
+                                f"Opened {os.path.basename(path)} (indexing skipped)", 2000
+                            )
                         except Exception as e:
-                            print(f"Failed to index file: {e}")
-                    
-                    # Run indexing in background thread
-                    t = threading.Thread(target=index_worker, daemon=True)
-                    t.start()
+                            print(f"Failed to mark active file: {e}")
             except Exception as e:
                 QMessageBox.critical(self, "Error", str(e))
 
@@ -981,20 +1029,33 @@ class TextEditor(QMainWindow):
             # Re-index file in RAG system after save (in background thread)
             if self.rag_system:
                 saved_file = self.current_file  # Capture for thread
-                self.statusBar().showMessage(f"Saved. Re-indexing...", 1000)
                 
-                def reindex_worker():
-                    try:
-                        self.rag_system.index_file(saved_file, force_reindex=True)
-                        # Update status on main thread
-                        QTimer.singleShot(0, lambda: self.statusBar().showMessage(
-                            f"Saved and re-indexed {os.path.basename(saved_file)}", 2000))
-                    except Exception as e:
-                        print(f"Failed to re-index file: {e}")
-                
-                # Run re-indexing in background thread
-                t = threading.Thread(target=reindex_worker, daemon=True)
-                t.start()
+                # Check if file should be re-indexed based on size
+                if self._should_index_file(saved_file):
+                    file_size_kb = os.path.getsize(saved_file) / 1024
+                    self.statusBar().showMessage(
+                        f"Saved. Re-indexing ({file_size_kb:.1f}KB)...", 1000
+                    )
+                    
+                    def reindex_worker():
+                        try:
+                            self.rag_system.index_file(saved_file, force_reindex=True)
+                            # Update status on main thread
+                            QTimer.singleShot(0, lambda: self.statusBar().showMessage(
+                                f"Saved and re-indexed {os.path.basename(saved_file)}", 2000))
+                        except Exception as e:
+                            print(f"Failed to re-index file: {e}")
+                            QTimer.singleShot(0, lambda: self.statusBar().showMessage(
+                                f"Saved (re-indexing failed)", 3000))
+                    
+                    # Run re-indexing in background thread
+                    t = threading.Thread(target=reindex_worker, daemon=True)
+                    t.start()
+                else:
+                    # File too large or user declined - just save without re-indexing
+                    self.statusBar().showMessage(
+                        f"Saved {os.path.basename(saved_file)} (re-indexing skipped)", 2000
+                    )
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
 

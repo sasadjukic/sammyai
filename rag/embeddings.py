@@ -46,7 +46,7 @@ class EmbeddingManager:
         embedding = self.model.encode(text, convert_to_numpy=True)
         return embedding
     
-    def batch_generate(self, texts: List[str], batch_size: int = 32, show_progress: bool = True) -> List[np.ndarray]:
+    def batch_generate(self, texts: List[str], batch_size: int = 32, show_progress: bool = False) -> List[np.ndarray]:
         """
         Generate embeddings for multiple texts efficiently
         
