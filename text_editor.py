@@ -21,6 +21,9 @@ from llm.chat_manager import ChatManager, MessageRole
 # Chat UI
 from ui.chat_panel import ChatPanel
 
+# RAG system
+from rag.rag_system import RAGSystem
+
 
 class SearchWidget(QWidget):
     """A search widget with text input, match counter, and navigation buttons."""
@@ -194,14 +197,29 @@ class TextEditor(QMainWindow):
         self.untitled_count = 1
         self.update_window_title()
 
+        # --- Initialize RAG system ---
+        try:
+            rag_persist_dir = os.path.join(os.path.dirname(__file__), "cache", "index")
+            rag_cache_dir = os.path.join(os.path.dirname(__file__), "cache", "embeddings")
+            self.rag_system = RAGSystem(
+                chunk_size=500,
+                overlap=50,
+                persist_dir=rag_persist_dir,
+                cache_dir=rag_cache_dir
+            )
+            self.statusBar().showMessage("RAG system initialized", 2000)
+        except Exception as e:
+            self.rag_system = None
+            print(f"RAG system initialization failed: {e}")
+
         # --- Initialize LLM and chat manager ---
         # Chat sessions will be stored under the package's llm/chat_sessions folder (if present)
         try:
             sessions_dir = os.path.join(os.path.dirname(__file__), "llm", "chat_sessions")
-            self.chat_manager = ChatManager(storage_dir=sessions_dir)
+            self.chat_manager = ChatManager(storage_dir=sessions_dir, rag_system=self.rag_system)
         except Exception:
             # Fall back to in-memory manager
-            self.chat_manager = ChatManager()
+            self.chat_manager = ChatManager(rag_system=self.rag_system)
 
         # Load existing sessions and ensure an active one exists
         self.chat_manager.load_all_sessions()
@@ -766,7 +784,15 @@ class TextEditor(QMainWindow):
         def worker():
             try:
                 # Prepare messages for the LLM using the chat manager's active session
-                msgs = self.chat_manager.get_messages_for_llm()
+                # Use RAG context if available
+                if self.rag_system:
+                    msgs = self.chat_manager.get_messages_for_llm_with_context(
+                        query=message,
+                        top_k=3
+                    )
+                else:
+                    msgs = self.chat_manager.get_messages_for_llm()
+                
                 # Call the synchronous chat API (blocking) in the thread
                 reply = self.llm_client.chat(msgs)
 
@@ -918,8 +944,27 @@ class TextEditor(QMainWindow):
                     self.editor.setPlainText(file.read())
                 self.current_file = path
                 self.update_window_title()
+                
+                # Index file in RAG system (in background thread to avoid blocking GUI)
+                if self.rag_system:
+                    self.statusBar().showMessage(f"Indexing {os.path.basename(path)}...", 1000)
+                    
+                    def index_worker():
+                        try:
+                            self.rag_system.index_file(path)
+                            self.rag_system.mark_active_file(path)
+                            # Update status on main thread
+                            QTimer.singleShot(0, lambda: self.statusBar().showMessage(
+                                f"Indexed {os.path.basename(path)}", 2000))
+                        except Exception as e:
+                            print(f"Failed to index file: {e}")
+                    
+                    # Run indexing in background thread
+                    t = threading.Thread(target=index_worker, daemon=True)
+                    t.start()
             except Exception as e:
                 QMessageBox.critical(self, "Error", str(e))
+
 
     def save_file(self):
         if not self.current_file:
@@ -932,8 +977,27 @@ class TextEditor(QMainWindow):
             with open(self.current_file, "w", encoding="utf-8") as file:
                 file.write(self.editor.toPlainText())
             self.update_window_title()
+            
+            # Re-index file in RAG system after save (in background thread)
+            if self.rag_system:
+                saved_file = self.current_file  # Capture for thread
+                self.statusBar().showMessage(f"Saved. Re-indexing...", 1000)
+                
+                def reindex_worker():
+                    try:
+                        self.rag_system.index_file(saved_file, force_reindex=True)
+                        # Update status on main thread
+                        QTimer.singleShot(0, lambda: self.statusBar().showMessage(
+                            f"Saved and re-indexed {os.path.basename(saved_file)}", 2000))
+                    except Exception as e:
+                        print(f"Failed to re-index file: {e}")
+                
+                # Run re-indexing in background thread
+                t = threading.Thread(target=reindex_worker, daemon=True)
+                t.start()
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
+
 
     def save_file_as(self):
         path, _ = QFileDialog.getSaveFileName(self, "Save File As", "", "Text Files (*.txt);;All Files (*)")
@@ -944,12 +1008,26 @@ class TextEditor(QMainWindow):
         self.update_window_title()
 
     def close_file(self):
+        # Unmark file as active in RAG system
+        if self.rag_system and self.current_file:
+            try:
+                self.rag_system.unmark_active_file(self.current_file)
+            except Exception as e:
+                print(f"Failed to unmark active file: {e}")
+        
         self.editor.clear()
         self.current_file = None
         self.untitled_count += 1
         self.update_window_title()
 
     def new_file(self):
+        # Unmark previous file as active in RAG system
+        if self.rag_system and self.current_file:
+            try:
+                self.rag_system.unmark_active_file(self.current_file)
+            except Exception as e:
+                print(f"Failed to unmark active file: {e}")
+        
         self.editor.clear()
         self.current_file = None
         self.untitled_count += 1

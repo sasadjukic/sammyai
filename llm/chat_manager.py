@@ -163,16 +163,18 @@ class ChatSession:
 class ChatManager:
     """Manages multiple chat sessions and provides session persistence."""
     
-    def __init__(self, storage_dir: Optional[str] = None):
+    def __init__(self, storage_dir: Optional[str] = None, rag_system: Optional[Any] = None):
         """
         Initialize the chat manager.
         
         Args:
             storage_dir: Directory for storing session data (optional)
+            rag_system: Optional RAG system for context-aware responses
         """
         self.sessions: Dict[str, ChatSession] = {}
         self.active_session_id: Optional[str] = None
         self.storage_dir = storage_dir
+        self.rag_system = rag_system
         
         if storage_dir:
             Path(storage_dir).mkdir(parents=True, exist_ok=True)
@@ -319,6 +321,59 @@ class ChatManager:
         if session:
             return session.get_messages_for_llm(include_system)
         return []
+    
+    def get_messages_for_llm_with_context(self, 
+                                         query: str,
+                                         session_id: Optional[str] = None, 
+                                         include_system: bool = True,
+                                         top_k: int = 3) -> List[Dict[str, str]]:
+        """
+        Get messages in LLM format with RAG context injected.
+        
+        Args:
+            query: The user's query (used for context retrieval)
+            session_id: Session ID (uses active session if not provided)
+            include_system: Whether to include system messages
+            top_k: Number of context chunks to retrieve from RAG
+            
+        Returns:
+            List of messages in LLM format with context prepended
+        """
+        # Get base messages
+        messages = self.get_messages_for_llm(session_id, include_system)
+        
+        # If RAG system is available, retrieve and inject context
+        if self.rag_system and query:
+            try:
+                # Retrieve relevant context
+                context = self.rag_system.get_context(query, top_k=top_k, boost_active=True)
+                
+                # Format context for LLM
+                if context and context.chunks:
+                    context_text = context.format_for_llm(max_chunks=top_k)
+                    
+                    # Create system message with context
+                    context_message = {
+                        "role": "system",
+                        "content": f"Here is relevant context from the user's files:\n\n{context_text}\n\nUse this context to provide more accurate and relevant responses."
+                    }
+                    
+                    # Insert context message at the beginning (after any existing system messages)
+                    # Find the position after existing system messages
+                    insert_pos = 0
+                    for i, msg in enumerate(messages):
+                        if msg.get("role") == "system":
+                            insert_pos = i + 1
+                        else:
+                            break
+                    
+                    messages.insert(insert_pos, context_message)
+            except Exception as e:
+                # If RAG fails, continue without context
+                print(f"RAG context retrieval failed: {e}")
+        
+        return messages
+
     
     def clear_session(self, session_id: Optional[str] = None, keep_system: bool = True) -> bool:
         """
