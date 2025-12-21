@@ -1,54 +1,24 @@
 """
-RAG System - Main interface that combines indexing, embeddings, and retrieval
+RAG System - Main interface using separate retriever and context builder modules
 """
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Set
 from pathlib import Path
 import hashlib
 
-# Import our RAG components (assuming they're in the same package)
+# Import our RAG components
 try:
     from .indexer import FileIndexer, Document
     from .embeddings import EmbeddingManager
     from .vector_store import VectorStore
+    from .retriever import ContextRetriever
+    from .context_builder import ContextBuilder, FormattedContext
 except ImportError:
     # For standalone testing
     from indexer import FileIndexer, Document
     from embeddings import EmbeddingManager
     from vector_store import VectorStore
-
-
-class RetrievedContext:
-    """Represents retrieved context for a query"""
-    def __init__(self, chunks: List[Dict], query: str):
-        self.chunks = chunks
-        self.query = query
-    
-    def format_for_llm(self, max_chunks: int = 5) -> str:
-        """
-        Format retrieved context for LLM consumption
-        
-        Args:
-            max_chunks: Maximum number of chunks to include
-            
-        Returns:
-            Formatted context string
-        """
-        if not self.chunks:
-            return ""
-        
-        context_parts = ["Here is relevant context from the indexed files:"]
-        context_parts.append("")
-        
-        for i, chunk in enumerate(self.chunks[:max_chunks]):
-            file_name = Path(chunk['metadata'].get('file_path', 'unknown')).name
-            chunk_idx = chunk['metadata'].get('chunk_index', 0)
-            score = chunk.get('score', 0)
-            
-            context_parts.append(f"[Source {i+1}: {file_name} (chunk {chunk_idx}, relevance: {score:.2f})]")
-            context_parts.append(chunk['text'])
-            context_parts.append("")
-        
-        return "\n".join(context_parts)
+    from retriever import ContextRetriever
+    from context_builder import ContextBuilder, FormattedContext
 
 
 class RAGSystem:
@@ -59,7 +29,9 @@ class RAGSystem:
                  overlap: int = 50,
                  embedding_model: str = "all-MiniLM-L6-v2",
                  persist_dir: str = "cache/index",
-                 cache_dir: str = "cache/embeddings"):
+                 cache_dir: str = "cache/embeddings",
+                 max_context_tokens: int = 4000,
+                 max_documents: int = 1000):
         """
         Initialize RAG system
         
@@ -69,16 +41,20 @@ class RAGSystem:
             embedding_model: Name of the embedding model to use
             persist_dir: Directory for vector database
             cache_dir: Directory for embedding cache
+            max_context_tokens: Maximum tokens for context
+            max_documents: Maximum number of chunks in the index
         """
         print("Initializing RAG system...")
         
-        # Initialize components
+        # Initialize core components
         self.indexer = FileIndexer(chunk_size=chunk_size, overlap=overlap)
         self.embedding_manager = EmbeddingManager(model_name=embedding_model, cache_dir=cache_dir)
         self.vector_store = VectorStore(persist_directory=persist_dir)
         
-        # Track active files (files currently open in editor)
-        self.active_files = set()
+        # Initialize retrieval and context building
+        self.retriever = ContextRetriever(self.vector_store, self.embedding_manager)
+        self.context_builder = ContextBuilder(max_tokens=max_context_tokens)
+        self.max_documents = max_documents
         
         print("RAG system ready")
     
@@ -100,6 +76,13 @@ class RAGSystem:
         try:
             file_path = str(Path(file_path).absolute())
             
+            # SAFETY CHECK: Document limit
+            current_count = self.vector_store.get_document_count()
+            if current_count >= self.max_documents and not force_reindex:
+                print(f"❌ Document limit reached ({current_count}/{self.max_documents})")
+                print("   Clear index with rag.clear_index() or increase max_documents")
+                return False
+            
             # Check if already indexed (unless force_reindex)
             if not force_reindex:
                 existing_files = self.vector_store.get_all_file_paths()
@@ -114,6 +97,11 @@ class RAGSystem:
             chunks = self.indexer.index_file(file_path)
             if not chunks:
                 print(f"No chunks created for {file_path}")
+                return False
+            
+            # SAFETY CHECK: Don't index if it would exceed limit
+            if current_count + len(chunks) > self.max_documents:
+                print(f"❌ Indexing would exceed limit ({current_count + len(chunks)}/{self.max_documents})")
                 return False
             
             # Step 2: Generate embeddings
@@ -142,6 +130,8 @@ class RAGSystem:
             
         except Exception as e:
             print(f"Error indexing file {file_path}: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def index_directory(self, directory_path: str, recursive: bool = True) -> int:
@@ -181,12 +171,8 @@ class RAGSystem:
         file_path = str(Path(file_path).absolute())
         self.vector_store.delete_by_file(file_path)
         
-        # Clear cache
-        cache_key = self._get_file_hash(file_path)
-        # Note: We don't delete the cache file, just let it be overwritten if needed
-        
-        # Remove from active files
-        self.active_files.discard(file_path)
+        # Remove from active files in retriever
+        self.retriever.remove_active_file(file_path)
     
     def mark_active_file(self, file_path: str) -> None:
         """
@@ -196,7 +182,7 @@ class RAGSystem:
             file_path: Path to the active file
         """
         file_path = str(Path(file_path).absolute())
-        self.active_files.add(file_path)
+        self.retriever.add_active_file(file_path)
     
     def unmark_active_file(self, file_path: str) -> None:
         """
@@ -206,51 +192,88 @@ class RAGSystem:
             file_path: Path to the file
         """
         file_path = str(Path(file_path).absolute())
-        self.active_files.discard(file_path)
+        self.retriever.remove_active_file(file_path)
     
-    def get_context(self, query: str, top_k: int = 5, boost_active: bool = True) -> RetrievedContext:
+    def get_context(self, 
+                   query: str, 
+                   top_k: int = 5,
+                   retrieval_method: str = "vector",
+                   format_style: str = "detailed",
+                   boost_active_files: bool = True,
+                   min_score: float = 0.0,
+                   filters: Optional[Dict] = None) -> FormattedContext:
         """
-        Retrieve relevant context for a query
+        Retrieve and format relevant context for a query
         
         Args:
             query: User's query
             top_k: Number of chunks to retrieve
-            boost_active: Whether to boost results from active files
+            retrieval_method: "vector", "keyword", or "hybrid"
+            format_style: "detailed", "compact", or "minimal"
+            boost_active_files: Whether to boost results from active files
+            min_score: Minimum relevance score threshold
+            filters: Optional metadata filters
             
         Returns:
-            RetrievedContext object with retrieved chunks
+            FormattedContext object with formatted context
         """
-        # Generate query embedding
-        query_embedding = self.embedding_manager.generate_embedding(query)
-        
-        # Search vector store
-        ids, texts, metadatas, scores = self.vector_store.search(
-            query_embedding, 
-            top_k=top_k * 2 if boost_active else top_k  # Get more if boosting
+        # Step 1: Retrieve relevant chunks
+        retrieval_results = self.retriever.retrieve(
+            query=query,
+            top_k=top_k,
+            method=retrieval_method,
+            filters=filters,
+            boost_active_files=boost_active_files,
+            min_score=min_score
         )
         
-        # Combine results
-        chunks = []
-        for chunk_id, text, metadata, score in zip(ids, texts, metadatas, scores):
-            # Boost score if from active file
-            if boost_active and metadata.get('file_path') in self.active_files:
-                score = score * 1.5  # 50% boost for active files
+        # Step 2: Build formatted context
+        formatted_context = self.context_builder.build_context(
+            retrieval_results=retrieval_results,
+            query=query,
+            include_metadata=True,
+            format_style=format_style
+        )
+        
+        return formatted_context
+    
+    def search_similar(self, 
+                      query: str, 
+                      top_k: int = 10,
+                      file_filter: Optional[str] = None) -> List[Dict]:
+        """
+        Search for similar content (for UI display)
+        
+        Args:
+            query: Search query
+            top_k: Number of results
+            file_filter: Optional file extension filter (e.g., ".py")
             
-            chunks.append({
-                'id': chunk_id,
-                'text': text,
-                'metadata': metadata,
-                'score': score
-            })
+        Returns:
+            List of search results with metadata
+        """
+        filters = None
+        if file_filter:
+            filters = {"file_extension": file_filter}
         
-        # Re-sort by score after boosting
-        if boost_active:
-            chunks.sort(key=lambda x: x['score'], reverse=True)
+        results = self.retriever.retrieve(
+            query=query,
+            top_k=top_k,
+            method="vector",
+            filters=filters,
+            boost_active_files=False,
+            min_score=0.0
+        )
         
-        # Take top_k after boosting
-        chunks = chunks[:top_k]
-        
-        return RetrievedContext(chunks, query)
+        return [
+            {
+                'text': r.text,
+                'file': Path(r.metadata.get('file_path', '')).name,
+                'score': r.score,
+                'metadata': r.metadata
+            }
+            for r in results
+        ]
     
     def get_stats(self) -> Dict:
         """Get statistics about the RAG system"""
@@ -259,16 +282,22 @@ class RAGSystem:
         return {
             'total_documents': self.vector_store.get_document_count(),
             'indexed_files': len(indexed_files),
-            'active_files': len(self.active_files),
+            'active_files': len(self.retriever.active_files),
             'embedding_dimension': self.embedding_manager.get_embedding_dimension(),
-            'files': indexed_files
+            'files': indexed_files,
+            'active_file_list': list(self.retriever.active_files)
         }
+    
+    def get_file_structure_summary(self) -> str:
+        """Get a summary of indexed file structure"""
+        indexed_files = self.vector_store.get_all_file_paths()
+        return self.context_builder.add_file_structure_summary(indexed_files)
     
     def clear_index(self) -> None:
         """Clear all indexed data"""
         self.vector_store.clear_collection()
         self.embedding_manager.clear_cache()
-        self.active_files.clear()
+        self.retriever.active_files.clear()
         print("Index and cache cleared")
 
 
@@ -281,19 +310,44 @@ if __name__ == "__main__":
     success = rag.index_file("example.py")
     print(f"Indexing success: {success}")
     
+    # Mark as active
+    rag.mark_active_file("example.py")
+    
     # Get stats
     stats = rag.get_stats()
     print(f"\nRAG Stats:")
     print(f"  Total chunks: {stats['total_documents']}")
     print(f"  Indexed files: {stats['indexed_files']}")
-    print(f"  Files: {stats['files']}")
+    print(f"  Active files: {stats['active_files']}")
     
-    # Search for context
+    # Get file structure
+    print("\nFile Structure:")
+    print(rag.get_file_structure_summary())
+    
+    # Search with different methods
     query = "How do I handle errors in Python?"
-    context = rag.get_context(query, top_k=3)
     
-    print(f"\nQuery: {query}")
-    print(f"Retrieved {len(context.chunks)} chunks")
+    # Vector search with detailed format
+    print(f"\n{'='*60}")
+    print("DETAILED FORMAT (Vector Search)")
+    print('='*60)
+    context = rag.get_context(
+        query=query,
+        top_k=3,
+        retrieval_method="vector",
+        format_style="detailed",
+        boost_active_files=True
+    )
+    print(context.context_text)
+    print(f"\nStats: {context.total_tokens} tokens, Truncated: {context.truncated}")
     
-    print("\nFormatted context for LLM:")
-    print(context.format_for_llm())
+    # Compact format
+    print(f"\n{'='*60}")
+    print("COMPACT FORMAT")
+    print('='*60)
+    context = rag.get_context(
+        query=query,
+        top_k=3,
+        format_style="compact"
+    )
+    print(context.context_text)

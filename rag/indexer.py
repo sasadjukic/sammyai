@@ -58,6 +58,14 @@ class FileIndexer:
             print(f"Unsupported file type: {file_path}")
             return None
         
+        # CRITICAL: Check file size before reading
+        file_size = os.path.getsize(file_path)
+        max_size = 1 * 1024 * 1024  # 1MB limit
+        
+        if file_size > max_size:
+            print(f"⚠️  Skipping large file: {file_path} ({file_size / 1024:.1f} KB)")
+            return None
+        
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
@@ -242,4 +250,3 @@ if __name__ == "__main__":
         print(f"ID: {chunk.chunk_id}")
         print(f"Text preview: {chunk.text[:100]}...")
         print(f"Metadata: {chunk.metadata}")
-

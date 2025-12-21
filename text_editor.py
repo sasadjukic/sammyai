@@ -205,7 +205,8 @@ class TextEditor(QMainWindow):
                 chunk_size=500,
                 overlap=50,
                 persist_dir=rag_persist_dir,
-                cache_dir=rag_cache_dir
+                cache_dir=rag_cache_dir,
+                max_documents=50
             )
             self.statusBar().showMessage("RAG system initialized", 2000)
         except Exception as e:
@@ -243,6 +244,10 @@ class TextEditor(QMainWindow):
         # Chat panel (created lazily when the agent button is pressed)
         self.chat_dock: QDockWidget | None = None
         self.chat_panel: ChatPanel | None = None
+
+        # Track if indexing is in progress
+        self._indexing_in_progress = False
+        self._indexing_lock = threading.Lock()
 
 
     def create_actions(self):
@@ -345,6 +350,12 @@ class TextEditor(QMainWindow):
         # Undo/redo availability will be driven by document signals
         self.undo_action.setEnabled(False)
         self.redo_action.setEnabled(False)
+
+        # Manual RAG indexing action
+        self.index_action = QAction("Index Current File for RAG", self)
+        self.index_action.setShortcut(QKeySequence("Ctrl+Shift+I"))
+        self.index_action.triggered.connect(self._index_current_file_manually)
+        self.index_action.setStatusTip("Index current file for AI assistant context")
 
     def _load_icon(self, theme_name, fallback):
         icon = QIcon.fromTheme(theme_name)
@@ -492,6 +503,20 @@ class TextEditor(QMainWindow):
         self.replace_action.setIcon(self._load_icon("edit-find-replace", QStyle.SP_FileDialogContentsView))
         edit_menu.addAction(self.search_action)
         edit_menu.addAction(self.replace_action)
+
+        # RAG menu
+        rag_menu = menubar.addMenu("RAG")
+        rag_menu.addAction(self.index_action)
+    
+        # Add action to clear RAG index
+        clear_rag_action = QAction("Clear RAG Index", self)
+        clear_rag_action.triggered.connect(self._clear_rag_index)
+        rag_menu.addAction(clear_rag_action)
+    
+        # Add action to show RAG stats
+        rag_stats_action = QAction("Show RAG Statistics", self)
+        rag_stats_action.triggered.connect(self._show_rag_stats)
+        rag_menu.addAction(rag_stats_action)
 
     def create_statusbar(self):
         """Create status bar with line/column and word count indicators."""
@@ -977,39 +1002,16 @@ class TextEditor(QMainWindow):
                 self.current_file = path
                 self.update_window_title()
                 
-                # Index file in RAG system (in background thread to avoid blocking GUI)
+                # Only mark as active, DON'T index automatically
                 if self.rag_system:
-                    # Check if file should be indexed based on size
-                    if self._should_index_file(path):
-                        file_size_kb = os.path.getsize(path) / 1024
+                    try:
+                        self.rag_system.mark_active_file(path)
                         self.statusBar().showMessage(
-                            f"Indexing {os.path.basename(path)} ({file_size_kb:.1f}KB)...", 1000
+                            f"Opened {os.path.basename(path)}", 2000
                         )
+                    except Exception as e:
+                        print(f"Failed to mark active file: {e}")
                         
-                        def index_worker():
-                            try:
-                                self.rag_system.index_file(path)
-                                self.rag_system.mark_active_file(path)
-                                # Update status on main thread
-                                QTimer.singleShot(0, lambda: self.statusBar().showMessage(
-                                    f"Indexed {os.path.basename(path)}", 2000))
-                            except Exception as e:
-                                print(f"Failed to index file: {e}")
-                                QTimer.singleShot(0, lambda: self.statusBar().showMessage(
-                                    f"Failed to index {os.path.basename(path)}", 3000))
-                        
-                        # Run indexing in background thread
-                        t = threading.Thread(target=index_worker, daemon=True)
-                        t.start()
-                    else:
-                        # User declined or file too large - just mark as active without indexing
-                        try:
-                            self.rag_system.mark_active_file(path)
-                            self.statusBar().showMessage(
-                                f"Opened {os.path.basename(path)} (indexing skipped)", 2000
-                            )
-                        except Exception as e:
-                            print(f"Failed to mark active file: {e}")
             except Exception as e:
                 QMessageBox.critical(self, "Error", str(e))
 
@@ -1026,38 +1028,16 @@ class TextEditor(QMainWindow):
                 file.write(self.editor.toPlainText())
             self.update_window_title()
             
-            # Re-index file in RAG system after save (in background thread)
+            # ⭐ FIXED: Don't auto-reindex on save
+            # Just show a saved message
             if self.rag_system:
-                saved_file = self.current_file  # Capture for thread
+                self.statusBar().showMessage(
+                    f"Saved {os.path.basename(self.current_file)}", 2000
+                )
                 
-                # Check if file should be re-indexed based on size
-                if self._should_index_file(saved_file):
-                    file_size_kb = os.path.getsize(saved_file) / 1024
-                    self.statusBar().showMessage(
-                        f"Saved. Re-indexing ({file_size_kb:.1f}KB)...", 1000
-                    )
-                    
-                    def reindex_worker():
-                        try:
-                            self.rag_system.index_file(saved_file, force_reindex=True)
-                            # Update status on main thread
-                            QTimer.singleShot(0, lambda: self.statusBar().showMessage(
-                                f"Saved and re-indexed {os.path.basename(saved_file)}", 2000))
-                        except Exception as e:
-                            print(f"Failed to re-index file: {e}")
-                            QTimer.singleShot(0, lambda: self.statusBar().showMessage(
-                                f"Saved (re-indexing failed)", 3000))
-                    
-                    # Run re-indexing in background thread
-                    t = threading.Thread(target=reindex_worker, daemon=True)
-                    t.start()
-                else:
-                    # File too large or user declined - just save without re-indexing
-                    self.statusBar().showMessage(
-                        f"Saved {os.path.basename(saved_file)} (re-indexing skipped)", 2000
-                    )
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
+            
 
 
     def save_file_as(self):
@@ -1104,6 +1084,141 @@ class TextEditor(QMainWindow):
         
         self.setWindowTitle(f"{doc_name} - My Modern Text Editor")
 
+    # ⭐ NEW: Manual indexing method
+    def _index_current_file_manually(self):
+        """User explicitly requests indexing of current file."""
+        if not self.current_file:
+            QMessageBox.warning(self, "No File", "No file is currently open.")
+            return
+        
+        if not self.rag_system:
+            QMessageBox.warning(self, "RAG Unavailable", "RAG system not initialized.")
+            return
+        
+        # Check if already indexing
+        with self._indexing_lock:
+            if self._indexing_in_progress:
+                QMessageBox.information(
+                    self, 
+                    "Indexing in Progress", 
+                    "Already indexing a file. Please wait."
+                )
+                return
+            self._indexing_in_progress = True
+        
+        # Check file size
+        if not self._should_index_file(self.current_file, max_size_kb=500):
+            with self._indexing_lock:
+                self._indexing_in_progress = False
+            return
+        
+        file_to_index = self.current_file
+        file_size_kb = os.path.getsize(file_to_index) / 1024
+        
+        self.statusBar().showMessage(
+            f"Indexing {os.path.basename(file_to_index)} ({file_size_kb:.1f}KB)...", 
+            0  # Keep showing until done
+        )
+        
+        def index_worker():
+            try:
+                # Index the file
+                success = self.rag_system.index_file(file_to_index, force_reindex=True)
+                
+                if success:
+                    # Mark as active
+                    self.rag_system.mark_active_file(file_to_index)
+                    
+                    # Get stats
+                    stats = self.rag_system.get_stats()
+                    
+                    # Update UI on main thread
+                    QTimer.singleShot(0, lambda: self.statusBar().showMessage(
+                        f"✓ Indexed {os.path.basename(file_to_index)} "
+                        f"({stats['total_documents']} total chunks)", 
+                        3000
+                    ))
+                else:
+                    QTimer.singleShot(0, lambda: self.statusBar().showMessage(
+                        f"✗ Failed to index {os.path.basename(file_to_index)}", 
+                        3000
+                    ))
+            except Exception as e:
+                print(f"Indexing error: {e}")
+                QTimer.singleShot(0, lambda: self.statusBar().showMessage(
+                    f"✗ Error indexing: {str(e)}", 
+                    5000
+                ))
+            finally:
+                # Release the lock
+                with self._indexing_lock:
+                    self._indexing_in_progress = False
+        
+        # Start indexing in background
+        t = threading.Thread(target=index_worker, daemon=True)
+        t.start()
+
+    # ⭐ NEW: Clear RAG index method
+    def _clear_rag_index(self):
+        """Clear the entire RAG index."""
+        if not self.rag_system:
+            QMessageBox.warning(self, "RAG Unavailable", "RAG system not initialized.")
+            return
+        
+        reply = QMessageBox.question(
+            self,
+            "Clear RAG Index",
+            "This will remove all indexed files from the RAG system.\n\n"
+            "Are you sure you want to continue?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            try:
+                self.rag_system.clear_index()
+                QMessageBox.information(
+                    self, 
+                    "Success", 
+                    "RAG index cleared successfully."
+                )
+                self.statusBar().showMessage("RAG index cleared", 3000)
+            except Exception as e:
+                QMessageBox.critical(
+                    self, 
+                    "Error", 
+                    f"Failed to clear RAG index: {e}"
+                )
+    
+    # ⭐ NEW: Show RAG statistics method
+    def _show_rag_stats(self):
+        """Display RAG system statistics."""
+        if not self.rag_system:
+            QMessageBox.warning(self, "RAG Unavailable", "RAG system not initialized.")
+            return
+        
+        try:
+            stats = self.rag_system.get_stats()
+            
+            message = f"""RAG System Statistics
+
+    Total chunks indexed: {stats['total_documents']}
+    Indexed files: {stats['indexed_files']}
+    Active files: {stats['active_files']}
+    Embedding dimension: {stats['embedding_dimension']}
+
+    Files in index:
+    """
+            for file_path in stats['files']:
+                message += f"• {os.path.basename(file_path)}\n"
+            
+            if not stats['files']:
+                message += "(No files indexed yet)\n"
+            
+            QMessageBox.information(self, "RAG Statistics", message)
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to get RAG stats: {e}")
 
 class LineNumberArea(QWidget):
     def __init__(self, editor):
