@@ -1,11 +1,16 @@
 """
 Embedding Manager - Generates vector embeddings for text chunks
 """
+import os
+# Limit CPU threads for better stability on machines with limited RAM
+os.environ["OMP_NUM_THREADS"] = "4"
+os.environ["MKL_NUM_THREADS"] = "4"
+os.environ["OPENBLAS_NUM_THREADS"] = "4"
+
 from typing import List, Optional
 import numpy as np
 from sentence_transformers import SentenceTransformer
 import pickle
-import os
 from pathlib import Path
 
 

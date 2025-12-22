@@ -22,20 +22,34 @@ class VectorStore:
         self.persist_directory = Path(persist_directory)
         self.persist_directory.mkdir(parents=True, exist_ok=True)
         self.collection_name = collection_name
-        
-        # Initialize ChromaDB client with persistence
-        self.client = chromadb.PersistentClient(
-            path=str(self.persist_directory),
-            settings=Settings(anonymized_telemetry=False)
-        )
-        
-        # Get or create collection
-        self.collection = self.client.get_or_create_collection(
-            name=collection_name,
-            metadata={"hnsw:space": "cosine"}  # Use cosine similarity
-        )
-        
-        print(f"Vector store initialized with {self.collection.count()} existing documents")
+        self._client = None
+        self._collection = None
+
+    @property
+    def client(self):
+        """Lazy-loaded ChromaDB client"""
+        if self._client is None:
+            self._client = chromadb.PersistentClient(
+                path=str(self.persist_directory),
+                settings=Settings(anonymized_telemetry=False)
+            )
+        return self._client
+
+    @property
+    def collection(self):
+        """Lazy-loaded ChromaDB collection"""
+        if self._collection is None:
+            self._collection = self.client.get_or_create_collection(
+                name=self.collection_name,
+                metadata={"hnsw:space": "cosine"}
+            )
+            print(f"Lazy-loaded Chroma collection '{self.collection_name}' with {self._collection.count()} documents")
+        return self._collection
+
+    @collection.setter
+    def collection(self, value):
+        """Allow explicit collection setting (needed for clear_collection)"""
+        self._collection = value
     
     def add_documents(self, 
                       chunk_ids: List[str], 

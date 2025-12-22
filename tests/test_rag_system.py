@@ -3,7 +3,7 @@ import os
 import shutil
 from pathlib import Path
 import tempfile
-from rag.rag_system import RAGSystem, RetrievedContext
+from rag.rag_system import RAGSystem, FormattedContext
 
 import tempfile
 
@@ -62,13 +62,13 @@ def test_get_context(rag):
         
         # Query about Paris
         context = rag.get_context("What is the capital of France?", top_k=1)
-        assert isinstance(context, RetrievedContext)
+        assert isinstance(context, FormattedContext)
         assert len(context.chunks) == 1
-        assert "Paris" in context.chunks[0]['text']
+        assert "Paris" in context.chunks[0].text
         
         # Query about Python
         context = rag.get_context("Tell me about Python", top_k=1)
-        assert "language" in context.chunks[0]['text']
+        assert "language" in context.chunks[0].text
     finally:
         os.unlink(p1)
         os.unlink(p2)
@@ -89,9 +89,9 @@ def test_active_file_boosting(rag):
         # Mark p2 as active
         rag.mark_active_file(p2)
         
-        context = rag.get_context("Common topic", top_k=5, boost_active=True)
+        context = rag.get_context("Common topic", top_k=5, boost_active_files=True)
         # The result from p2 should ideally be first due to boosting (since content is identical)
-        assert context.chunks[0]['metadata']['file_path'] == str(Path(p2).absolute())
+        assert context.chunks[0].metadata['file_path'] == str(Path(p2).absolute())
     finally:
         os.unlink(p1)
         os.unlink(p2)

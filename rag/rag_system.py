@@ -4,6 +4,7 @@ RAG System - Main interface using separate retriever and context builder modules
 from typing import List, Dict, Optional, Set
 from pathlib import Path
 import hashlib
+import time
 
 # Import our RAG components
 try:
@@ -25,13 +26,15 @@ class RAGSystem:
     """Main RAG system that coordinates all components"""
     
     def __init__(self, 
-                 chunk_size: int = 500,
-                 overlap: int = 50,
+                 chunk_size: int = 300,
+                 overlap: int = 30,
                  embedding_model: str = "all-MiniLM-L6-v2",
                  persist_dir: str = "cache/index",
                  cache_dir: str = "cache/embeddings",
                  max_context_tokens: int = 4000,
-                 max_documents: int = 1000):
+                 max_documents: int = 1000,
+                 embedding_batch_size: int = 8,
+                 max_chunks_per_file: int = 200):
         """
         Initialize RAG system
         
@@ -43,6 +46,8 @@ class RAGSystem:
             cache_dir: Directory for embedding cache
             max_context_tokens: Maximum tokens for context
             max_documents: Maximum number of chunks in the index
+            embedding_batch_size: Batch size for generating embeddings (smaller reduces RAM spikes)
+            max_chunks_per_file: Maximum chunks allowed per file to prevent RAM spikes
         """
         print("Initializing RAG system...")
         
@@ -55,6 +60,14 @@ class RAGSystem:
         self.retriever = ContextRetriever(self.vector_store, self.embedding_manager)
         self.context_builder = ContextBuilder(max_tokens=max_context_tokens)
         self.max_documents = max_documents
+        self.embedding_batch_size = embedding_batch_size
+        self.max_chunks_per_file = max_chunks_per_file
+        
+        # Cooldown and caching for get_context
+        self._last_context_time = 0
+        self._last_context_query = ""
+        self._last_context_result = None
+        self._context_cooldown = 2.0  # seconds
         
         print("RAG system ready")
     
@@ -99,6 +112,11 @@ class RAGSystem:
                 print(f"No chunks created for {file_path}")
                 return False
             
+            # Limit chunks per file
+            if len(chunks) > self.max_chunks_per_file:
+                print(f"⚠️ File too large: {len(chunks)} chunks. Limiting to first {self.max_chunks_per_file} chunks.")
+                chunks = chunks[:self.max_chunks_per_file]
+            
             # SAFETY CHECK: Don't index if it would exceed limit
             if current_count + len(chunks) > self.max_documents:
                 print(f"❌ Indexing would exceed limit ({current_count + len(chunks)}/{self.max_documents})")
@@ -113,8 +131,8 @@ class RAGSystem:
             
             if embeddings is None or len(embeddings) != len(texts):
                 # Generate new embeddings
-                print(f"Generating embeddings for {len(texts)} chunks...")
-                embeddings = self.embedding_manager.batch_generate(texts)
+                print(f"Generating embeddings for {len(texts)} chunks (batch size: {self.embedding_batch_size})...")
+                embeddings = self.embedding_manager.batch_generate(texts, batch_size=self.embedding_batch_size)
                 
                 # Cache embeddings
                 self.embedding_manager.cache_embeddings(cache_key, embeddings)
@@ -217,6 +235,13 @@ class RAGSystem:
         Returns:
             FormattedContext object with formatted context
         """
+        # Check cooldown and cache
+        current_time = time.time()
+        if (query == self._last_context_query and 
+            current_time - self._last_context_time < self._context_cooldown and
+            self._last_context_result is not None):
+            return self._last_context_result
+
         # Step 1: Retrieve relevant chunks
         retrieval_results = self.retriever.retrieve(
             query=query,
@@ -234,6 +259,11 @@ class RAGSystem:
             include_metadata=True,
             format_style=format_style
         )
+        
+        # Update cache
+        self._last_context_time = current_time
+        self._last_context_query = query
+        self._last_context_result = formatted_context
         
         return formatted_context
     

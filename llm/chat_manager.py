@@ -346,11 +346,11 @@ class ChatManager:
         if self.rag_system and query:
             try:
                 # Retrieve relevant context
-                context = self.rag_system.get_context(query, top_k=top_k, boost_active=True)
+                context = self.rag_system.get_context(query, top_k=top_k, boost_active_files=True)
                 
                 # Format context for LLM
                 if context and context.chunks:
-                    context_text = context.format_for_llm(max_chunks=top_k)
+                    context_text = context.format_for_llm()
                     
                     # Create system message with context
                     context_message = {
