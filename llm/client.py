@@ -91,13 +91,12 @@ class LLMClient:
         if not include_system:
             return messages
         
-        # Check if system message already exists
-        has_system = any(msg.get("role") == "system" for msg in messages)
+        # Ensure the system prompt is present at the start.
+        # We only skip adding it if the first message is already the system prompt.
+        if messages and messages[0].get("role") == "system" and messages[0].get("content") == self.system_prompt:
+            return messages
         
-        if not has_system:
-            return [{"role": "system", "content": self.system_prompt}] + messages
-        
-        return messages
+        return [{"role": "system", "content": self.system_prompt}] + messages
     
     async def stream_chat(
         self,
