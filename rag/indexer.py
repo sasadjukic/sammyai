@@ -123,7 +123,17 @@ class FileIndexer:
         start = 0
         chunk_index = 0
         
+        # Safety: minimum progress per iteration to prevent infinite loops
+        min_progress = max(1, self.overlap + 1)
+        max_iterations = len(text) // min_progress + 100  # Safety limit
+        iteration = 0
+        
         while start < len(text):
+            iteration += 1
+            if iteration > max_iterations:
+                print(f"⚠️ Chunking safety limit reached after {iteration} iterations")
+                break
+            
             # Calculate end position
             end = start + self.chunk_size
             
@@ -141,8 +151,12 @@ class FileIndexer:
                     # Look for any space
                     break_pos = text.rfind(' ', start, end)
                 
-                if break_pos > start:
+                # Only use boundary if it provides sufficient progress
+                if break_pos > start + min_progress:
                     end = break_pos + 1
+            
+            # Ensure we don't go past the text
+            end = min(end, len(text))
             
             # Extract chunk
             chunk_text = text[start:end].strip()
@@ -166,12 +180,11 @@ class FileIndexer:
                 chunks.append(Document(chunk_id, chunk_text, chunk_metadata))
                 chunk_index += 1
             
-            # Move to next chunk with overlap
-            start = end - self.overlap
-            
-            # Avoid infinite loop on very small texts
-            if start <= 0 and end >= len(text):
-                break
+            # Calculate next start position, ensuring forward progress
+            next_start = end - self.overlap
+            if next_start <= start:
+                next_start = start + min_progress
+            start = next_start
         
         return chunks
     
