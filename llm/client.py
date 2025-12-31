@@ -6,6 +6,7 @@ Starts with a local Ollama instance but eventually may support multiple provider
 from typing import Optional, Dict, List, Callable
 from enum import Enum
 import ollama
+import google.generativeai as genai
 # Use a package-relative import so importing `llm.client` works when the package
 # is loaded as `llm` (avoids ModuleNotFoundError when running from project root)
 from .system_prompt import SYSTEM_PROMPT
@@ -51,6 +52,7 @@ class LLMClient:
         self.model_config = MODEL_MAPPING[model_key]
         self.model_name = self.model_config["name"]
         self.model_type = ModelType(self.model_config["type"])
+        self.provider = self.model_config["provider"]
         self.api_key = api_key
         self.system_prompt = system_prompt or SYSTEM_PROMPT
         
@@ -59,20 +61,21 @@ class LLMClient:
             raise ValueError(f"API key required for cloud model: {model_key}")
         
         self._client = None
+        self._google_model = None
         self._initialize_client()
     
     def _initialize_client(self):
-        """Initialize the Ollama client."""
+        """Initialize the appropriate client based on provider."""
         try:
-            # For local models, use default Ollama client
-            if self.model_type == ModelType.LOCAL:
-                self._client = ollama.Client()
-            # For cloud models, configure with API key if needed
+            if self.provider == "google":
+                # Initialize Google Generative AI client
+                genai.configure(api_key=self.api_key)
+                self._google_model = genai.GenerativeModel(self.model_name)
             else:
-                # Cloud models via Ollama may require custom configuration
+                # For local models and Ollama-based cloud models
                 self._client = ollama.Client()
         except Exception as e:
-            raise RuntimeError(f"Failed to initialize Ollama client: {e}")
+            raise RuntimeError(f"Failed to initialize client for {self.provider}: {e}")
     
     def _prepare_messages(
         self, 
@@ -99,7 +102,7 @@ class LLMClient:
         
         return [{"role": "system", "content": self.system_prompt}] + messages
     
-    async def stream_chat(
+    async def _stream_chat_ollama(
         self,
         messages: List[Dict[str, str]],
         on_token: Callable[[str], None],
@@ -108,20 +111,7 @@ class LLMClient:
         top_p: float = 0.9,
         include_system: bool = True
     ) -> str:
-        """
-        Stream chat completion and call on_token for each token.
-        
-        Args:
-            messages: List of message dicts with 'role' and 'content'
-            on_token: Callback function called with each token
-            max_tokens: Maximum tokens to generate (optional)
-            temperature: Sampling temperature (default: 0.9)
-            top_p: Top-p sampling parameter (default: 0.9)
-            include_system: Whether to include system prompt (default: True)
-            
-        Returns:
-            Complete response text
-        """
+        """Stream chat using Ollama client."""
         prepared_messages = self._prepare_messages(messages, include_system)
         full_response = ""
         
@@ -153,6 +143,49 @@ class LLMClient:
         
         return full_response
     
+    async def _stream_chat_google(
+        self,
+        messages: List[Dict[str, str]],
+        on_token: Callable[[str], None],
+        max_tokens: Optional[int] = None,
+        temperature: float = 0.9,
+        top_p: float = 0.9,
+        include_system: bool = True
+    ) -> str:
+        """Stream chat using Google Generative AI."""
+        try:
+            # Convert messages to Google format
+            google_messages = self._convert_to_google_format(messages, include_system)
+            
+            # Configure generation settings
+            generation_config = {
+                "temperature": temperature,
+                "top_p": top_p,
+            }
+            if max_tokens:
+                generation_config["max_output_tokens"] = max_tokens
+            
+            # Start chat session with history
+            chat = self._google_model.start_chat(history=google_messages["history"])
+            
+            # Send the last message and get streaming response
+            response = chat.send_message(
+                google_messages["last_message"],
+                generation_config=generation_config,
+                stream=True
+            )
+            
+            full_response = ""
+            for chunk in response:
+                if chunk.text:
+                    full_response += chunk.text
+                    on_token(chunk.text)
+            
+            return full_response
+        
+        except Exception as e:
+            raise RuntimeError(f"Error during streaming chat: {e}")
+    
     def chat(
         self,
         messages: List[Dict[str, str]],
@@ -174,6 +207,20 @@ class LLMClient:
         Returns:
             Complete response text
         """
+        if self.provider == "google":
+            return self._chat_google(messages, max_tokens, temperature, top_p, include_system)
+        else:
+            return self._chat_ollama(messages, max_tokens, temperature, top_p, include_system)
+    
+    def _chat_ollama(
+        self,
+        messages: List[Dict[str, str]],
+        max_tokens: Optional[int] = None,
+        temperature: float = 0.9,
+        top_p: float = 0.9,
+        include_system: bool = True
+    ) -> str:
+        """Chat using Ollama client."""
         prepared_messages = self._prepare_messages(messages, include_system)
         
         try:
@@ -197,6 +244,112 @@ class LLMClient:
         
         except Exception as e:
             raise RuntimeError(f"Error during chat: {e}")
+    
+    def _chat_google(
+        self,
+        messages: List[Dict[str, str]],
+        max_tokens: Optional[int] = None,
+        temperature: float = 0.9,
+        top_p: float = 0.9,
+        include_system: bool = True
+    ) -> str:
+        """Chat using Google Generative AI."""
+        try:
+            # Convert messages to Google format
+            google_messages = self._convert_to_google_format(messages, include_system)
+            
+            # Configure generation settings
+            generation_config = {
+                "temperature": temperature,
+                "top_p": top_p,
+            }
+            if max_tokens:
+                generation_config["max_output_tokens"] = max_tokens
+            
+            # Start chat session with history
+            chat = self._google_model.start_chat(history=google_messages["history"])
+            
+            # Send the last message and get response
+            response = chat.send_message(
+                google_messages["last_message"],
+                generation_config=generation_config
+            )
+            
+            return response.text
+        
+        except Exception as e:
+            raise RuntimeError(f"Error during chat: {e}")
+    
+    def _convert_to_google_format(
+        self, 
+        messages: List[Dict[str, str]], 
+        include_system: bool = True
+    ) -> Dict:
+        """Convert standard messages to Google Generative AI format.
+        
+        Google uses a different format:
+        - System prompt is set via system_instruction in the model
+        - Chat history uses 'user' and 'model' roles (not 'assistant')
+        - Messages are in parts format
+        """
+        prepared_messages = self._prepare_messages(messages, include_system)
+        
+        history = []
+        last_message = ""
+        
+        for i, msg in enumerate(prepared_messages):
+            role = msg["role"]
+            content = msg["content"]
+            
+            # Skip system messages (already in system_instruction)
+            if role == "system":
+                continue
+            
+            # Convert 'assistant' to 'model' for Google
+            if role == "assistant":
+                role = "model"
+            
+            # Last user message is sent separately
+            if i == len(prepared_messages) - 1 and role == "user":
+                last_message = content
+            else:
+                history.append({
+                    "role": role,
+                    "parts": [content]
+                })
+        
+        return {
+            "history": history,
+            "last_message": last_message
+        }
+    
+    async def stream_chat(
+        self,
+        messages: List[Dict[str, str]],
+        on_token: Callable[[str], None],
+        max_tokens: Optional[int] = None,
+        temperature: float = 0.9,
+        top_p: float = 0.9,
+        include_system: bool = True
+    ) -> str:
+        """
+        Stream chat completion and call on_token for each token.
+        
+        Args:
+            messages: List of message dicts with 'role' and 'content'
+            on_token: Callback function called with each token
+            max_tokens: Maximum tokens to generate (optional)
+            temperature: Sampling temperature (default: 0.9)
+            top_p: Top-p sampling parameter (default: 0.9)
+            include_system: Whether to include system prompt (default: True)
+            
+        Returns:
+            Complete response text
+        """
+        if self.provider == "google":
+            return await self._stream_chat_google(messages, on_token, max_tokens, temperature, top_p, include_system)
+        else:
+            return await self._stream_chat_ollama(messages, on_token, max_tokens, temperature, top_p, include_system)
 
 
 class LLMConfig:
