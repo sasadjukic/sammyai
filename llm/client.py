@@ -71,8 +71,14 @@ class LLMClient:
                 # Initialize Google Generative AI client
                 genai.configure(api_key=self.api_key)
                 self._google_model = genai.GenerativeModel(self.model_name)
+            elif self.provider == "ollama":
+                # For cloud-hosted Ollama models (e.g., Kimi K2)
+                self._client = ollama.Client(
+                    host="https://ollama.com",
+                    headers={'Authorization': self.api_key}
+                )
             else:
-                # For local models and Ollama-based cloud models
+                # For local Ollama models (provider == "local")
                 self._client = ollama.Client()
         except Exception as e:
             raise RuntimeError(f"Failed to initialize client for {self.provider}: {e}")
