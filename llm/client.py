@@ -17,7 +17,7 @@ from api_key_manager import APIKeyManager
 # Model configuration
 MODEL_MAPPING = {
     "Gemma3:4b": {"name": "gemma3:4b", "type": "local", "provider": "local"},
-    "Gemini 2.5 Flash": {"name": "gemini-2.5-flash", "type": "cloud", "provider": "google"},
+    "Gemini-2.5-Flash": {"name": "gemini-2.5-flash", "type": "cloud", "provider": "google"},
     "Kimi K2:1T": {"name": "kimi-k2:1t", "type": "cloud", "provider": "ollama"}
 }
 
@@ -374,8 +374,9 @@ class LLMConfig:
     """Configuration for LLM client."""
     
     DEFAULT_MODELS = {
-        ModelType.LOCAL: "Gemma3:4b",
-        ModelType.CLOUD: "Kimi K2:1T",
+        "LOCAL": "Gemma3:4b",
+        "FLASH": "Gemini-2.5-Flash",
+        "CLOUD": "Kimi K2:1T",
     }
     
     def __init__(
@@ -398,7 +399,7 @@ class LLMConfig:
             top_p: Top-p sampling parameter (default: 0.9)
             system_prompt: Custom system prompt (defaults to SYSTEM_PROMPT)
         """
-        self._model_key = model_key or self.DEFAULT_MODELS[ModelType.LOCAL]
+        self._model_key = model_key or self.DEFAULT_MODELS["LOCAL"]
         self._api_key = api_key
         
         # If an API key is not provided explicitly, attempt to load a stored key
