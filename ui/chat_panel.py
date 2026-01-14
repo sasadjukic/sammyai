@@ -5,7 +5,8 @@ Provides a chat interface similar to VS Code and Antigravity.
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, 
-    QLineEdit, QPushButton, QLabel, QScrollArea, QFrame, QComboBox
+    QLineEdit, QPushButton, QLabel, QScrollArea, QFrame, QComboBox,
+    QApplication
 )
 from PySide6.QtCore import Qt, Signal, QThread
 from PySide6.QtGui import QFont, QTextCursor
@@ -105,6 +106,11 @@ class ChatPanel(QWidget):
         self.send_button.setToolTip("Send message (Ctrl+Enter)")
         
         button_layout.addWidget(self.clear_button)
+        
+        self.copy_button = QPushButton("Copy Chat")
+        self.copy_button.setToolTip("Copy entire chat history to clipboard")
+        button_layout.addWidget(self.copy_button)
+        
         button_layout.addStretch()
         button_layout.addWidget(self.send_button)
         
@@ -157,6 +163,7 @@ class ChatPanel(QWidget):
         # Connect signals
         self.send_button.clicked.connect(self._on_send_clicked)
         self.clear_button.clicked.connect(self._on_clear_clicked)
+        self.copy_button.clicked.connect(self._on_copy_clicked)
 
         # Install event filter for Ctrl+Enter
         self.input_field.installEventFilter(self)
@@ -188,6 +195,15 @@ class ChatPanel(QWidget):
         """Handle clear button click."""
         self.chat_display.clear()
         self.status_label.setText("Chat history cleared")
+    
+    def _on_copy_clicked(self):
+        """Handle copy button click."""
+        chat_text = self.chat_display.toPlainText()
+        if chat_text:
+            QApplication.clipboard().setText(chat_text)
+            self.status_label.setText("Chat history copied to clipboard")
+        else:
+            self.status_label.setText("No chat history to copy")
     
     def add_user_message(self, message: str):
         """Add a user message to the chat display."""
