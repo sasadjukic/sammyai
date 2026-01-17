@@ -22,6 +22,9 @@ class ChatPanel(QWidget):
     # Signal emitted when user selects a different model
     model_selected = Signal(str)
     
+    # Signal emitted when "Clear Chat" is requested
+    clear_chat_requested = Signal()
+    
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setMinimumWidth(300)
@@ -195,6 +198,7 @@ class ChatPanel(QWidget):
         """Handle clear button click."""
         self.chat_display.clear()
         self.status_label.setText("Chat history cleared")
+        self.clear_chat_requested.emit()
     
     def _on_copy_clicked(self):
         """Handle copy button click."""

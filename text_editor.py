@@ -823,6 +823,8 @@ class TextEditor(QMainWindow):
             self.chat_panel.message_sent.connect(self._on_chat_message_sent)
             # When the model selection changes in the UI, attempt to switch clients
             self.chat_panel.model_selected.connect(self._on_model_selected)
+            # When clear chat is requested, clear the session
+            self.chat_panel.clear_chat_requested.connect(self._on_clear_chat_requested)
 
             self.chat_dock = QDockWidget(self)
             self.chat_dock.setAllowedAreas(Qt.RightDockWidgetArea | Qt.LeftDockWidgetArea)
@@ -870,6 +872,17 @@ class TextEditor(QMainWindow):
         else:
             # Normal mode: standard chat
             self._handle_normal_chat(message)
+
+    def _on_clear_chat_requested(self):
+        """Handle clear chat request: clear session history."""
+        try:
+            if self.chat_manager:
+                self.chat_manager.clear_session()
+                # Optionally verify/log
+                if self.chat_panel:
+                    self.chat_panel.set_status("Chat session reset (context cleared)")
+        except Exception as e:
+            print(f"Error clearing chat session: {e}")
     
     def _handle_normal_chat(self, message: str):
         """Handle normal chat mode (non-DBE)."""
