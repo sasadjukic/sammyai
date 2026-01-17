@@ -9,7 +9,10 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QTextCharFormat, QColor, QFont, QSyntaxHighlighter, QTextDocument
 
-from editing.diff_manager import DiffManager, Diff, DiffFormat, DiffConflict
+try:
+    from editing.diff_manager import DiffManager, Diff, DiffFormat, DiffConflict
+except ImportError:
+    from diff_manager import DiffManager, Diff, DiffFormat, DiffConflict
 
 
 class DiffSyntaxHighlighter(QSyntaxHighlighter):
@@ -67,9 +70,9 @@ class DiffViewerWidget(QWidget):
     diff_applied = Signal()  # Emitted when diff is successfully applied
     diff_rejected = Signal()  # Emitted when diff application is rejected
     
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, diff_manager=None):
         super().__init__(parent)
-        self.diff_manager = DiffManager()
+        self.diff_manager = diff_manager if diff_manager else DiffManager()
         self.current_diff = None
         self.original_text = ""
         self.setup_ui()
