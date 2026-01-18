@@ -28,7 +28,7 @@ def test_google_client():
     
     # Try to create a Gemini client
     try:
-        config = LLMConfig(model_key="Gemini 2.5 Flash")
+        config = LLMConfig(model_key="Gemini-2.5-Flash")
         client = config.create_client()
         print(f"✓ Gemini client created successfully")
         print(f"  - Model: {client.model_name}")
@@ -63,10 +63,22 @@ if __name__ == "__main__":
     google_ok = test_google_client()
     local_ok = test_local_client()
     
+    # Optional: Test DeepSeek if you want to verify its setup
+    print("\nTesting DeepSeek V3.2 setup...")
+    try:
+        ds_config = LLMConfig(model_key="Deepseek V3.2")
+        ds_client = ds_config.create_client()
+        print(f"✓ DeepSeek client created successfully")
+        ds_ok = True
+    except Exception as e:
+        print(f"❌ DeepSeek client creation failed: {e}")
+        ds_ok = False
+
     print("\n" + "=" * 60)
     print("Summary:")
     print(f"  Google Gemini: {'✓ PASS' if google_ok else '❌ FAIL'}")
     print(f"  Local Ollama:  {'✓ PASS' if local_ok else '❌ FAIL'}")
+    print(f"  DeepSeek V3.2: {'✓ PASS' if ds_ok else '❌ FAIL'}")
     print("=" * 60)
     
-    sys.exit(0 if (google_ok and local_ok) else 1)
+    sys.exit(0 if (google_ok and local_ok and ds_ok) else 1)

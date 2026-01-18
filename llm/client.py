@@ -18,7 +18,8 @@ from api_key_manager import APIKeyManager
 MODEL_MAPPING = {
     "Gemma3:4b": {"name": "gemma3:4b", "type": "local", "provider": "local"},
     "Gemini-2.5-Flash": {"name": "gemini-2.5-flash", "type": "cloud", "provider": "google"},
-    "Kimi K2:1T": {"name": "kimi-k2:1t", "type": "cloud", "provider": "ollama"}
+    "Kimi K2:1T": {"name": "kimi-k2:1t", "type": "cloud", "provider": "ollama"},
+    "Deepseek V3.2": {"name": "deepseek-v3.2", "type": "cloud", "provider": "ollama"}
 }
 
 
@@ -380,6 +381,7 @@ class LLMConfig:
     DEFAULT_MODELS = {
         "LOCAL": "Gemma3:4b",
         "FLASH": "Gemini-2.5-Flash",
+        "DEEPSEEK": "Deepseek V3.2",
         "CLOUD": "Kimi K2:1T",
     }
     
