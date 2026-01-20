@@ -1207,7 +1207,7 @@ class TextEditor(QMainWindow):
             return False
     
     def open_file(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Open File", "", "Text Files (*.txt)")
+        path, _ = QFileDialog.getOpenFileName(self, "Open File", "", "Text Files (*.txt *.md);;Markdown Files (*.md);;Plain Text (*.txt);;All Files (*)")
         if path:
             try:
                 with open(path, "r", encoding="utf-8") as file:
@@ -1231,7 +1231,7 @@ class TextEditor(QMainWindow):
 
     def save_file(self):
         if not self.current_file:
-            path, _ = QFileDialog.getSaveFileName(self, "Save File", "", "Text Files (*.txt)")
+            path, _ = QFileDialog.getSaveFileName(self, "Save File", "", "Text Files (*.txt *.md);;Markdown Files (*.md);;Plain Text (*.txt);;All Files (*)")
             if not path:
                 return
             self.current_file = path
@@ -1254,7 +1254,7 @@ class TextEditor(QMainWindow):
 
 
     def save_file_as(self):
-        path, _ = QFileDialog.getSaveFileName(self, "Save File As", "", "Text Files (*.txt);;All Files (*)")
+        path, _ = QFileDialog.getSaveFileName(self, "Save File As", "", "Text Files (*.txt *.md);;Markdown Files (*.md);;Plain Text (*.txt);;All Files (*)")
         if not path:
             return
         self.current_file = path
@@ -1437,7 +1437,7 @@ class TextEditor(QMainWindow):
     def _upload_cin_file(self):
         """Upload a file for CIN context injection."""
         path, _ = QFileDialog.getOpenFileName(
-            self, "Upload File for CIN", "", "Allowed Files (*.txt *.pdf);;Text Files (*.txt);;PDF Files (*.pdf);;All Files (*)"
+            self, "Upload File for CIN", "", "Allowed Files (*.txt *.pdf *.md);;Text Files (*.txt);;Markdown Files (*.md);;PDF Files (*.pdf);;All Files (*)"
         )
         if not path:
             return
@@ -1458,7 +1458,7 @@ class TextEditor(QMainWindow):
             content = ""
             ext = os.path.splitext(path)[1].lower()
             
-            if ext == ".txt":
+            if ext in [".txt", ".md"]:
                 with open(path, "r", encoding="utf-8", errors="replace") as f:
                     content = f.read()
             elif ext == ".pdf":

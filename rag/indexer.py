@@ -19,7 +19,7 @@ class Document:
 class FileIndexer:
     """Indexes files by parsing and chunking them"""
     
-    SUPPORTED_EXTENSIONS = {'.txt', '.pdf'}
+    SUPPORTED_EXTENSIONS = {'.txt', '.pdf', '.md'}
     
     def __init__(self, chunk_size: int = 500, overlap: int = 50):
         """
