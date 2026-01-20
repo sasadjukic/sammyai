@@ -6,12 +6,12 @@ SammyAI is designed to handle various text-based formats for creative writing an
 
 The primary interface of SammyAI is a plain-text editor tailored for writing and basic formatting.
 
-- **Primary Format:** `.txt` (Plain Text)
+- **Supported Formats:** `.txt` (Plain Text), `.md` (Markdown)
 - **Capabilities:**
-    - Full support for opening, editing, and saving `.txt` files.
+    - Full support for opening, editing, and saving `.txt` and `.md` files.
     - Uses UTF-8 encoding by default (with fallback support for Latin-1).
 - **Other Formats:** 
-    - While the "All Files" option allows selecting other extensions, the editor treats all inputs as plain text. Binary files (like `.docx` or `.rtf`) will not render correctly in the editor and should be converted to `.txt` first.
+    - While the "All Files" option allows selecting other extensions, the editor treats all inputs as plain text or Markdown. Binary files (like `.docx` or `.rtf`) will not render correctly in the editor and should be converted to `.txt` or `.md` first.
 
 ## 2. Context Injection (CIN)
 
@@ -19,6 +19,7 @@ Context Injection is a lightweight way to provide the LLM with immediate context
 
 - **Supported Formats:**
     - `.txt` (Plain Text)
+    - `.md` (Markdown)
     - `.pdf` (Portable Document Format)
 - **Size Limit:** **50 KB**
     - CIN is optimized for smaller files (e.g., character sheets, plot outlines, or short articles).
@@ -32,6 +33,7 @@ The RAG system is used for managing large volumes of information across many doc
 
 - **Supported Formats:**
     - `.txt` (Plain Text)
+    - `.md` (Markdown)
     - `.pdf` (Portable Document Format)
 - **Size Limits:**
     - **Soft Limit:** Files larger than **500 KB** will trigger a warning. Indexing very large files can temporarily impact UI responsiveness.
@@ -46,8 +48,8 @@ The RAG system is used for managing large volumes of information across many doc
 
 > [!NOTE]
 > **Alpha Release Notice**
-> SammyAI is currently in **Alpha**. While we focus on `.txt` and `.pdf` for stability and clarity, support for additional file extensions *may* be added in future updates as the platform evolves.
+> SammyAI is currently in **Alpha**. While we focus on `.txt`, `.md`, and `.pdf` for stability and clarity, support for additional file extensions *may* be added in future updates as the platform evolves.
 
 > [!TIP]
-> **Why only `.txt` and `.pdf`?**
-> SammyAI focuses on creative writing. Plain text provides the highest level of compatibility with LLMs, while PDF support allows you to easily import scripts and exported documents without manual conversion.
+> **Why `.txt`, `.md`, and `.pdf`?**
+> SammyAI focuses on creative writing. Plain text and Markdown provide the highest level of compatibility with LLMs, as they are simple and structured in a way that AI models can easily parse. Markdown is particularly effective for direct context and RAG, as it allows for structured hierarchy (like headers and lists) that assistants can follow. PDF support ensures you can easily import research scripts and exported documents without manual conversion.
