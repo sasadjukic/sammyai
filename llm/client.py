@@ -335,7 +335,7 @@ class LLMClient:
             else:
                 history.append({
                     "role": role,
-                    "parts": [content]
+                    "parts": [{"text": content}]
                 })
 
         # If we have extra system context, prepend it to the last message

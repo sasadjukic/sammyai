@@ -251,7 +251,7 @@ class TextEditor(QMainWindow):
         self.llm_error_occurred.connect(self._handle_llm_error)
         self.dbe_diff_ready.connect(self._show_dbe_diff)
 
-        # Chat panel (created lazily when the agent button is pressed)
+        # Chat panel (created lazily when the chat button is pressed)
         self.chat_dock: QDockWidget | None = None
         self.chat_panel: ChatPanel | None = None
 
@@ -347,7 +347,7 @@ class TextEditor(QMainWindow):
         self.repeat_action.triggered.connect(self._on_repeat)
 
         # Extra placeholder actions (icons only, no functionality yet)
-        self.agent_action = QAction("Agent", self)
+        self.agent_action = QAction("Chat", self)
         self.agent_action.setEnabled(True)
         self.agent_action.setToolTip("Open Sammy AI chat panel")
         self.agent_action.triggered.connect(self._toggle_chat_panel)
@@ -483,8 +483,8 @@ class TextEditor(QMainWindow):
         spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         toolbar.addWidget(spacer)
 
-        # Bottom-only icons (no functionality yet)
-        self.agent_action.setIcon(self._load_colored_svg_icon("agent"))
+        # Bottom-only icons
+        self.agent_action.setIcon(self._load_colored_svg_icon("chat"))
         self.key_action.setIcon(self._load_colored_svg_icon("key"))
         self.settings_action.setIcon(self._load_colored_svg_icon("settings"))
 
