@@ -42,7 +42,7 @@ class LLMClient:
         Initialize the LLM client.
         
         Args:
-            model_key: Key from MODEL_MAPPING (e.g., "Gemma3:4b" or "Kimi K2:1T")
+            model_key: Key from MODEL_MAPPING (e.g., "Gemma3:4b", "Kimi K2:1T", etc...)
             api_key: API key for cloud models (required for cloud models)
             system_prompt: Custom system prompt (defaults to SYSTEM_PROMPT from system_prompt.py)
         """
@@ -91,24 +91,42 @@ class LLMClient:
         include_system: bool = True
     ) -> List[Dict[str, str]]:
         """
-        Prepare messages with system prompt.
+        Prepare messages with consolidated system prompt.
+        
+        Collects all system messages into a single combined system message at the start.
+        This provides better compatibility with some cloud models like DeepSeek.
         
         Args:
             messages: List of message dicts with 'role' and 'content'
-            include_system: Whether to include system prompt
+            include_system: Whether to include the base system prompt
             
         Returns:
-            Messages list with system prompt prepended if needed
+            Messages list with consolidated system prompt prepended
         """
-        if not include_system:
-            return messages
+        system_contents = []
+        other_messages = []
         
-        # Ensure the system prompt is present at the start.
-        # We only skip adding it if the first message is already the system prompt.
-        if messages and messages[0].get("role") == "system" and messages[0].get("content") == self.system_prompt:
-            return messages
+        # Use our primary system prompt if requested
+        if include_system:
+            system_contents.append(self.system_prompt)
+            
+        for msg in messages:
+            role = msg.get("role")
+            content = msg.get("content", "")
+            
+            if role == "system":
+                # Avoid duplicating the base system prompt if it was already in messages
+                if content and content != self.system_prompt:
+                    system_contents.append(content)
+            else:
+                other_messages.append(msg)
         
-        return [{"role": "system", "content": self.system_prompt}] + messages
+        if not system_contents:
+            return other_messages
+            
+        # Join all system instructions into one block
+        combined_system = "\n\n".join(system_contents)
+        return [{"role": "system", "content": combined_system}] + other_messages
     
     async def _stream_chat_ollama(
         self,
