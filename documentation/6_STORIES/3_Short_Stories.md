@@ -1,8 +1,8 @@
 # 📚 Short Stories Archive
 
-Short stories allow for deeper exploration of characters and worlds while maintaining a focused narrative. This section highlights SammyAI's capacity for complex storytelling, ranging from slapstick comedy to poignant science fiction.
+Short stories allow for a bit deeper exploration of characters and worlds than flash fiction while maintaining a focused narrative. This section highlights SammyAI's capacity for storytelling, ranging from slapstick comedy to poignant science fiction.
 
-These narratives often involve an iterative process, sometimes utilizing multiple AI models to refine the tone, dialogue, and structure.
+These narratives often involve an iterative process, sometimes utilizing multiple AI models to show that SammyAI can seamlessly continue your story started by a different model.
 
 ---
 
