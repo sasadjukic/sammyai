@@ -1,6 +1,5 @@
 """
 LLM API client for text editor integration.
-Starts with a local Ollama instance but eventually may support multiple providers (Gemini, OpenAI, etc.)
 """
 
 from typing import Optional, Dict, List, Callable
