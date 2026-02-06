@@ -16,7 +16,7 @@
 
 ---
 
-[**About**](documentation/1_WHAT_IS_SAMMYAI/1_What_is_SammyAI.md) &nbsp; | &nbsp; [**User Guide**](documentation/3_USER_GUIDE/1_Layout.md) &nbsp; | &nbsp; [**Stories**](documentation/6_STORIES/1_Stories_Introduction.md) &nbsp; | &nbsp; [**Best Practices**](documentation/5_BEST_PRACTICES/1_Best_Practices_Overview.md)
+[**About**](https://github.com/sasadjukic/sammyai/blob/main/documentation/1_WHAT_IS_SAMMYAI/1_What_is_SammyAI.md) &nbsp; | &nbsp; [**User Guide**](https://github.com/sasadjukic/sammyai/blob/main/documentation/3_USER_GUIDE/1_Layout.md) &nbsp; | &nbsp; [**Stories**](https://github.com/sasadjukic/sammyai/blob/main/documentation/6_STORIES/1_Stories_Introduction.md) &nbsp; | &nbsp; [**Best Practices**](https://github.com/sasadjukic/sammyai/blob/main/documentation/5_BEST_PRACTICES/1_Best_Practices_Overview.md)
 
 ---
 
@@ -54,7 +54,7 @@
    python text_editor.py
    ```
 
-For detailed installation options including Docker support, see the [Installation Guide](documentation/2_INSTALLATION/1_Start.md).
+For detailed installation options including Docker support, see the [Installation Guide](https://github.com/sasadjukic/sammyai/blob/main/documentation/2_INSTALLATION/1_Start.md).
 
 ## 📖 Unleash Your Creativity
 
@@ -63,7 +63,7 @@ SammyAI is more than just a text editor; it's a collaborative partner for:
 - **Screenplays & Scripts**: Tailored for TV, movies, and streaming series.
 - **Game Development**: Fast-track your world-building and dialogue creation.
 
-Check out our [Story Archive](documentation/6_STORIES/1_Stories_Introduction.md) to see examples of what SammyAI can help you create.
+Check out our [Story Archive](https://github.com/sasadjukic/sammyai/blob/main/documentation/6_STORIES/1_Stories_Introduction.md) to see examples of what SammyAI can help you create.
 
 ## 🔒 Privacy & Copyrights
 
@@ -71,7 +71,7 @@ Check out our [Story Archive](documentation/6_STORIES/1_Stories_Introduction.md)
 - **Privacy First**: SammyAI does not collect or store your data. Everything runs locally on your PC.
 - **Your Rights**: You retain full ownership and copyright of everything you create.
 
-Read more in our [Cost, Privacy and Copyrights document](documentation/1_WHAT_IS_SAMMYAI/2_Cost_Privacy_and_Copyrights.md).
+Read more in our [Cost, Privacy and Copyrights document](https://github.com/sasadjukic/sammyai/blob/main/documentation/1_WHAT_IS_SAMMYAI/2_Cost_Privacy_and_Copyrights.md).
 
 ## 🗺️ Roadmap
 
@@ -80,7 +80,7 @@ We are constantly evolving! Planned updates include:
 - **Expanded File Support**: `.docx` and `.odt` compatibility.
 - **Custom LLM Integration**: Bringing your own models into the workflow.
 
-See [Planned Updates](documentation/7_NEXT_STEPS/1_Planned_Updates.md) for more details.
+See [Planned Updates](https://github.com/sasadjukic/sammyai/blob/main/documentation/7_NEXT_STEPS/1_Planned_Updates.md) for more details.
 
 ## ⚖️ License
 
