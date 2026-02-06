@@ -2,10 +2,6 @@
 
 Docker provides a seamless way to run SammyAI without worrying about installing Python, PySide6, or other dependencies on your local system.
 
-> [!NOTE]
-> **Status: Coming Soon!**
-> We are currently putting the finishing touches on the official SammyAI Docker image. The instructions below will be fully functional as soon as the final release is pushed. Stay tuned!
-
 ## Prerequisites
 
 *   [Docker](https://www.docker.com/products/docker-desktop/) installed and running on your system.
@@ -14,10 +10,10 @@ Docker provides a seamless way to run SammyAI without worrying about installing 
 
 ### 1. Pull the Image
 
-Once released, you can download the latest SammyAI image using:
+You can download the latest SammyAI image from [Docker Hub](https://hub.docker.com/r/sammycwa/sammyai) using:
 
 ```bash
-docker pull sasadjukic/sammyai:latest
+docker pull sammycwa/sammyai:latest
 ```
 
 ### 2. Launch the Container
@@ -30,7 +26,7 @@ xhost +local:docker
 docker run -it \
     --env DISPLAY=$DISPLAY \
     --volume /tmp/.X11-unix:/tmp/.X11-unix \
-    sasadjukic/sammyai:latest
+    sammycwa/sammyai:latest
 ```
 
 > [!IMPORTANT]
