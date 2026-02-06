@@ -17,8 +17,8 @@ Before you begin, ensure you have the following installed on your system:
 Open your terminal or command prompt and run the following command to download the source code:
 
 ```bash
-git clone https://github.com/sasadjukic/sammyai_v1.git
-cd sammyai_v1
+git clone https://github.com/sasadjukic/sammyai.git
+cd sammyai
 ```
 
 ### 2. Create a Virtual Environment (Recommended)
