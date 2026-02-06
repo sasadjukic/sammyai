@@ -51,7 +51,7 @@ If your conversation feels like it's "skidding off the road"—if the AI starts 
 ## ✅ Checklist: Is it time for a New Chat?
 
 If you answer **"Yes"** to any of the following, we recommend starting a new session:
-- [ ] Has the conversation exceeded 20-30 turns?
+- [ ] Has the conversation exceeded 10-15 turns?
 - [ ] Is the AI starting to ignore established character traits?
 - [ ] Have you moved from world-building to active drafting?
 - [ ] Is the model becoming repetitive or overly verbose?
