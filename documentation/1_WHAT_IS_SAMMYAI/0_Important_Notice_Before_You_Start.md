@@ -4,7 +4,7 @@ This release of SammyAI represents a significant step forward, with the core fea
 
 **Current Status:**
 
-*   **Version:** SammyAI_v1
+*   **Version:** SammyAI_0.0.1
 *   **Development Stage:** Alpha
 *   **Features:** The core AI writing features are operational, but remain in an experimental phase. Expect some rough edges and a need for thorough testing.
 *   **User Interface:** The UI is basic and functional, designed for immediate usability.
