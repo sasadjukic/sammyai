@@ -42,8 +42,8 @@
 ### Quick Install
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/sasadjukic/sammyai_v1.git
-   cd sammyai_v1
+   git clone https://github.com/sasadjukic/sammyai.git
+   cd sammyai
    ```
 2. **Install dependencies:**
    ```bash
