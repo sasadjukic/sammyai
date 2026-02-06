@@ -2,11 +2,11 @@
 
 ## Cost
 
-* SammyAI is a free to use. This is achieved through a strategic combination of local and cloud-based Large Language Models (LLMs). SammyAI leverages the generous free daily usage limits offered by some cloud LLM providers. Crucially, it uses local model(s) – meaning the heavy lifting happens directly on your computer – significantly reducing the resource demands and associated costs. This approach, combined with our focus on best practices, allows SammyAI to be accessible to literally anyone, regardless of their budget.
+* SammyAI is free to use. This is achieved through a strategic combination of local and cloud-based Large Language Models (LLMs). SammyAI leverages the generous free daily usage limits offered by some cloud LLM providers. Crucially, it uses local model(s) – meaning the heavy lifting happens directly on your computer – significantly reducing the resource demands and associated costs. This approach, combined with our focus on best practices, allows SammyAI to be accessible to literally anyone, regardless of their budget.
 
 **Free Usage:**
 
-*   SammyAI utilizes the generous free daily usage limits offered by cloud LLM providers. This means you can enjoy the core AI writing assistance without any cost. To get the most out of the free usage refer to our best practices guide [Link to Best Practices Guide - *To be created*]
+*   SammyAI utilizes the generous free daily usage limits offered by cloud LLM providers. This means you can enjoy the core AI writing assistance without any cost. To get the most out of the free usage refer to our best practices guide [Best Practices](https://github.com/sasadjukic/sammyai/tree/main/documentation/5_BEST_PRACTICES)
 
 **Exceeding Free Limits For Cloud Providers:**
 
