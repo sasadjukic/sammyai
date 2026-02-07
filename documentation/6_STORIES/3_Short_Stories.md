@@ -6,6 +6,24 @@ These narratives often involve an iterative process, sometimes utilizing multipl
 
 ---
 
+##  🧟 Fred and Zed: Not Yet Another Zombie Story
+
+> [!NOTE]
+> **Story Summary**
+> Fred and Zed, two zombies who do not have an instinctual hunger for living flesh, stumble into a musical festival near a small town in the USA and get to experience what it means to be a rockstar... at least for a few minutes.
+
+| Metadata | Details |
+| :--- | :--- |
+| **Release Date** | February 7th, 2026 |
+| **Brainstorming Model** | Gemma3:4b |
+| **Writing Model** | Kimi-K2:1T, Deepseek-v3.2 |
+| **Genre** | Comedy |
+| **Inspiration** | Onslaught of zombie content in movies and video games |
+
+[📖 Read Fred and Zed](https://drive.google.com/file/d/1LMYtp3QE6W0Ubq9QAKwOxXGuinpggOOw/view?usp=sharing)
+
+---
+
 ## 🦸 RatMan
 
 > [!NOTE]
