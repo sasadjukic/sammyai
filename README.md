@@ -1,5 +1,6 @@
 <div align="left">
   <img src="https://img.shields.io/badge/Open%20Source-Yes-blue" alt="Open Source">
+  <img src="https://img.shields.io/badge/License-MIT-blue" alt="License">
   <img src="https://img.shields.io/badge/Status-Under%20Development-orange" alt="Under Development">
   <img src="https://img.shields.io/badge/Python-3.x-green" alt="Python">
 </div>
