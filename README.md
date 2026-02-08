@@ -56,7 +56,7 @@
 
 For detailed installation options including Docker support, see the [Installation Guide](https://github.com/sasadjukic/sammyai/blob/main/documentation/2_INSTALLATION/1_Start.md).
 
-## 📖 Unleash Your Creativity
+## 📖 Stories
 
 SammyAI is more than just a text editor; it's a collaborative partner for:
 - **Essays & Short Stories**: From flash fiction to complex narratives.
