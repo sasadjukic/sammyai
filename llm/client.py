@@ -2,7 +2,7 @@
 LLM API client for text editor integration.
 """
 
-from typing import Optional, Dict, List, Callable
+from typing import Optional, Dict, List, Callable, Any
 from enum import Enum
 import ollama
 from google import genai
@@ -84,6 +84,41 @@ class LLMClient:
         except Exception as e:
             raise RuntimeError(f"Failed to initialize client for {self.provider}: {e}")
     
+    def _decompose_messages(
+        self, 
+        messages: List[Dict[str, str]], 
+        include_system: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Decompose messages into primary system prompt, extra context, and user/assistant messages.
+        
+        Args:
+            messages: List of message dicts with 'role' and 'content'
+            include_system: Whether to include the base system prompt
+            
+        Returns:
+            Dict containing 'primary_system', 'extra_system', and 'other_messages'
+        """
+        primary_system = self.system_prompt if include_system else ""
+        extra_system = []
+        other_messages = []
+        
+        for msg in messages:
+            role = msg.get("role")
+            content = msg.get("content", "")
+            
+            if role == "system":
+                if content and content != self.system_prompt:
+                    extra_system.append(content)
+            else:
+                other_messages.append(msg)
+                
+        return {
+            "primary_system": primary_system,
+            "extra_system": extra_system,
+            "other_messages": other_messages
+        }
+
     def _prepare_messages(
         self, 
         messages: List[Dict[str, str]], 
@@ -102,30 +137,20 @@ class LLMClient:
         Returns:
             Messages list with consolidated system prompt prepended
         """
-        system_contents = []
-        other_messages = []
+        decomposed = self._decompose_messages(messages, include_system)
         
-        # Use our primary system prompt if requested
-        if include_system:
-            system_contents.append(self.system_prompt)
-            
-        for msg in messages:
-            role = msg.get("role")
-            content = msg.get("content", "")
-            
-            if role == "system":
-                # Avoid duplicating the base system prompt if it was already in messages
-                if content and content != self.system_prompt:
-                    system_contents.append(content)
-            else:
-                other_messages.append(msg)
+        system_contents = []
+        if decomposed["primary_system"]:
+            system_contents.append(decomposed["primary_system"])
+        
+        system_contents.extend(decomposed["extra_system"])
         
         if not system_contents:
-            return other_messages
+            return decomposed["other_messages"]
             
         # Join all system instructions into one block
         combined_system = "\n\n".join(system_contents)
-        return [{"role": "system", "content": combined_system}] + other_messages
+        return [{"role": "system", "content": combined_system}] + decomposed["other_messages"]
     
     async def _stream_chat_ollama(
         self,
@@ -137,7 +162,14 @@ class LLMClient:
         include_system: bool = True
     ) -> str:
         """Stream chat using Ollama client."""
-        prepared_messages = self._prepare_messages(messages, include_system)
+        # For local models (like Gemma), we prepend extra context to the user message
+        # as they often handle consolidated system prompts poorly.
+        # For 'ollama' provider (cloud-hosted), we stick to consolidated system prompt.
+        if self.provider == "local":
+            prepared_messages = self._prepare_messages_decomposed(messages, include_system)
+        else:
+            prepared_messages = self._prepare_messages(messages, include_system)
+            
         full_response = ""
         
         try:
@@ -250,7 +282,13 @@ class LLMClient:
         include_system: bool = True
     ) -> str:
         """Chat using Ollama client."""
-        prepared_messages = self._prepare_messages(messages, include_system)
+        # For local models (like Gemma), we prepend extra context to the user message
+        # as they often handle consolidated system prompts poorly.
+        # For 'ollama' provider (cloud-hosted), we stick to consolidated system prompt.
+        if self.provider == "local":
+            prepared_messages = self._prepare_messages_decomposed(messages, include_system)
+        else:
+            prepared_messages = self._prepare_messages(messages, include_system)
         
         try:
             # Build options dict
@@ -318,36 +356,23 @@ class LLMClient:
         messages: List[Dict[str, str]], 
         include_system: bool = True
     ) -> Dict:
-        """Convert standard messages to Google Generative AI format.
-        
-        Google uses a different format:
-        - System prompt is set via system_instruction in the model
-        - Chat history uses 'user' and 'model' roles (not 'assistant')
-        - Messages are in parts format
-        """
-        prepared_messages = self._prepare_messages(messages, include_system)
+        """Convert standard messages to Google Generative AI format."""
+        decomposed = self._decompose_messages(messages, include_system)
         
         history = []
         last_message = ""
-        extra_system_context = []
         
-        for i, msg in enumerate(prepared_messages):
+        other_messages = decomposed["other_messages"]
+        for i, msg in enumerate(other_messages):
             role = msg["role"]
             content = msg["content"]
-            
-            # Use self.system_prompt for the core instruction,
-            # but preserve other system messages (e.g., CIN/RAG context)
-            if role == "system":
-                if content != self.system_prompt:
-                    extra_system_context.append(content)
-                continue
             
             # Convert 'assistant' to 'model' for Google
             if role == "assistant":
                 role = "model"
             
             # Last user message is sent separately
-            if i == len(prepared_messages) - 1 and role == "user":
+            if i == len(other_messages) - 1 and role == "user":
                 last_message = content
             else:
                 history.append({
@@ -356,14 +381,55 @@ class LLMClient:
                 })
 
         # If we have extra system context, prepend it to the last message
-        if extra_system_context and last_message:
-            context_block = "\n\n".join(extra_system_context)
+        if decomposed["extra_system"] and last_message:
+            context_block = "\n\n".join(decomposed["extra_system"])
             last_message = f"{context_block}\n\nUser query: {last_message}"
         
         return {
             "history": history,
             "last_message": last_message
         }
+
+    def _prepare_messages_decomposed(
+        self, 
+        messages: List[Dict[str, str]], 
+        include_system: bool = True
+    ) -> List[Dict[str, str]]:
+        """
+        Prepare messages by keeping primary system prompt in the system role
+        and prepending extra context to the last user message.
+        
+        This is useful for local models that don't follow complex system instructions.
+        """
+        decomposed = self._decompose_messages(messages, include_system)
+        
+        other_messages = decomposed["other_messages"].copy()
+        
+        # If we have extra system context, prepend it to the last user message
+        if decomposed["extra_system"]:
+            context_block = "\n\n".join(decomposed["extra_system"])
+            
+            # Find the last user message
+            last_user_idx = -1
+            for i in range(len(other_messages) - 1, -1, -1):
+                if other_messages[i]["role"] == "user":
+                    last_user_idx = i
+                    break
+            
+            if last_user_idx != -1:
+                original_content = other_messages[last_user_idx]["content"]
+                other_messages[last_user_idx]["content"] = f"{context_block}\n\n{original_content}"
+            else:
+                # If no user message found (unlikely), add context as a user message
+                other_messages.append({"role": "user", "content": context_block})
+        
+        # Result starts with the primary system prompt
+        result = []
+        if decomposed["primary_system"]:
+            result.append({"role": "system", "content": decomposed["primary_system"]})
+            
+        result.extend(other_messages)
+        return result
     
     async def stream_chat(
         self,
