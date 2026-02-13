@@ -373,6 +373,10 @@ class TextEditor(QMainWindow):
         self.index_action.triggered.connect(self._index_current_file_manually)
         self.index_action.setStatusTip("Index current file for AI assistant context")
 
+        self.upload_rag_action = QAction("Upload File for RAG", self)
+        self.upload_rag_action.triggered.connect(self._upload_file_for_rag)
+        self.upload_rag_action.setStatusTip("Upload a file (.txt, .md, .pdf) for RAG indexing")
+
         # CIN actions
         self.upload_cin_action = QAction("Upload File for CIN", self)
         self.upload_cin_action.triggered.connect(self._upload_cin_file)
@@ -553,6 +557,7 @@ class TextEditor(QMainWindow):
         # RAG menu
         rag_menu = menubar.addMenu("RAG")
         rag_menu.addAction(self.index_action)
+        rag_menu.addAction(self.upload_rag_action)
     
         # Add action to clear RAG index
         clear_rag_action = QAction("Clear RAG Index", self)
@@ -1365,6 +1370,85 @@ class TextEditor(QMainWindow):
                         f"✓ Indexed {os.path.basename(file_to_index)} "
                         f"({stats['total_documents']} total chunks)", 
                         3000
+                    ))
+                else:
+                    QTimer.singleShot(0, lambda: self.statusBar().showMessage(
+                        f"✗ Failed to index {os.path.basename(file_to_index)}", 
+                        3000
+                    ))
+            except Exception as e:
+                print(f"Indexing error: {e}")
+                QTimer.singleShot(0, lambda: self.statusBar().showMessage(
+                    f"✗ Error indexing: {str(e)}", 
+                    5000
+                ))
+            finally:
+                # Release the lock
+                with self._indexing_lock:
+                    self._indexing_in_progress = False
+        
+        # Start indexing in background
+        t = threading.Thread(target=index_worker, daemon=True)
+        t.start()
+
+    def _upload_file_for_rag(self):
+        """Upload a file (.txt, .md, .pdf) for RAG indexing."""
+        if not self.rag_system:
+            QMessageBox.warning(self, "RAG Unavailable", "RAG system not initialized.")
+            return
+
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Upload File for RAG indexing", "", 
+            "Allowed Files (*.txt *.pdf *.md);;Text Files (*.txt);;Markdown Files (*.md);;PDF Files (*.pdf);;All Files (*)"
+        )
+        if not path:
+            return
+
+        # Check if already indexing
+        with self._indexing_lock:
+            if self._indexing_in_progress:
+                QMessageBox.information(
+                    self, 
+                    "Indexing in Progress", 
+                    "Already indexing a file. Please wait."
+                )
+                return
+            self._indexing_in_progress = True
+
+        # Check file size (larger limit than CIN, maybe 1MB)
+        if not self._should_index_file(path, max_size_kb=1000):
+            with self._indexing_lock:
+                self._indexing_in_progress = False
+            return
+
+        file_to_index = path
+        file_size_kb = os.path.getsize(file_to_index) / 1024
+
+        self.statusBar().showMessage(
+            f"Indexing {os.path.basename(file_to_index)} ({file_size_kb:.1f}KB)...", 
+            0  # Keep showing until done
+        )
+
+        def index_worker():
+            try:
+                # Index the file
+                success = self.rag_system.index_file(file_to_index, force_reindex=False)
+                
+                if success:
+                    # Get stats
+                    stats = self.rag_system.get_stats()
+                    
+                    # Update UI on main thread
+                    QTimer.singleShot(0, lambda: self.statusBar().showMessage(
+                        f"✓ Indexed {os.path.basename(file_to_index)} "
+                        f"({stats['total_documents']} total chunks)", 
+                        3000
+                    ))
+                    # Also show success dialog as it's a manual upload
+                    QTimer.singleShot(0, lambda: QMessageBox.information(
+                        self, "RAG Indexing Success",
+                        f"File '{os.path.basename(file_to_index)}' has been indexed for RAG.\n"
+                        f"Total chunks in system: {stats['total_documents']}"
                     ))
                 else:
                     QTimer.singleShot(0, lambda: self.statusBar().showMessage(
