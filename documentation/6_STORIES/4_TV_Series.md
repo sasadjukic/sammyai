@@ -26,4 +26,22 @@ It is also important to note that not EVERY SINGLE word in these pilots had been
 
 ---
 
+##  🚌 Transit Central
+
+> [!NOTE]
+> **Story Summary**
+> A ragtag crew staffing the night shift at a Los Angeles city transit control center must keep public transportation running while dealing with eccentric passengers, weird system glitches, and each other's bizarre personal projects — a show about holding a city together when everyone else sleeps.
+
+| Metadata | Details |
+| :--- | :--- |
+| **Release Date** | March 22th, 2026 |
+| **Brainstorming Model** | Deepseek-v3.2 |
+| **Writing Model** | Deepseek-v3.2, Kimi-K2:1T, Gemini-2.5-Flash |
+| **Genre** | Workplace comedy |
+| **Inspiration** | The Office, Parks and Recreation |
+
+[📖 Transit Central](https://drive.google.com/file/d/1SLGUa9OQHH60xtVGdQCQMyM_go3m75_u/view?usp=sharing)
+
+---
+
 [⬅️ Back to Story Archive](file:///home/sasa/Desktop/Projects/sammyai_v1/documentation/6_STORIES/1_Stories_Introduction.md)
