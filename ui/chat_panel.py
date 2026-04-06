@@ -50,7 +50,7 @@ class ChatPanel(QWidget):
         # Header
         header_layout = QHBoxLayout()
         header_label = QLabel("💬 SammyAI")
-        header_label.setStyleSheet("font-size: 18px; font-weight: bold; color: #dddddd;")
+        header_label.setObjectName("chatHeader")
         # Model selection combo box
         try:
             # Import here to avoid cyclic imports at module import time
@@ -79,13 +79,14 @@ class ChatPanel(QWidget):
         
         # Chat history display
         self.chat_display = QTextEdit()
+        self.chat_display.setObjectName("chatDisplay")
         self.chat_display.setReadOnly(True)
         self.chat_display.setPlaceholderText("Chat history will appear here...")
         layout.addWidget(self.chat_display)
         
         # Status label
         self.status_label = QLabel("")
-        self.status_label.setStyleSheet("color: #888888; font-style: italic; font-size: 11px;")
+        self.status_label.setObjectName("chatStatus")
         layout.addWidget(self.status_label)
         
         # Input area
@@ -105,6 +106,7 @@ class ChatPanel(QWidget):
         self.clear_button.setToolTip("Clear chat history")
         
         self.send_button = QPushButton("Send")
+        self.send_button.setObjectName("sendButton")
         self.send_button.setDefault(True)
         self.send_button.setToolTip("Send message (Ctrl+Enter)")
         
@@ -122,46 +124,7 @@ class ChatPanel(QWidget):
 
         self.setObjectName("chatPanel")
 
-        # Apply scoped stylesheet
-        self.setStyleSheet(
-            """
-            #chatContainer { background-color: #2d2d2d; }
-            #chatPanel { background-color: transparent; color: #dddddd; }
-            #chatContainer QTextEdit { background-color: #2d2d2d; color: #dddddd; border: 1px solid #444444; }
-            #chatContainer QPushButton { 
-                background-color: transparent; 
-                color: #dddddd; 
-                border: 1px solid #444444; 
-                border-radius: 4px; 
-                padding: 6px 12px; 
-            }
-            #chatContainer QPushButton:hover { 
-                background-color: #3a3a3a; 
-                border-color: #666666; 
-            }
-            #chatContainer QComboBox { 
-                background-color: #3d3d3d; 
-                color: #eeeeee; 
-                border: 1px solid #444444; 
-                border-radius: 4px;
-                padding: 4px; 
-            }
-            #chatContainer QComboBox:hover { 
-                background-color: #444444; 
-            }
-            #chatContainer QComboBox:on { 
-                background-color: #444444; 
-            }
-            #chatContainer QComboBox QAbstractItemView {
-                background-color: #2d2d2d;
-                color: #eeeeee;
-                selection-background-color: #444444;
-                border: 1px solid #444444;
-            }
-            #chatContainer QLabel { color: #dddddd; }
-            #chatContainer QScrollArea { background-color: transparent; }
-            """
-        )
+        # Styles moved to ui/styles/dark_theme.qss
 
         # Connect signals
         self.send_button.clicked.connect(self._on_send_clicked)
