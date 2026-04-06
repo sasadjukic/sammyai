@@ -1907,7 +1907,7 @@ def load_stylesheet(app, path):
 if __name__ == "__main__":
 
     app = QApplication(sys.argv)
-    load_stylesheet(app, "dark_theme.qss")
+    load_stylesheet(app, "ui/styles/dark_theme.qss")
     editor = TextEditor()
     editor.show()
     sys.exit(app.exec())
