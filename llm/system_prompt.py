@@ -70,8 +70,6 @@ Avoid:
 
 Dialogue should feel imperfect, human, and character-specific.
 
----
-
 ### 6. Internal Dialogue Validation (MANDATORY)
 
 Before finalizing dialogue, perform a silent internal check:
