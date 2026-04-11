@@ -33,6 +33,9 @@ from editing.diff_manager import DiffManager
 # LLM Settings UI
 from ui.llm_settings import LLMSettingsDialog
 
+# RAG management UI
+from ui.rag_management import RAGFileManagementDialog
+
 
 class SearchWidget(QWidget):
     """A search widget with text input, match counter, and navigation buttons."""
@@ -559,6 +562,11 @@ class TextEditor(QMainWindow):
         rag_menu.addAction(self.index_action)
         rag_menu.addAction(self.upload_rag_action)
     
+        # Add action to manage RAG index
+        manage_rag_action = QAction("Manage RAG Files...", self)
+        manage_rag_action.triggered.connect(self._manage_rag_index)
+        rag_menu.addAction(manage_rag_action)
+
         # Add action to clear RAG index
         clear_rag_action = QAction("Clear RAG Index", self)
         clear_rag_action.triggered.connect(self._clear_rag_index)
@@ -1471,36 +1479,53 @@ class TextEditor(QMainWindow):
         t.start()
 
     # Clear RAG index method
+    # Manage RAG index method
+    def _manage_rag_index(self):
+        """Open the RAG file management dialog."""
+        if not self.rag_system:
+            QMessageBox.warning(self, "RAG Unavailable", "RAG system not initialized.")
+            return
+            
+        dialog = RAGFileManagementDialog(self.rag_system, self)
+        dialog.exec()
+
+    # Clear RAG index method
     def _clear_rag_index(self):
-        """Clear the entire RAG index."""
+        """Provide choice to clear entire RAG index or manage specific files."""
         if not self.rag_system:
             QMessageBox.warning(self, "RAG Unavailable", "RAG system not initialized.")
             return
         
-        reply = QMessageBox.question(
-            self,
-            "Clear RAG Index",
-            "This will remove all indexed files from the RAG system.\n\n"
-            "Are you sure you want to continue?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
-        )
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle("RAG Index Management")
+        msg_box.setText("How would you like to manage the RAG index?")
         
-        if reply == QMessageBox.Yes:
-            try:
-                self.rag_system.clear_index()
-                QMessageBox.information(
-                    self, 
-                    "Success", 
-                    "RAG index cleared successfully."
-                )
-                self.statusBar().showMessage("RAG index cleared", 3000)
-            except Exception as e:
-                QMessageBox.critical(
-                    self, 
-                    "Error", 
-                    f"Failed to clear RAG index: {e}"
-                )
+        clear_all_btn = msg_box.addButton("Delete All Files", QMessageBox.ActionRole)
+        manage_btn = msg_box.addButton("Select Specific Files...", QMessageBox.ActionRole)
+        cancel_btn = msg_box.addButton(QMessageBox.Cancel)
+        
+        msg_box.exec()
+        
+        if msg_box.clickedButton() == clear_all_btn:
+            reply = QMessageBox.question(
+                self,
+                "Confirm Clear All",
+                "This will remove ALL indexed files from the RAG system.\n\n"
+                "Are you sure you want to continue?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No
+            )
+            
+            if reply == QMessageBox.Yes:
+                try:
+                    self.rag_system.clear_index()
+                    QMessageBox.information(self, "Success", "RAG index cleared successfully.")
+                    self.statusBar().showMessage("RAG index cleared", 3000)
+                except Exception as e:
+                    QMessageBox.critical(self, "Error", f"Failed to clear RAG index: {e}")
+        
+        elif msg_box.clickedButton() == manage_btn:
+            self._manage_rag_index()
     
     # Show RAG statistics method
     def _show_rag_stats(self):
