@@ -79,8 +79,8 @@ Read more in our [Cost, Privacy and Copyrights document](https://github.com/sasa
 Planned updates include:
 - **Long-Form Stress Testing**: Ensuring stability for full-length novels.
 - **Custom LLM Integration**: Bringing your own models into the workflow.
-- **Improved Dialogue System**: Dialogue that tailors to yuor character traits and speech patterns
-- **UI Improvements**: Imprved UI and UX
+- **Improved Dialogue System**: Dialogue that tailors to your character traits and speech patterns
+- **UI Improvements**: Improving UI and UX
 
 See [Planned Updates](https://github.com/sasadjukic/sammyai/blob/main/documentation/7_NEXT_STEPS/1_Planned_Updates.md) for more details.
 
