@@ -7,7 +7,7 @@
 
 <div align="center">
 
-<img src="icons/sammy.svg" width="150" alt="SammyAI Logo">
+<img src="icons/sammy.svg" width="300" alt="SammyAI Logo">
 
 # SammyAI
 
@@ -29,7 +29,7 @@
 
 ## ✨ Key Features
 
-- **Multi-modal Chat**: Seamlessly switch between different AI models during a single session to tailor assistance to your specific needs.
+- **Multi-model Chat**: Seamlessly switch between different AI models during a single session to tailor assistance to your specific needs.
 - **Context Injection (CIN)**: Directly inject specific reference files into the current AI conversation for informed brainstorming.
 - **Retrieval-Augmented Generation (RAG)**: Index your project files to provide the AI with a deep "memory" of your world and characters.
 - **Diff-Based Editing (DBE)**: Review AI suggestions via visual diffs and surgically apply changes to your drafts.
@@ -61,7 +61,7 @@ For detailed installation options including Docker support, see the [Installatio
 
 SammyAI is more than just a text editor; it's a collaborative partner for:
 - **Essays & Short Stories**: From flash fiction to complex narratives.
-- **Screenplays & Scripts**: Tailored for TV, movies, and streaming series.
+- **Screenplays & TV Pilots**: Tailored for TV, movies, and streaming series.
 - **Game Development**: Fast-track your world-building and dialogue creation.
 
 Check out our [Story Archive](https://github.com/sasadjukic/sammyai/blob/main/documentation/6_STORIES/1_Stories_Introduction.md) to see examples of what SammyAI can help you create.
@@ -76,10 +76,11 @@ Read more in our [Cost, Privacy and Copyrights document](https://github.com/sasa
 
 ## 🗺️ Roadmap
 
-We are constantly evolving! Planned updates include:
+Planned updates include:
 - **Long-Form Stress Testing**: Ensuring stability for full-length novels.
-- **Expanded File Support**: `.docx` and `.odt` compatibility.
 - **Custom LLM Integration**: Bringing your own models into the workflow.
+- **Improved Dialogue System**: Dialogue that tailors to yuor character traits and speech patterns
+- **UI Improvements**: Imprved UI and UX
 
 See [Planned Updates](https://github.com/sasadjukic/sammyai/blob/main/documentation/7_NEXT_STEPS/1_Planned_Updates.md) for more details.
 
@@ -87,8 +88,4 @@ See [Planned Updates](https://github.com/sasadjukic/sammyai/blob/main/documentat
 
 This project is licensed under the MIT License.
 
----
 
-<div align="center">
-Built with ❤️ by the SammyAI Team
-</div>
