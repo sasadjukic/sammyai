@@ -27,68 +27,28 @@ class RAGFileManagementDialog(QDialog):
         
         # Header
         header = QLabel("Indexed Files")
-        header.setStyleSheet("font-size: 16px; font-weight: bold; color: #dddddd;")
+        header.setObjectName("ragHeader")
         layout.addWidget(header)
         
         # Description
         desc = QLabel("Select files to remove from the RAG index:")
-        desc.setStyleSheet("color: #aaaaaa;")
+        desc.setObjectName("ragDescription")
         layout.addWidget(desc)
         
         # List of files
         self.file_list = QListWidget()
-        self.file_list.setStyleSheet("""
-            QListWidget {
-                background-color: #2d2d2d;
-                color: #dddddd;
-                border: 1px solid #444444;
-                border-radius: 4px;
-                padding: 5px;
-            }
-            QListWidget::item {
-                padding: 8px;
-                border-bottom: 1px solid #3d3d3d;
-            }
-            QListWidget::item:selected {
-                background-color: #3e3e3e;
-            }
-        """)
+        self.file_list.setObjectName("ragFileList")
         layout.addWidget(self.file_list)
         
         # Action buttons row
         btn_layout = QHBoxLayout()
         
         self.btn_remove = QPushButton("Remove Selected")
-        self.btn_remove.setStyleSheet("""
-            QPushButton {
-                background-color: #d9534f;
-                color: white;
-                border-radius: 4px;
-                padding: 8px 15px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #c9302c;
-            }
-            QPushButton:disabled {
-                background-color: #555555;
-                color: #888888;
-            }
-        """)
+        self.btn_remove.setObjectName("ragBtnRemove")
         self.btn_remove.clicked.connect(self.remove_selected)
         
         self.btn_clear_all = QPushButton("Clear All")
-        self.btn_clear_all.setStyleSheet("""
-            QPushButton {
-                background-color: #555555;
-                color: #dddddd;
-                border-radius: 4px;
-                padding: 8px 15px;
-            }
-            QPushButton:hover {
-                background-color: #666666;
-            }
-        """)
+        self.btn_clear_all.setObjectName("ragBtnClearAll")
         self.btn_clear_all.clicked.connect(self.clear_all_index)
         
         btn_layout.addWidget(self.btn_remove)
@@ -101,25 +61,14 @@ class RAGFileManagementDialog(QDialog):
         close_layout = QHBoxLayout()
         close_layout.addStretch()
         self.btn_close = QPushButton("Close")
-        self.btn_close.setStyleSheet("""
-            QPushButton {
-                background-color: transparent;
-                color: #dddddd;
-                border: 1px solid #444444;
-                border-radius: 4px;
-                padding: 8px 15px;
-            }
-            QPushButton:hover {
-                background-color: #3a3a3a;
-            }
-        """)
+        self.btn_close.setObjectName("ragBtnClose")
         self.btn_close.clicked.connect(self.accept)
         close_layout.addWidget(self.btn_close)
         
         layout.addLayout(close_layout)
         
         # Set overall dialog style
-        self.setStyleSheet("background-color: #1e1e1e;")
+        self.setObjectName("ragDialog")
 
     def load_files(self):
         """Fetch indexed files from RAG system and populate the list."""

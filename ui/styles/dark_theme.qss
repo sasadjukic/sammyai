@@ -196,3 +196,75 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 #chatContainer QScrollArea {
     background-color: transparent;
 }
+
+/* RAG Management Dialog */
+#ragDialog {
+    background-color: #1e1e1e;
+}
+
+#ragHeader {
+    font-size: 16px; 
+    font-weight: bold; 
+    color: #dddddd;
+}
+
+#ragDescription {
+    color: #aaaaaa;
+}
+
+#ragFileList {
+    background-color: #2d2d2d;
+    color: #dddddd;
+    border: 1px solid #444444;
+    border-radius: 4px;
+    padding: 5px;
+}
+
+#ragFileList::item {
+    padding: 8px;
+    border-bottom: 1px solid #3d3d3d;
+}
+
+#ragFileList::item:selected {
+    background-color: #3e3e3e;
+}
+
+#ragBtnRemove {
+    background-color: #d9534f;
+    color: white;
+    border-radius: 4px;
+    padding: 8px 15px;
+    font-weight: bold;
+}
+
+#ragBtnRemove:hover {
+    background-color: #c9302c;
+}
+
+#ragBtnRemove:disabled {
+    background-color: #555555;
+    color: #888888;
+}
+
+#ragBtnClearAll {
+    background-color: #555555;
+    color: #dddddd;
+    border-radius: 4px;
+    padding: 8px 15px;
+}
+
+#ragBtnClearAll:hover {
+    background-color: #666666;
+}
+
+#ragBtnClose {
+    background-color: transparent;
+    color: #dddddd;
+    border: 1px solid #444444;
+    border-radius: 4px;
+    padding: 8px 15px;
+}
+
+#ragBtnClose:hover {
+    background-color: #3a3a3a;
+}
