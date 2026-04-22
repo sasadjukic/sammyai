@@ -123,13 +123,13 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
     background-color: #2d2d2d;
 }
 
-#chatHeader {
+#chatContainer #chatHeaderText {
     font-size: 18px;
     font-weight: bold;
-    color: #dddddd;
+    color: #81c1d9;
 }
 
-#chatStatus {
+#chatContainer #chatStatus {
     color: #888888;
     font-style: italic;
     font-size: 11px;

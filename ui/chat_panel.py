@@ -8,9 +8,11 @@ from PySide6.QtWidgets import (
     QLineEdit, QPushButton, QLabel, QScrollArea, QFrame, QComboBox,
     QApplication
 )
-from PySide6.QtCore import Qt, Signal, QThread
-from PySide6.QtGui import QFont, QTextCursor
+from PySide6.QtCore import Qt, Signal, QThread, QRect
+from PySide6.QtGui import QFont, QTextCursor, QPixmap, QPainter, QColor
+from PySide6.QtSvg import QSvgRenderer
 import asyncio
+import os
 from typing import Optional
 
 
@@ -49,8 +51,19 @@ class ChatPanel(QWidget):
         
         # Header
         header_layout = QHBoxLayout()
-        header_label = QLabel("💬 SammyAI")
-        header_label.setObjectName("chatHeader")
+        header_layout.setSpacing(8)
+
+        # Icon
+        self.icon_label = QLabel()
+        self.icon_label.setObjectName("chatHeaderIcon")
+        self._setup_header_icon()
+        
+        # Text
+        self.text_label = QLabel("SammyAI")
+        self.text_label.setObjectName("chatHeaderText")
+        
+        header_layout.addWidget(self.icon_label)
+        header_layout.addWidget(self.text_label)
         # Model selection combo box
         try:
             # Import here to avoid cyclic imports at module import time
@@ -71,7 +84,6 @@ class ChatPanel(QWidget):
         self.close_button.setMaximumWidth(30)
         self.close_button.setToolTip("Close chat panel")
         
-        header_layout.addWidget(header_label)
         header_layout.addStretch()
         header_layout.addWidget(self.model_combo)
         header_layout.addWidget(self.close_button)
@@ -252,3 +264,33 @@ class ChatPanel(QWidget):
                    .replace("<", "&lt;")
                    .replace(">", "&gt;")
                    .replace("\n", "<br>"))
+
+    def _setup_header_icon(self):
+        """Load, tint and set the dialogue icon."""
+        try:
+            # Path to the icon
+            icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "icons", "dialogue.svg")
+            
+            if not os.path.exists(icon_path):
+                return
+
+            # Target size (matching font-size 18px)
+            size = 20
+            color = "#81c1d9"
+
+            renderer = QSvgRenderer(icon_path)
+            pix = QPixmap(size, size)
+            pix.fill(Qt.transparent)
+
+            painter = QPainter(pix)
+            renderer.render(painter, QRect(0, 0, size, size))
+            
+            # Tint the icon
+            painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
+            painter.fillRect(pix.rect(), QColor(color))
+            painter.end()
+
+            self.icon_label.setPixmap(pix)
+            self.icon_label.setFixedSize(size, size)
+        except Exception as e:
+            print(f"Failed to load header icon: {e}")
