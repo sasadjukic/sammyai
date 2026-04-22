@@ -138,21 +138,21 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 #chatDisplay {
     background-color: #2e2e2e;
     color: #dddddd;
-    border: 1px solid #444;
-    border-radius: 5px;
+    border-radius: 10px;
 }
 
 #chatContainer QTextEdit {
     background-color: #2d2d2d;
     color: #dddddd;
-    border: 1px solid #444444;
+    border: 2px solid #e9a5a5;
+    border-radius: 10px;
 }
 
 #chatContainer QPushButton {
     background-color: transparent;
     color: #dddddd;
     border: 1px solid #444444;
-    border-radius: 4px;
+    border-radius: 10px;
     padding: 6px 12px;
 }
 
@@ -168,10 +168,10 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 
 #chatContainer QComboBox {
     background-color: #3d3d3d;
-    color: #eeeeee;
+    color: #81c1d9;
     border: 1px solid #444444;
-    border-radius: 4px;
-    padding: 4px;
+    border-radius: 10px;
+    padding: 8px;
 }
 
 #chatContainer QComboBox:hover {
