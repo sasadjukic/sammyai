@@ -26,7 +26,7 @@
 *   **Free to Use:**  Start writing without any financial commitment.
 *   **Privacy Focused:** We respect your privacy – SammyAI *DOES NOT* share your user data.
 *   **AI-Powered Creativity:** Get instant help with brainstorming, outlining, generating ideas, and refining your prose with integrated AI features.
-*   **Multi-Modal Chat:** Seamlessly switch between different AI models during a single chat session to tailor your assistance to your specific needs.
+*   **Multi-Model Chat:** Seamlessly switch between different AI models during a single chat session to tailor your assistance to your specific needs.
 
 ## Who Can Benefit From Using SammyAI?
 

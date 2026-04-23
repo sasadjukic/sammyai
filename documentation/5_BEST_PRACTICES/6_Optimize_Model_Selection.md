@@ -53,4 +53,4 @@ While local models are highly capable, they often have smaller **output context 
 ---
 
 ## 🎭 Experimentation is Key
-Don't feel locked into one model. If you're stuck on a scene, try asking the same prompt to two different models using the **Multi-Modal Chat** dropdown. The poetic interpretation of one might trigger the breakthrough that the logical interpretation of another missed.
+Don't feel locked into one model. If you're stuck on a scene, try asking the same prompt to two different models using the **Multi-Model Chat** dropdown. The poetic interpretation of one might trigger the breakthrough that the logical interpretation of another missed.

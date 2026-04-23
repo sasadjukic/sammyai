@@ -60,7 +60,7 @@ Choosing the right approach depends on the scale of your project:
 
 ---
 
-## 🎭 Multi-Modal Chat
+## 🎭 Multi-model Chat
 
 SammyAI breaks the "brand barrier" by allowing you to interact with multiple Large Language Models (LLMs) from different providers within a single, dynamic session.
 
@@ -93,9 +93,9 @@ graph LR
 
 | Your Goal | Recommended Tool |
 | :--- | :--- |
-| **Initial Brainstorming** | Multi-Modal Chat (Cloud Models) |
+| **Initial Brainstorming** | Multi-model Chat (Cloud Models) |
 | **Reference Story Lore** | Context Injection (CIN) |
 | **Reference Massive Series Data** | RAG |
 | **Fine-tuning Dialogue/Prose** | Diff-Edits (DBE) |
-| **Local Privacy/Quick Drafting** | Multi-Modal Chat (Local Models) |
+| **Local Privacy/Quick Drafting** | Multi-model Chat (Local Models) |
 

@@ -44,7 +44,7 @@ Writing often requires specialized knowledge. SammyAI boasts a vast general know
 Sometimes, the most valuable thing an AI can offer is a "wrong" suggestion. 
 
 *   **Propel Your Imagination**: If SammyAI suggests a plot twist you dislike, analyze *why* you dislike it. Often, the act of rejecting an AI suggestion clarifies exactly what you *do* want to happen.
-*   **Cross-Pollination**: Use the **Multi-Modal Chat** feature to see how different models interpret the same creative problem. One might be more poetic, while another is more logical.
+*   **Cross-Pollination**: Use the **Multi-Model Chat** feature to see how different models interpret the same creative problem. One might be more poetic, while another is more logical.
 
 ---
 

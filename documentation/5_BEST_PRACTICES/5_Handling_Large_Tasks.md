@@ -52,7 +52,7 @@ Why does the AI lose its way during massive generations? It comes down to the na
 
 ## 🛠️ Step-by-Step Workflow
 
-1.  **Draft an Outline**: Use the **Multi-Modal Chat** to brainstorm a high-level structure.
+1.  **Draft an Outline**: Use the **Multi-Model Chat** to brainstorm a high-level structure.
 2.  **Zero In**: Focus on a single scene or even a single interaction within a scene.
 3.  **Refine & Patch**: Once a segment is finished (and perhaps polished via **Diff-Edits**), move to the next.
 4.  **Connect**: Tell SammyAI: *"Previously, Sarah found the map. Now, let’s write the scene where she tries to decode it in the library."*

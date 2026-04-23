@@ -45,7 +45,7 @@ As your project grows, staying organized is crucial for maintaining narrative qu
 
 | Developmental Stage | Recommended Tool | Why? |
 | :--- | :--- | :--- |
-| **Brainstorming** | Multi-Modal Chat | Fast experimentation with multiple models. |
+| **Brainstorming** | Multi-Model Chat | Fast experimentation with multiple models. |
 | **Lore Management** | RAG | Efficiently reference deep history or massive series data. |
 | **Scene Editing** | Diff-Edits (DBE) | Surgical precision for dialogue and prose. |
 

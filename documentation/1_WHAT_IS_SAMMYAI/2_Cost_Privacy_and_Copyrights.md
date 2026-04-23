@@ -10,7 +10,7 @@
 
 **Exceeding Free Limits For Cloud Providers:**
 
-*   **Daily Reset:**  Free limits for cloud providers are reset daily. If you exceed your daily allowance, you will need to wait until the next day for your usage to reset and continue using the cloud-based AI features for free. But remember, you have two different cloud providers and the local model that is always free, all integrated into a multi-modal chat. If you use the best practices, this will get you plenty of daily usage. 
+*   **Daily Reset:**  Free limits for cloud providers are reset daily. If you exceed your daily allowance, you will need to wait until the next day for your usage to reset and continue using the cloud-based AI features for free. But remember, you have two different cloud providers and the local model that is always free, all integrated into a multi-model chat. If you use the best practices, this will get you plenty of daily usage. 
 
 **Existing Paid Subscriptions for Cloud Providers:**
 
