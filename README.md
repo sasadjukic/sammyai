@@ -27,7 +27,7 @@
 
 </div>
 
-## ✨ Key Features
+## 🔑 Key Features
 
 - **Multi-model Chat**: Seamlessly switch between different AI models during a single session to tailor assistance to your specific needs.
 - **Context Injection (CIN)**: Directly inject specific reference files into the current AI conversation for informed brainstorming.
