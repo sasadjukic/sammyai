@@ -15,8 +15,8 @@ To ensure SammyAI remains a reliable partner for high-stakes creative work, we a
 We are dedicated to making SammyAI more versatile and intuitive for professional environments:
 
 - **Interface Modernization**: Incremental updates to the UI layout, color palettes, and functional accessibility.
-- **Expanded File Support**: Implementing compatibility for `.odt` and `.docx` formats to facilitate seamless cross-platform editing.
 - **Model Flexibility**: Introducing features that allow users to integrate custom LLMs alongside SammyAI's default high-performance models.
+- **Dialogue Improvements**: Improving dialogue output
 
 ## 3. Core Feature Evolution
 Continual refinement of our unique feature set to push the boundaries of AI-assisted writing:
