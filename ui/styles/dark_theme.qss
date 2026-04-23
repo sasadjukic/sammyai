@@ -15,7 +15,7 @@ QToolBar {
     padding: 4px;
 }
 QToolButton {
-    color: #cccccc;
+    color: #e9a5a5;
     padding: 6px 10px;
     background: #2d2d2d;
     border-radius: 6px;
