@@ -422,11 +422,21 @@ class TextEditor(QMainWindow):
         Falls back to themed/fallback icon if the SVG file is not available or fails to render.
         """
         if color is None:
-            # Try to derive a visible color from the editor if available
-            try:
-                color = self.editor._get_editor_text_color().name()
-            except Exception:
-                color = "#ffffff"
+            # Try to derive the icon color from the QToolButton style in the stylesheet
+            ss = QApplication.instance().styleSheet() or ""
+            m = re.search(r"QToolButton\s*\{[^}]*(?<!-)color\s*:\s*([^;]+);", ss)
+            if m:
+                try:
+                    color = m.group(1).strip()
+                except Exception:
+                    pass
+            
+            # Fallback to editor text color if not found in QToolButton
+            if color is None:
+                try:
+                    color = self.editor._get_editor_text_color().name()
+                except Exception:
+                    color = "#ffffff"
 
         try:
             icons_dir = os.path.join(os.path.dirname(__file__), "icons")
