@@ -6,7 +6,7 @@ Provides a chat interface similar to VS Code and Antigravity.
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, 
     QLineEdit, QPushButton, QLabel, QScrollArea, QFrame, QComboBox,
-    QApplication
+    QApplication, QMenu
 )
 from PySide6.QtCore import Qt, Signal, QThread, QRect, QSize
 from PySide6.QtGui import QFont, QTextCursor, QPixmap, QPainter, QColor, QIcon
@@ -106,8 +106,20 @@ class ChatPanel(QWidget):
         self.copy_button = QPushButton("Copy Chat")
         self.copy_button.setToolTip("Copy entire chat history to clipboard")
         
+        self.rag_button = QPushButton("RAG")
+        self.rag_button.setToolTip("RAG Context Management")
+        
+        self.cin_button = QPushButton("CIN")
+        self.cin_button.setToolTip("Context Injection Management")
+        
+        self.dbe_button = QPushButton("DBE")
+        self.dbe_button.setToolTip("Diff-Based Editing Controls")
+        
         history_controls_layout.addWidget(self.clear_button)
         history_controls_layout.addWidget(self.copy_button)
+        history_controls_layout.addWidget(self.rag_button)
+        history_controls_layout.addWidget(self.cin_button)
+        history_controls_layout.addWidget(self.dbe_button)
         history_controls_layout.addStretch()
         layout.addLayout(history_controls_layout)
         

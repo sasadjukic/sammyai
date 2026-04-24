@@ -380,6 +380,16 @@ class TextEditor(QMainWindow):
         self.upload_rag_action.triggered.connect(self._upload_file_for_rag)
         self.upload_rag_action.setStatusTip("Upload a file (.txt, .md, .pdf) for RAG indexing")
 
+        # RAG management actions
+        self.manage_rag_action = QAction("Manage RAG Files...", self)
+        self.manage_rag_action.triggered.connect(self._manage_rag_index)
+        
+        self.clear_rag_action = QAction("Clear RAG Index", self)
+        self.clear_rag_action.triggered.connect(self._clear_rag_index)
+        
+        self.rag_stats_action = QAction("Show RAG Statistics", self)
+        self.rag_stats_action.triggered.connect(self._show_rag_stats)
+
         # CIN actions
         self.upload_cin_action = QAction("Upload File for CIN", self)
         self.upload_cin_action.triggered.connect(self._upload_cin_file)
@@ -566,40 +576,6 @@ class TextEditor(QMainWindow):
         self.replace_action.setIcon(self._load_icon("edit-find-replace", QStyle.SP_FileDialogContentsView))
         edit_menu.addAction(self.search_action)
         edit_menu.addAction(self.replace_action)
-
-        # RAG menu
-        rag_menu = menubar.addMenu("RAG")
-        rag_menu.addAction(self.index_action)
-        rag_menu.addAction(self.upload_rag_action)
-    
-        # Add action to manage RAG index
-        manage_rag_action = QAction("Manage RAG Files...", self)
-        manage_rag_action.triggered.connect(self._manage_rag_index)
-        rag_menu.addAction(manage_rag_action)
-
-        # Add action to clear RAG index
-        clear_rag_action = QAction("Clear RAG Index", self)
-        clear_rag_action.triggered.connect(self._clear_rag_index)
-        rag_menu.addAction(clear_rag_action)
-    
-        # Add action to show RAG stats
-        rag_stats_action = QAction("Show RAG Statistics", self)
-        rag_stats_action.triggered.connect(self._show_rag_stats)
-        rag_menu.addAction(rag_stats_action)
-
-        # CIN menu
-        cin_menu = menubar.addMenu("CIN")
-        cin_menu.addAction(self.upload_cin_action)
-        cin_menu.addAction(self.clear_cin_action)
-
-        # DBE (Diff-Based Editing) menu
-        dbe_menu = menubar.addMenu("DBE")
-        dbe_menu.addAction(self.toggle_dbe_action)
-        dbe_menu.addSeparator()
-        dbe_menu.addAction(self.compare_file_action)
-        dbe_menu.addAction(self.compare_clipboard_action)
-        dbe_menu.addSeparator()
-        dbe_menu.addAction(self.apply_diff_action)
 
     def create_statusbar(self):
         """Create status bar with line/column and word count indicators."""
@@ -852,6 +828,9 @@ class TextEditor(QMainWindow):
             # When clear chat is requested, clear the session
             self.chat_panel.clear_chat_requested.connect(self._on_clear_chat_requested)
 
+            # Set up RAG, CIN, and DBE menus on the chat panel buttons
+            self._setup_chat_panel_menus()
+
             self.chat_dock = QDockWidget(self)
             self.chat_dock.setAllowedAreas(Qt.RightDockWidgetArea | Qt.LeftDockWidgetArea)
             self.chat_dock.setWidget(self.chat_panel)
@@ -867,6 +846,37 @@ class TextEditor(QMainWindow):
                 pass
         except Exception as e:
             QMessageBox.critical(self, "Chat Panel Error", str(e))
+
+    def _setup_chat_panel_menus(self):
+        """Create and assign dropdown menus for RAG, CIN, and DBE buttons in the chat panel."""
+        if not self.chat_panel:
+            return
+
+        # RAG Menu
+        rag_menu = QMenu(self.chat_panel.rag_button)
+        rag_menu.addAction(self.index_action)
+        rag_menu.addAction(self.upload_rag_action)
+        rag_menu.addSeparator()
+        rag_menu.addAction(self.manage_rag_action)
+        rag_menu.addAction(self.clear_rag_action)
+        rag_menu.addAction(self.rag_stats_action)
+        self.chat_panel.rag_button.setMenu(rag_menu)
+
+        # CIN Menu
+        cin_menu = QMenu(self.chat_panel.cin_button)
+        cin_menu.addAction(self.upload_cin_action)
+        cin_menu.addAction(self.clear_cin_action)
+        self.chat_panel.cin_button.setMenu(cin_menu)
+
+        # DBE Menu
+        dbe_menu = QMenu(self.chat_panel.dbe_button)
+        dbe_menu.addAction(self.toggle_dbe_action)
+        dbe_menu.addSeparator()
+        dbe_menu.addAction(self.compare_file_action)
+        dbe_menu.addAction(self.compare_clipboard_action)
+        dbe_menu.addSeparator()
+        dbe_menu.addAction(self.apply_diff_action)
+        self.chat_panel.dbe_button.setMenu(dbe_menu)
 
     def _on_chat_message_sent(self, message: str):
         """Handle message sent from chat panel UI: store in session and query LLM in background."""
