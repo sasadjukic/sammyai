@@ -8,8 +8,8 @@ from PySide6.QtWidgets import (
     QLineEdit, QPushButton, QLabel, QScrollArea, QFrame, QComboBox,
     QApplication
 )
-from PySide6.QtCore import Qt, Signal, QThread, QRect
-from PySide6.QtGui import QFont, QTextCursor, QPixmap, QPainter, QColor
+from PySide6.QtCore import Qt, Signal, QThread, QRect, QSize
+from PySide6.QtGui import QFont, QTextCursor, QPixmap, QPainter, QColor, QIcon
 from PySide6.QtSvg import QSvgRenderer
 import asyncio
 import os
@@ -96,6 +96,21 @@ class ChatPanel(QWidget):
         self.chat_display.setPlaceholderText("Chat history will appear here...")
         layout.addWidget(self.chat_display)
         
+        # History controls row
+        history_controls_layout = QHBoxLayout()
+        history_controls_layout.setSpacing(10)
+        
+        self.clear_button = QPushButton("Clear Chat")
+        self.clear_button.setToolTip("Clear chat history")
+        
+        self.copy_button = QPushButton("Copy Chat")
+        self.copy_button.setToolTip("Copy entire chat history to clipboard")
+        
+        history_controls_layout.addWidget(self.clear_button)
+        history_controls_layout.addWidget(self.copy_button)
+        history_controls_layout.addStretch()
+        layout.addLayout(history_controls_layout)
+        
         # Status label
         self.status_label = QLabel("")
         self.status_label.setObjectName("chatStatus")
@@ -106,32 +121,19 @@ class ChatPanel(QWidget):
         input_layout.setSpacing(5)
         
         self.input_field = QTextEdit()
+        self.input_field.setObjectName("chatInput")
         self.input_field.setPlaceholderText("Type your message here...")
         self.input_field.setMaximumHeight(100)
         self.input_field.setMinimumHeight(60)
         input_layout.addWidget(self.input_field)
         
-        # Button row
-        button_layout = QHBoxLayout()
-        
-        self.clear_button = QPushButton("Clear Chat")
-        self.clear_button.setToolTip("Clear chat history")
-        
-        self.send_button = QPushButton("Send")
+        # Send button (parented to input_field to appear inside)
+        self.send_button = QPushButton(self.input_field)
         self.send_button.setObjectName("sendButton")
-        self.send_button.setDefault(True)
+        self.send_button.setCursor(Qt.PointingHandCursor)
         self.send_button.setToolTip("Send message (Ctrl+Enter)")
+        self._setup_send_button_ui()
         
-        button_layout.addWidget(self.clear_button)
-        
-        self.copy_button = QPushButton("Copy Chat")
-        self.copy_button.setToolTip("Copy entire chat history to clipboard")
-        button_layout.addWidget(self.copy_button)
-        
-        button_layout.addStretch()
-        button_layout.addWidget(self.send_button)
-        
-        input_layout.addLayout(button_layout)
         layout.addLayout(input_layout)
 
         self.setObjectName("chatPanel")
@@ -147,13 +149,66 @@ class ChatPanel(QWidget):
         self.input_field.installEventFilter(self)
     
     def eventFilter(self, obj, event):
-        """Handle keyboard events in the input field."""
-        if obj == self.input_field and event.type() == event.Type.KeyPress:
-            if event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter:
-                if event.modifiers() & Qt.ControlModifier:
-                    self._on_send_clicked()
-                    return True
+        """Handle keyboard events and resizing in the input field."""
+        if obj == self.input_field:
+            if event.type() == event.Type.KeyPress:
+                if event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter:
+                    if event.modifiers() & Qt.ControlModifier:
+                        self._on_send_clicked()
+                        return True
+            elif event.type() == event.Type.Resize:
+                self._update_send_button_position()
         return super().eventFilter(obj, event)
+    
+    def _update_send_button_position(self):
+        """Position the send button in the bottom right of the input field."""
+        if not self.send_button:
+            return
+            
+        margin = 8
+        button_size = self.send_button.size()
+        rect = self.input_field.rect()
+        
+        # Position at bottom right, accounting for scrollbar if visible
+        x = rect.width() - button_size.width() - margin
+        # If scrollbar is visible, shift button to the left
+        if self.input_field.verticalScrollBar().isVisible():
+            x -= self.input_field.verticalScrollBar().width()
+            
+        y = rect.height() - button_size.height() - margin
+        self.send_button.move(x, y)
+
+    def _setup_send_button_ui(self):
+        """Load, tint and set the send arrow icon."""
+        try:
+            icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "icons", "send_arrow.svg")
+            if not os.path.exists(icon_path):
+                # Fallback text if icon missing
+                self.send_button.setText("➤")
+                return
+
+            size = 24
+            color = "#81c1d9"
+
+            renderer = QSvgRenderer(icon_path)
+            pix = QPixmap(size, size)
+            pix.fill(Qt.transparent)
+
+            painter = QPainter(pix)
+            renderer.render(painter, QRect(0, 0, size, size))
+            
+            # Tint the icon
+            painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
+            painter.fillRect(pix.rect(), QColor(color))
+            painter.end()
+
+            self.send_button.setIcon(QIcon(pix))
+            self.send_button.setIconSize(QSize(size, size))
+            self.send_button.setFixedSize(size + 8, size + 8)
+            self.send_button.setText("") 
+        except Exception as e:
+            print(f"Failed to load send icon: {e}")
+            self.send_button.setText("Send")
     
     def _on_send_clicked(self):
         """Handle send button click."""

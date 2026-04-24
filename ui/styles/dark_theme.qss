@@ -146,6 +146,12 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
     color: #dddddd;
     border: 2px solid #e9a5a5;
     border-radius: 10px;
+    padding: 5px;
+}
+
+/* Specific padding for the input field to avoid text overlapping the send button */
+#chatInput {
+    padding-right: 40px;
 }
 
 #chatContainer QPushButton {
@@ -162,8 +168,15 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 }
 
 #sendButton {
-    background-color: #4a90e2;
-    color: white;
+    background-color: transparent;
+    border: none;
+    padding: 0px;
+    margin: 0px;
+}
+
+#sendButton:hover {
+    background-color: #3e3e3e;
+    border-radius: 5px;
 }
 
 #chatContainer QComboBox {
