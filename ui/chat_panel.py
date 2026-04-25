@@ -100,7 +100,7 @@ class ChatPanel(QWidget):
         history_controls_layout = QHBoxLayout()
         history_controls_layout.setSpacing(10)
         
-        self.clear_button = QPushButton("Clear Chat")
+        self.clear_button = QPushButton("Delete Chat")
         self.clear_button.setToolTip("Clear chat history")
         
         self.copy_button = QPushButton("Copy Chat")
@@ -109,12 +109,13 @@ class ChatPanel(QWidget):
         self.rag_button = QPushButton("RAG")
         self.rag_button.setToolTip("RAG Context Management")
         
-        self.cin_button = QPushButton("CIN")
+        self.cin_button = QPushButton("Context Injection")
         self.cin_button.setToolTip("Context Injection Management")
         
-        self.dbe_button = QPushButton("DBE")
+        self.dbe_button = QPushButton("Diff Edits")
         self.dbe_button.setToolTip("Diff-Based Editing Controls")
         
+        history_controls_layout.addStretch()
         history_controls_layout.addWidget(self.clear_button)
         history_controls_layout.addWidget(self.copy_button)
         history_controls_layout.addWidget(self.rag_button)
