@@ -2,7 +2,7 @@
 
 SammyAI features a professional, distraction-free environment designed for high-performance writing and AI-assisted creation. The interface is divided into four primary logical areas.
 
-![SammyAI Layout](pictures/SammyAI_v1_Layout.png)
+![SammyAI Layout](pictures/SammyAI_Layout.png)
 
 ---
 
@@ -18,9 +18,6 @@ The vertical Sidebar Toolbar provides instant access to core file operations and
 The Menu Bar contains comprehensive command sets for advanced document and AI management.
 
 *   **File & Edit**: Standard document handling and undo/redo/repeat actions.
-*   **RAG (Retrieval-Augmented Generation)**: Index files to provide the AI with a deep "memory" of your project.
-*   **CIN (Context Injection)**: Directly inject specific reference files into the current AI conversation.
-*   **DBE (Diff-Based Editing)**: Toggle the specialized mode where the AI suggests changes via visual diffs for your approval.
 
 ## 3. Editing Canvas (Center)
 The central workspace is a high-performance text editor optimized for clarity.
