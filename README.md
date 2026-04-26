@@ -23,7 +23,7 @@
 
 ## Free, open source, private, multi-model, local creative assistant for stories, screenplays, TV/Streaming Series, video games and more
 
-![SammyAI Text Editor](documentation/3_USER_GUIDE/pictures/SammyAI_v1_LLM_Chat_Window.png)
+![SammyAI Text Editor](documentation/3_USER_GUIDE/pictures/SammyAI_LLM_Chat_Window.png)
 
 </div>
 
