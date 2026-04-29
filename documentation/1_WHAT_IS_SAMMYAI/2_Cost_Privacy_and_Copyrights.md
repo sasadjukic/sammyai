@@ -18,9 +18,12 @@
 
 ## Privacy
 
-* Your creative work is deeply personal. That’s why privacy is absolutely at the core of our design – SammyAI does not collect or store any user information. SammyAI operates directly on your PC. There’s no data trail, no user accounts, and no tracking of your writing process.
+* Your creative work is deeply personal. That’s why privacy is absolutely at the core of our design – SammyAI does not collect or store any user information. SammyAI operates directly on your PC and gives you a chance to have no data trail, no user accounts, and no tracking of your writing process.
 
-Here’s what that means for you:
+>[!Note]
+>The better your server (PC) is, less reliant you are on cloud LLM models. Less reliance on cloud models means more privacy.
+
+SammyAI offers you a chance for:
 * **Complete Anonymity:** Your creative work remains entirely private and confidential.
 * **No Data Collection:** SammyAI does not collect, store, or transmit your writing, prompts, or ideas.
 * **Local Operation:** SammyAI runs directly on your computer, ensuring maximum privacy and security.
@@ -31,9 +34,12 @@ Here’s what that means for you:
     - Due to the nature of local operations with no data tracking within SammyAI, we strongly recommend that you **manually save your chat sessions** if you wish to retain a record of your interactions with the AI. SammyAI does have a "Copy Chat" button for your convenience.
 
 *   **AI Model Reliance:** 
-    - When it comes to using cloud models, there is an important rule you should always follow: NEVER EVER share what you don't want cloud models to know. 
-    - SammyAI utilizes Ollama for a few powerful cloud-based models. Ollama’s policy is to **NOT** retain data sent to their cloud models, as clearly stated on their own website [https://ollama.com/cloud]. It is up to **YOU** to decide whether you believe this statement or not. 
-    -  As for Google's cloud model embedded within SammyAI, everything is clear: your chats will not show up in dashboards or be visible on your google account, but both you and Google can access logs and metrics for API calls associated with your account. For more info on this you can visit Google's cloud API page at [https://docs.cloud.google.com/apis/docs/overview]
+    - When it comes to using cloud models, there is an important rule you should always follow: **NEVER EVER** share what you don't want cloud models to know. 
+    - SammyAI utilizes Ollama for a few powerful cloud-based models. Ollama’s policy is to **NOT** retain data sent to their cloud models, as clearly stated on their own website [https://ollama.com/cloud]. The one thing you should know is that Ollama may not host a cloud model of your choice on their own servers. If they don't, then they pass your API call to the maker of the LLM.
+    -  As for Google's cloud model embedded within SammyAI, everything is clear: your chats will not show up in your Google AI Studio chat history, but access logs and metrics for API calls associated with your account **will** show activity for the API key assigned with SammyAI. For more info on this you can visit Google's cloud API page at [https://docs.cloud.google.com/apis/docs/overview]
+    
+>[!SUMMARY]
+> While your chats with cloud models are NOT visible on the web, all API calls are tracked.
 
 ## Copyrights
 * You **RETAIN** all rights to any stories, screenplays, or other creative works you generate with SammyAI.
