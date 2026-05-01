@@ -9,13 +9,14 @@
 
 ## Use Case
 
-* **Brainstorming & Idea Generation:**  Stuck on a plot point or struggling to find your starting idea? SammyAI's AI can generate fresh concepts, character ideas, and plot twists to jumpstart your project.
+* **Brainstorming & Idea Generation:**  Stuck on a plot point or struggling to find your starting idea? SammyAI can generate fresh concepts, character ideas, and plot twists to jumpstart your project.
 
 * **Drafting Assistance:**  SammyAI can generate initial drafts for:
     * **Essays:**  Craft compelling arguments and structured essays with ease.
     * **Flash Fiction:**  Quickly develop concise and impactful stories.
     * **Short Stories:**  Build engaging narratives with assistance in character development and plot progression.
-    * **TV Series Scripts:**  Outline episodes, develop dialogue, and flesh out scenes for your TV series.
+    * **Novels:** Build rich characters and story settings for appealing stories.
+    * **TV Series Scripts:**  Outline full seasons, episodes, and flesh out characters for your TV series.
     * **Movie Screenplays:**  From concept to first draft, SammyAI helps you bring your cinematic vision to life.
     * **Video Games:**  Generate dialogue, create lore, and even develop initial level designs.
 
@@ -30,11 +31,11 @@
 
 ## Who Can Benefit From Using SammyAI?
 
-*   **Writing Enthusiasts:**  If you love to write but struggle with getting started or overcoming writer's block, SammyAI’s AI prompts and brainstorming tools are perfect for sparking your imagination.
+*   **Writing Enthusiasts:**  If you love to write but struggle with getting started or overcoming writer's block, SammyAI’s prompts and brainstorming tools are perfect for sparking your imagination.
 
 *   **Professional Authors:**  Use SammyAI for outlining, drafting, research, and exploring different narrative directions – all within a distraction-free environment.
 
-*   **Game Developers:** Generate compelling dialogue, world-building descriptions, and character backstories quickly and efficiently.  SammyAI can be a powerful tool for all your writing needs within a game development project.
+*   **Game Developers:** Generate compelling worlds and character backstories quickly and efficiently.  SammyAI can be a powerful tool for all your writing needs within a game development project.
 
 *   **Writers Seeking a Writing Partner:**  Engage in collaborative brainstorming sessions, receive feedback on your work (with optional AI assistance), and explore diverse perspectives – all within the secure environment of SammyAI.
 
