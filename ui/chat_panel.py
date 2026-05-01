@@ -67,10 +67,11 @@ class ChatPanel(QWidget):
         # Model selection combo box
         try:
             # Import here to avoid cyclic imports at module import time
-            from llm.client import MODEL_MAPPING
-            model_keys = list(MODEL_MAPPING.keys())
+            from llm.client import get_model_mapping
+            model_keys = list(get_model_mapping().keys())
         except Exception:
             model_keys = []
+
 
         self.model_combo = QComboBox()
         self.model_combo.setToolTip("Select LLM model")
@@ -362,3 +363,39 @@ class ChatPanel(QWidget):
             self.icon_label.setFixedSize(size, size)
         except Exception as e:
             print(f"Failed to load header icon: {e}")
+
+    def refresh_model_dropdown(self):
+        """Repopulate the model selection dropdown from the dynamic mapping."""
+        try:
+            from llm.client import get_model_mapping
+            mapping = get_model_mapping()
+            model_keys = list(mapping.keys())
+            
+            # Temporarily block signals to avoid triggering model change logic during refresh
+            self.model_combo.blockSignals(True)
+            current_text = self.model_combo.currentText()
+            self.model_combo.clear()
+            self.model_combo.addItems(model_keys)
+            
+            # Try to restore previous selection, or use default from settings
+            from api_key_manager import APIKeyManager
+            default_model = APIKeyManager.load_default_model()
+            
+            if current_text in model_keys:
+                idx = self.model_combo.findText(current_text)
+            elif default_model in model_keys:
+                idx = self.model_combo.findText(default_model)
+            else:
+                idx = 0 if model_keys else -1
+                
+            if idx >= 0:
+                self.model_combo.setCurrentIndex(idx)
+            self.model_combo.blockSignals(False)
+            
+            # If the selected model changed as a result of the refresh, emit signal
+            if self.model_combo.currentText() != current_text:
+                self._on_model_changed(self.model_combo.currentText())
+                
+        except Exception as e:
+            print(f"Failed to refresh model dropdown: {e}")
+

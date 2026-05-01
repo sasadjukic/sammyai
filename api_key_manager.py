@@ -36,13 +36,14 @@ class APIKeyManager:
         Load the API key for a specific provider from persistent storage.
         
         Args:
-            provider: The key provider ("google" or "ollama")
+            provider: The key provider ("google", "ollama", "anthropic", "openai", or "ollama_cloud")
             
         Returns:
-            The stored API key, or empty string if not set
+            The stored API key, or an empty string if not found
         """
         settings = QSettings(APIKeyManager.ORGANIZATION, APIKeyManager.APPLICATION)
-        return settings.value(f"llm/api_key_{provider}", "")
+        val = settings.value(f"llm/api_key_{provider}", "")
+        return val if isinstance(val, str) else ""
     
     @staticmethod
     def clear_api_key(provider: str = "ollama") -> None:
@@ -62,6 +63,37 @@ class APIKeyManager:
             True if an API key exists, False otherwise
         """
         return bool(APIKeyManager.load_api_key(provider))
+
+    @staticmethod
+    def save_models(provider: str, models: list[str]) -> None:
+        """Save a list of model names for a specific provider."""
+        settings = QSettings(APIKeyManager.ORGANIZATION, APIKeyManager.APPLICATION)
+        settings.setValue(f"llm/models_{provider}", models)
+
+    @staticmethod
+    def load_models(provider: str) -> list[str]:
+        """Load a list of model names for a specific provider."""
+        settings = QSettings(APIKeyManager.ORGANIZATION, APIKeyManager.APPLICATION)
+        val = settings.value(f"llm/models_{provider}", [])
+        if isinstance(val, list):
+            return val
+        elif isinstance(val, str) and val:
+            return [val]
+        return []
+
+    @staticmethod
+    def save_default_model(model_key: str) -> None:
+        """Save the default model display key."""
+        settings = QSettings(APIKeyManager.ORGANIZATION, APIKeyManager.APPLICATION)
+        settings.setValue("llm/default_model", model_key)
+
+    @staticmethod
+    def load_default_model() -> str:
+        """Load the default model display key."""
+        settings = QSettings(APIKeyManager.ORGANIZATION, APIKeyManager.APPLICATION)
+        val = settings.value("llm/default_model", "")
+        return val if isinstance(val, str) else ""
+
 
 
 class APIKeyDialog(QDialog):

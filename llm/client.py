@@ -13,13 +13,53 @@ from .system_prompt import SYSTEM_PROMPT
 from api_key_manager import APIKeyManager
 
 
-# Model configuration
-MODEL_MAPPING = {
-    "Gemma3:4b": {"name": "gemma3:4b", "type": "local", "provider": "local"},
-    "Gemini-2.5-Flash": {"name": "gemini-2.5-flash", "type": "cloud", "provider": "google"},
-    "Kimi K2:1T": {"name": "kimi-k2:1t", "type": "cloud", "provider": "ollama"},
-    "Deepseek V3.2": {"name": "deepseek-v3.2", "type": "cloud", "provider": "ollama"}
+from api_key_manager import APIKeyManager
+
+try:
+    import anthropic
+except ImportError:
+    anthropic = None
+
+try:
+    import openai
+except ImportError:
+    openai = None
+
+
+def build_model_mapping() -> dict:
+    """Build a dynamic model mapping from stored settings."""
+    providers = {
+        "local":        {"type": "local"},
+        "anthropic":    {"type": "cloud"},
+        "google":       {"type": "cloud"},
+        "openai":       {"type": "cloud"},
+        "ollama_cloud": {"type": "cloud", "host": "https://ollama.com"},
+    }
+    mapping = {}
+    for provider, meta in providers.items():
+        models = APIKeyManager.load_models(provider)
+        for model_name in models:
+            display_key = f"{model_name} ({provider})"
+            mapping[display_key] = {
+                "name": model_name,
+                "type": meta["type"],
+                "provider": provider,
+                "host": meta.get("host") 
+            }
+    return mapping
+
+
+# Default placeholder if no models are configured
+DEFAULT_MODEL_MAPPING = {
+    "Configure Models": {"name": "none", "type": "local", "provider": "local"}
 }
+
+
+def get_model_mapping() -> dict:
+    """Get the current model mapping, or default placeholder if empty."""
+    mapping = build_model_mapping()
+    return mapping if mapping else DEFAULT_MODEL_MAPPING
+
 
 
 class ModelType(Enum):
@@ -45,11 +85,17 @@ class LLMClient:
             api_key: API key for cloud models (required for cloud models)
             system_prompt: Custom system prompt (defaults to SYSTEM_PROMPT from system_prompt.py)
         """
-        if model_key not in MODEL_MAPPING:
-            raise ValueError(f"Invalid model_key. Must be one of: {list(MODEL_MAPPING.keys())}")
+        mapping = get_model_mapping()
+        if model_key not in mapping:
+            # If not in mapping, try to use the first available model
+            if mapping:
+                model_key = list(mapping.keys())[0]
+            else:
+                raise ValueError(f"Invalid model_key and no models configured.")
         
         self.model_key = model_key
-        self.model_config = MODEL_MAPPING[model_key]
+        self.model_config = mapping[model_key]
+
         self.model_name = self.model_config["name"]
         self.model_type = ModelType(self.model_config["type"])
         self.provider = self.model_config["provider"]
@@ -72,15 +118,24 @@ class LLMClient:
             if self.provider == "google":
                 # Initialize Google Gen AI client
                 self._google_client = genai.Client(api_key=self.api_key)
-            elif self.provider == "ollama":
-                # For cloud-hosted Ollama models (e.g., Kimi K2)
+            elif self.provider == "ollama_cloud":
+                # For cloud-hosted Ollama models
                 self._client = ollama.Client(
-                    host="https://ollama.com",
+                    host=self.model_config.get("host", "https://ollama.com"),
                     headers={'Authorization': self.api_key}
                 )
+            elif self.provider == "anthropic":
+                if anthropic is None:
+                    raise ImportError("anthropic package not installed")
+                self._anthropic_client = anthropic.Anthropic(api_key=self.api_key)
+            elif self.provider == "openai":
+                if openai is None:
+                    raise ImportError("openai package not installed")
+                self._openai_client = openai.OpenAI(api_key=self.api_key)
             else:
                 # For local Ollama models (provider == "local")
                 self._client = ollama.Client()
+
         except Exception as e:
             raise RuntimeError(f"Failed to initialize client for {self.provider}: {e}")
     
@@ -247,6 +302,66 @@ class LLMClient:
         except Exception as e:
             raise RuntimeError(f"Error during streaming chat: {e}")
     
+    async def _stream_chat_anthropic(
+        self,
+        messages: List[Dict[str, str]],
+        on_token: Callable[[str], None],
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
+        top_p: Optional[float] = None,
+        include_system: bool = True
+    ) -> str:
+        """Stream chat using Anthropic SDK."""
+        try:
+            decomposed = self._decompose_messages(messages, include_system)
+            system_prompt = "\n\n".join([decomposed["primary_system"]] + decomposed["extra_system"])
+            
+            with self._anthropic_client.messages.stream(
+                model=self.model_name,
+                max_tokens=max_tokens or 4096,
+                temperature=temperature if temperature is not None else self.temperature,
+                system=system_prompt,
+                messages=decomposed["other_messages"]
+            ) as stream:
+                full_response = ""
+                for text in stream.text_stream:
+                    full_response += text
+                    on_token(text)
+                return full_response
+        except Exception as e:
+            raise RuntimeError(f"Error during Anthropic streaming: {e}")
+
+    async def _stream_chat_openai(
+        self,
+        messages: List[Dict[str, str]],
+        on_token: Callable[[str], None],
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
+        top_p: Optional[float] = None,
+        include_system: bool = True
+    ) -> str:
+        """Stream chat using OpenAI SDK."""
+        try:
+            prepared_messages = self._prepare_messages(messages, include_system)
+            stream = self._openai_client.chat.completions.create(
+                model=self.model_name,
+                messages=prepared_messages,
+                max_tokens=max_tokens,
+                temperature=temperature if temperature is not None else self.temperature,
+                top_p=top_p if top_p is not None else self.top_p,
+                stream=True
+            )
+            full_response = ""
+            for chunk in stream:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    token = chunk.choices[0].delta.content
+                    full_response += token
+                    on_token(token)
+            return full_response
+        except Exception as e:
+            raise RuntimeError(f"Error during OpenAI streaming: {e}")
+
+    
     def chat(
         self,
         messages: List[Dict[str, str]],
@@ -270,8 +385,13 @@ class LLMClient:
         """
         if self.provider == "google":
             return self._chat_google(messages, max_tokens, temperature, top_p, include_system)
+        elif self.provider == "anthropic":
+            return self._chat_anthropic(messages, max_tokens, temperature, top_p, include_system)
+        elif self.provider == "openai":
+            return self._chat_openai(messages, max_tokens, temperature, top_p, include_system)
         else:
             return self._chat_ollama(messages, max_tokens, temperature, top_p, include_system)
+
     
     def _chat_ollama(
         self,
@@ -350,6 +470,53 @@ class LLMClient:
         
         except Exception as e:
             raise RuntimeError(f"Error during chat: {e}")
+
+    def _chat_anthropic(
+        self,
+        messages: List[Dict[str, str]],
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
+        top_p: Optional[float] = None,
+        include_system: bool = True
+    ) -> str:
+        """Chat using Anthropic SDK."""
+        try:
+            decomposed = self._decompose_messages(messages, include_system)
+            system_prompt = "\n\n".join([decomposed["primary_system"]] + decomposed["extra_system"])
+            
+            response = self._anthropic_client.messages.create(
+                model=self.model_name,
+                max_tokens=max_tokens or 4096,
+                temperature=temperature if temperature is not None else self.temperature,
+                system=system_prompt,
+                messages=decomposed["other_messages"]
+            )
+            return response.content[0].text
+        except Exception as e:
+            raise RuntimeError(f"Error during Anthropic chat: {e}")
+
+    def _chat_openai(
+        self,
+        messages: List[Dict[str, str]],
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
+        top_p: Optional[float] = None,
+        include_system: bool = True
+    ) -> str:
+        """Chat using OpenAI SDK."""
+        try:
+            prepared_messages = self._prepare_messages(messages, include_system)
+            response = self._openai_client.chat.completions.create(
+                model=self.model_name,
+                messages=prepared_messages,
+                max_tokens=max_tokens,
+                temperature=temperature if temperature is not None else self.temperature,
+                top_p=top_p if top_p is not None else self.top_p
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            raise RuntimeError(f"Error during OpenAI chat: {e}")
+
     
     def _convert_to_google_format(
         self, 
@@ -456,8 +623,13 @@ class LLMClient:
         """
         if self.provider == "google":
             return await self._stream_chat_google(messages, on_token, max_tokens, temperature, top_p, include_system)
+        elif self.provider == "anthropic":
+            return await self._stream_chat_anthropic(messages, on_token, max_tokens, temperature, top_p, include_system)
+        elif self.provider == "openai":
+            return await self._stream_chat_openai(messages, on_token, max_tokens, temperature, top_p, include_system)
         else:
             return await self._stream_chat_ollama(messages, on_token, max_tokens, temperature, top_p, include_system)
+
 
 
 class LLMConfig:
@@ -521,15 +693,18 @@ class LLMConfig:
     def api_key(self, value: Optional[str]):
         self._api_key = value
 
+
     def _refresh_api_key(self):
         """Refresh the API key based on current model_key provider."""
-        model_config = MODEL_MAPPING.get(self._model_key, {})
+        mapping = get_model_mapping()
+        model_config = mapping.get(self._model_key, {})
         provider = model_config.get("provider", "local")
         
         if provider == "local":
             self._api_key = None
         else:
             self._api_key = APIKeyManager.load_api_key(provider)
+
     
     def create_client(self) -> LLMClient:
         """

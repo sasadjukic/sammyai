@@ -289,3 +289,160 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 #ragBtnClose:hover {
     background-color: #3a3a3a;
 }
+
+/* LLM Setup Dialog Styling */
+#llmSetupDialog {
+    background-color: #1e1e1e;
+}
+
+#llmSetupHeader {
+    padding: 20px;
+    border-bottom: 1px solid #333333;
+}
+
+#llmSetupTitle {
+    font-size: 16px;
+    font-weight: bold;
+    color: #dddddd;
+}
+
+#llmSetupSubtitle {
+    font-size: 12px;
+    color: #888888;
+}
+
+#llmSetupBody {
+    padding: 10px 20px;
+}
+
+.providerSection {
+    border-bottom: 1px solid #333333;
+    padding: 15px 0;
+}
+
+.providerLabel {
+    font-size: 13px;
+    font-weight: bold;
+    color: #aaaaaa;
+    text-transform: uppercase;
+}
+
+.providerBadge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.badgeLocal { background-color: #2d3d24; color: #a3d977; }
+.badgeCloud { background-color: #1a2d3d; color: #81c1d9; }
+
+.apiKeyRow {
+    margin-top: 10px;
+}
+
+.apiKeyInput {
+    background-color: #252526;
+    color: #dddddd;
+    border: 1px solid #333333;
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-family: Consolas, monospace;
+}
+
+.modelRow {
+    margin-top: 5px;
+}
+
+.modelInput {
+    background-color: #252526;
+    color: #dddddd;
+    border: 1px solid #333333;
+    border-radius: 4px;
+    padding: 5px 10px;
+}
+
+.modelInputValid { border-color: #4b7a2a; }
+.modelInputInvalid { border-color: #a33c3c; }
+
+.removeBtn {
+    background-color: transparent;
+    color: #888888;
+    border: 1px solid #333333;
+    border-radius: 4px;
+    padding: 4px;
+}
+
+.removeBtn:hover {
+    color: #ff5555;
+    border-color: #ff5555;
+    background-color: #2d1a1a;
+}
+
+.addBtn {
+    background-color: transparent;
+    color: #aaaaaa;
+    border: 1px dashed #444444;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 12px;
+    margin-top: 8px;
+}
+
+.addBtn:hover {
+    color: #dddddd;
+    border-color: #666666;
+    background-color: #2d2d2d;
+}
+
+.validationMsg {
+    font-size: 11px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    margin-top: 4px;
+}
+
+.validationWarn { background-color: #3d2d1a; color: #d9a377; }
+.validationOk { background-color: #2d3d24; color: #a3d977; }
+
+.cloudNote {
+    font-size: 11px;
+    color: #888888;
+    font-style: italic;
+    margin-top: 4px;
+}
+
+#llmSetupFooter {
+    padding: 20px;
+    background-color: #252526;
+    border-top: 1px solid #333333;
+}
+
+.defaultSelect {
+    background-color: #1e1e1e;
+    color: #dddddd;
+    border: 1px solid #333333;
+    border-radius: 4px;
+    padding: 5px;
+}
+
+.btnPrimary {
+    background-color: #81c1d9;
+    color: #1e1e1e;
+    font-weight: bold;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+}
+
+.btnPrimary:hover {
+    background-color: #a5d9e9;
+}
+
+.apiStatus {
+    font-size: 11px;
+    margin-left: 8px;
+}
+
+.apiOk { color: #a3d977; }
+.apiMissing { color: #d9a377; }
+

@@ -13,7 +13,9 @@ from PySide6.QtCore import Qt, QRect, QSize, QTimer, Signal, Slot
 import threading
 from PySide6.QtWidgets import QSizePolicy
 from PySide6.QtWidgets import QApplication, QStyle, QTextEdit
-from api_key_manager import APIKeyDialog, APIKeyManager
+from api_key_manager import APIKeyManager
+from ui.llm_setup import LLMSetupDialog
+
 
 # LLM integration
 from llm.client import LLMConfig
@@ -242,9 +244,15 @@ class TextEditor(QMainWindow):
         # Create default LLM client via LLMConfig; handle initialization errors gracefully
         try:
             self.llm_config = LLMConfig()
+            # Try to load the default model from settings
+            default_model = APIKeyManager.load_default_model()
+            if default_model:
+                self.llm_config.model_key = default_model
+                
             self.llm_client = self.llm_config.create_client()
             self.statusBar().showMessage("LLM client initialized", 3000)
         except Exception as e:
+
             self.llm_client = None
             # Non-fatal; show status so user knows LLM features aren't ready
             self.statusBar().showMessage(f"LLM client not initialized: {e}")
@@ -355,9 +363,10 @@ class TextEditor(QMainWindow):
         self.agent_action.setToolTip("Open Sammy AI chat panel")
         self.agent_action.triggered.connect(self._toggle_chat_panel)
 
-        self.key_action = QAction("API Key", self)
-        self.key_action.setToolTip("Configure API Key")
-        self.key_action.triggered.connect(self._on_configure_api_key)
+        self.llm_setup_action = QAction("LLM Setup", self)
+        self.llm_setup_action.setToolTip("Configure LLM Models & Keys")
+        self.llm_setup_action.triggered.connect(self._on_configure_llm_setup)
+
 
         self.settings_action = QAction("Settings", self)
         self.settings_action.setEnabled(True)
@@ -512,12 +521,13 @@ class TextEditor(QMainWindow):
 
         # Bottom-only icons
         self.agent_action.setIcon(self._load_colored_svg_icon("chat"))
-        self.key_action.setIcon(self._load_colored_svg_icon("key"))
+        self.llm_setup_action.setIcon(self._load_colored_svg_icon("llm_setup"))
         self.settings_action.setIcon(self._load_colored_svg_icon("settings"))
 
         toolbar.addAction(self.agent_action)
-        toolbar.addAction(self.key_action)
+        toolbar.addAction(self.llm_setup_action)
         toolbar.addAction(self.settings_action)
+
 
         # Connect editor signals to enable/disable actions based on context
         # copyAvailable(bool) is emitted when a selection is present
@@ -1107,17 +1117,15 @@ class TextEditor(QMainWindow):
             old_model = None
 
         try:
+
             # Update config and create client
             self.llm_config.model_key = model_key
             new_client = self.llm_config.create_client()
             self.llm_client = new_client
             if self.chat_panel:
-                self.chat_panel.add_system_message(f"Switched model to {model_key}")
+                self.chat_panel.set_status(f"Using model: {model_key}")
             # Also show a short statusbar message
-            try:
-                self.statusBar().showMessage(f"Using model: {model_key}", 3000)
-            except Exception:
-                pass
+            self.statusBar().showMessage(f"Using model: {model_key}", 3000)
         except Exception as e:
             # Rollback model_key if possible
             try:
@@ -1128,6 +1136,8 @@ class TextEditor(QMainWindow):
             # Inform the user in the chat panel
             if self.chat_panel:
                 self.chat_panel.add_system_message(f"Failed to switch model to {model_key}: {e}")
+            self.statusBar().showMessage(f"Failed to switch model: {e}", 5000)
+
 
 
     # --- Edit action handlers (TextEditor forwards to the editor widget) ---
@@ -1190,35 +1200,34 @@ class TextEditor(QMainWindow):
             
             self.statusBar().showMessage(f"LLM Parameters updated: Temperature={temp}, Top-P={top_p}", 3000)
 
-    def _on_configure_api_key(self):
-        """Open the API key configuration dialog."""
-        dialog = APIKeyDialog(self)
-        dialog.exec()
-
-        try:
-            if hasattr(self, "llm_config") and self.llm_config is not None:
-                from llm.client import MODEL_MAPPING
-                model_config = MODEL_MAPPING.get(self.llm_config.model_key, {})
-                provider = model_config.get("provider", "local")
-                
-                if provider != "local":
-                    self.llm_config.api_key = APIKeyManager.load_api_key(provider)
-                else:
-                    self.llm_config.api_key = None
+    def _on_configure_llm_setup(self):
+        """Open the LLM setup configuration dialog."""
+        dialog = LLMSetupDialog(self)
+        
+        # Connect the signal so the chat panel updates automatically
+        if self.chat_panel:
+            dialog.settingsChanged.connect(self.chat_panel.refresh_model_dropdown)
+        
+        if dialog.exec():
+            # Refresh client if needed
+            try:
+                if hasattr(self, "llm_config") and self.llm_config is not None:
+                    from llm.client import get_model_mapping
+                    mapping = get_model_mapping()
                     
-                # Try to re-create the client so any errors surface immediately
-                try:
-                    new_client = self.llm_config.create_client()
-                    self.llm_client = new_client
-                    if self.chat_panel:
-                        self.chat_panel.add_system_message("API key configured. LLM client refreshed.")
-                    self.statusBar().showMessage("API key configured", 3000)
-                except Exception as e:
-                    if self.chat_panel:
-                        self.chat_panel.add_system_message(f"Failed to refresh LLM client: {e}")
-                    self.statusBar().showMessage(f"Failed to refresh LLM client: {e}", 5000)
-        except Exception as e:
-            self.statusBar().showMessage(f"Error updating API key: {e}", 3000)
+                    # If the current model is no longer available, pick the default or first one
+                    if self.llm_config.model_key not in mapping:
+                        default_model = APIKeyManager.load_default_model()
+                        if default_model in mapping:
+                            self.llm_config.model_key = default_model
+                        elif mapping:
+                            self.llm_config.model_key = list(mapping.keys())[0]
+                    
+                    # Force a client refresh
+                    self._on_model_selected(self.llm_config.model_key)
+            except Exception as e:
+                self.statusBar().showMessage(f"Error updating LLM setup: {e}", 3000)
+
 
 
     # --- File operations ---
