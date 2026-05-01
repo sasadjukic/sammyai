@@ -59,9 +59,10 @@ For detailed installation options including Docker support, see the [Installatio
 
 ## 📖 Stories
 
-SammyAI is more than just a text editor; it's a collaborative partner for:
+SammyAI is a valuable collaborative partner for:
 - **Essays & Short Stories**: From flash fiction to complex narratives.
-- **Screenplays & TV Pilots**: Tailored for TV, movies, and streaming series.
+- **Novels & Epics**: Build rich fictional worlds of all genres.
+- **Screenplays & TV Pilots**: Tailored for movies and TV/streaming series.
 - **Game Development**: Fast-track your world-building and dialogue creation.
 
 Check out our [Story Archive](https://github.com/sasadjukic/sammyai/blob/main/documentation/6_STORIES/1_Stories_Introduction.md) to see examples of what SammyAI can help you create.
@@ -79,8 +80,8 @@ Read more in our [Cost, Privacy and Copyrights document](https://github.com/sasa
 Planned updates include:
 - **Long-Form Stress Testing**: Ensuring stability for full-length novels.
 - **Custom LLM Integration**: Bringing your own models into the workflow.
-- **Improved Dialogue System**: Dialogue that tailors to your character traits and speech patterns
-- **UI Improvements**: Improving UI and UX
+- **Improved Dialogue System**: Dialogue that tailors to your character traits and speech patterns.
+- **UI Improvements**: Improving UI and UX.
 
 See [Planned Updates](https://github.com/sasadjukic/sammyai/blob/main/documentation/7_NEXT_STEPS/1_Planned_Updates.md) for more details.
 
