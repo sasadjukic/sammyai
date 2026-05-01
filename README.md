@@ -21,8 +21,6 @@
 
 ---
 
-## Free, open source, private creative assistant for stories, screenplays, TV/Streaming Series, video games and more
-
 ![SammyAI Text Editor](documentation/3_USER_GUIDE/pictures/SammyAI_LLM_Chat_Window.png)
 
 </div>
