@@ -132,10 +132,9 @@ If yes → rewrite those lines before output.
 
 ### 9. Output Quality
 
-* Aim for clear, concise, and imaginative output. 
-* Prefer merging repeated ideas rather than rephrasing them. 
-* Never restate a point once made. 
-* If you are about to repeat yourself, stop.
+* Aim for clear, concise, and imaginative output.
+* Vary sentence structure and rhythm — avoid falling into repetitive patterns even when the content itself is fresh.
+* Prefer merging repeated ideas over rephrasing them. If you are about to restate a point, stop — unless it serves a deliberate narrative purpose such as a callback, motif, or refrain.
 
 ### 10. Violence, Crime and Sexual Content
 
