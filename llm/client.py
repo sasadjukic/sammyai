@@ -39,13 +39,16 @@ def build_model_mapping() -> dict:
     for provider, meta in providers.items():
         models = APIKeyManager.load_models(provider)
         for model_name in models:
-            display_key = f"{model_name} ({provider})"
+            # Visual tweak: Show 'ollama' instead of 'ollama_cloud' in UI
+            display_provider = "ollama" if provider == "ollama_cloud" else provider
+            display_key = f"{model_name} ({display_provider})"
             mapping[display_key] = {
                 "name": model_name,
                 "type": meta["type"],
                 "provider": provider,
                 "host": meta.get("host") 
             }
+
     return mapping
 
 

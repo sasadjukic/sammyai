@@ -400,7 +400,8 @@ class LLMSetupDialog(QDialog):
         
         for provider_id, section in self.sections.items():
             for model_name in section.get_models():
-                self.default_combo.addItem(f"{model_name} ({provider_id})")
+                display_id = "ollama" if provider_id == "ollama_cloud" else provider_id
+                self.default_combo.addItem(f"{model_name} ({display_id})")
         
         idx = self.default_combo.findText(current_text)
         if idx >= 0:
