@@ -134,6 +134,8 @@ class ProviderSection(QWidget):
             self.layout.addWidget(self.note)
 
         self.model_rows = []
+        self._update_add_btn_state()
+
 
     def _toggle_key_visibility(self):
         if self.key_input.echoMode() == QLineEdit.Password:
@@ -153,6 +155,8 @@ class ProviderSection(QWidget):
             self.api_status.setProperty("class", "apiStatus apiMissing")
         self.api_status.style().unpolish(self.api_status)
         self.api_status.style().polish(self.api_status)
+        self._update_add_btn_state()
+
 
     def add_model_row(self, name=""):
         if len(self.model_rows) >= 3:
@@ -175,8 +179,19 @@ class ProviderSection(QWidget):
         self._on_models_changed()
 
     def _update_add_btn_state(self):
-        self.add_btn.setEnabled(len(self.model_rows) < 3)
-        self.add_btn.setToolTip("Max 3 models reached" if len(self.model_rows) >= 3 else "")
+        can_add = len(self.model_rows) < 3
+        
+        # For cloud providers, also require an API key
+        if self.is_cloud and not self.key_input.text().strip():
+            can_add = False
+            self.add_btn.setToolTip("Please enter an API key first")
+        elif len(self.model_rows) >= 3:
+            self.add_btn.setToolTip("Max 3 models reached")
+        else:
+            self.add_btn.setToolTip("")
+            
+        self.add_btn.setEnabled(can_add)
+
 
     def _on_models_changed(self):
         # Trigger parent update for default model list
