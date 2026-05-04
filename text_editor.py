@@ -1184,21 +1184,25 @@ class TextEditor(QMainWindow):
         dialog = LLMSettingsDialog(
             temperature=self.llm_config.temperature,
             top_p=self.llm_config.top_p,
+            seed=self.llm_config.seed,
+            model_name=self.llm_config.model_key,
             parent=self
         )
         
         if dialog.exec():
-            temp, top_p = dialog.get_values()
+            temp, top_p, seed = dialog.get_values()
             
             # Update configuration
             self.llm_config.temperature = temp
             self.llm_config.top_p = top_p
+            self.llm_config.seed = seed
             
             # Apply to active client if it exists
             if self.llm_client:
                 self.llm_config.apply_to_client(self.llm_client)
             
-            self.statusBar().showMessage(f"LLM Parameters updated: Temperature={temp}, Top-P={top_p}", 3000)
+            seed_msg = f", Seed={seed}" if seed is not None else ""
+            self.statusBar().showMessage(f"LLM Parameters updated: Temperature={temp}, Top-P={top_p}{seed_msg}", 3000)
 
     def _on_configure_llm_setup(self):
         """Open the LLM setup configuration dialog."""

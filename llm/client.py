@@ -106,6 +106,7 @@ class LLMClient:
         self.system_prompt = system_prompt or SYSTEM_PROMPT
         self.temperature = 0.9
         self.top_p = 0.9
+        self.seed = None
         
         # Validate cloud models have API key
         if self.model_type == ModelType.CLOUD and not self.api_key:
@@ -217,6 +218,7 @@ class LLMClient:
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
         top_p: Optional[float] = None,
+        seed: Optional[int] = None,
         include_system: bool = True
     ) -> str:
         """Stream chat using Ollama client."""
@@ -235,6 +237,7 @@ class LLMClient:
             options = {
                 "temperature": temperature if temperature is not None else self.temperature,
                 "top_p": top_p if top_p is not None else self.top_p,
+                "seed": seed if seed is not None else self.seed,
             }
             if max_tokens:
                 options["num_predict"] = max_tokens
@@ -265,6 +268,7 @@ class LLMClient:
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
         top_p: Optional[float] = None,
+        seed: Optional[int] = None,
         include_system: bool = True
     ) -> str:
         """Stream chat using Google Gen AI SDK."""
@@ -276,6 +280,7 @@ class LLMClient:
             config = {
                 "temperature": temperature if temperature is not None else self.temperature,
                 "top_p": top_p if top_p is not None else self.top_p,
+                "seed": seed if seed is not None else self.seed,
                 "system_instruction": self.system_prompt
             }
             if max_tokens:
@@ -312,6 +317,7 @@ class LLMClient:
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
         top_p: Optional[float] = None,
+        seed: Optional[int] = None,
         include_system: bool = True
     ) -> str:
         """Stream chat using Anthropic SDK."""
@@ -341,6 +347,7 @@ class LLMClient:
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
         top_p: Optional[float] = None,
+        seed: Optional[int] = None,
         include_system: bool = True
     ) -> str:
         """Stream chat using OpenAI SDK."""
@@ -352,6 +359,7 @@ class LLMClient:
                 max_tokens=max_tokens,
                 temperature=temperature if temperature is not None else self.temperature,
                 top_p=top_p if top_p is not None else self.top_p,
+                seed=seed if seed is not None else self.seed,
                 stream=True
             )
             full_response = ""
@@ -371,6 +379,7 @@ class LLMClient:
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
         top_p: Optional[float] = None,
+        seed: Optional[int] = None,
         include_system: bool = True
     ) -> str:
         """
@@ -387,13 +396,13 @@ class LLMClient:
             Complete response text
         """
         if self.provider == "google":
-            return self._chat_google(messages, max_tokens, temperature, top_p, include_system)
+            return self._chat_google(messages, max_tokens, temperature, top_p, seed, include_system)
         elif self.provider == "anthropic":
-            return self._chat_anthropic(messages, max_tokens, temperature, top_p, include_system)
+            return self._chat_anthropic(messages, max_tokens, temperature, top_p, seed, include_system)
         elif self.provider == "openai":
-            return self._chat_openai(messages, max_tokens, temperature, top_p, include_system)
+            return self._chat_openai(messages, max_tokens, temperature, top_p, seed, include_system)
         else:
-            return self._chat_ollama(messages, max_tokens, temperature, top_p, include_system)
+            return self._chat_ollama(messages, max_tokens, temperature, top_p, seed, include_system)
 
     
     def _chat_ollama(
@@ -402,6 +411,7 @@ class LLMClient:
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
         top_p: Optional[float] = None,
+        seed: Optional[int] = None,
         include_system: bool = True
     ) -> str:
         """Chat using Ollama client."""
@@ -418,6 +428,7 @@ class LLMClient:
             options = {
                 "temperature": temperature if temperature is not None else self.temperature,
                 "top_p": top_p if top_p is not None else self.top_p,
+                "seed": seed if seed is not None else self.seed,
             }
             if max_tokens:
                 options["num_predict"] = max_tokens
@@ -441,6 +452,7 @@ class LLMClient:
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
         top_p: Optional[float] = None,
+        seed: Optional[int] = None,
         include_system: bool = True
     ) -> str:
         """Chat using Google Gen AI SDK."""
@@ -452,6 +464,7 @@ class LLMClient:
             config = {
                 "temperature": temperature if temperature is not None else self.temperature,
                 "top_p": top_p if top_p is not None else self.top_p,
+                "seed": seed if seed is not None else self.seed,
                 "system_instruction": self.system_prompt
             }
             if max_tokens:
@@ -480,6 +493,7 @@ class LLMClient:
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
         top_p: Optional[float] = None,
+        seed: Optional[int] = None,
         include_system: bool = True
     ) -> str:
         """Chat using Anthropic SDK."""
@@ -504,6 +518,7 @@ class LLMClient:
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
         top_p: Optional[float] = None,
+        seed: Optional[int] = None,
         include_system: bool = True
     ) -> str:
         """Chat using OpenAI SDK."""
@@ -514,7 +529,8 @@ class LLMClient:
                 messages=prepared_messages,
                 max_tokens=max_tokens,
                 temperature=temperature if temperature is not None else self.temperature,
-                top_p=top_p if top_p is not None else self.top_p
+                top_p=top_p if top_p is not None else self.top_p,
+                seed=seed if seed is not None else self.seed
             )
             return response.choices[0].message.content
         except Exception as e:
@@ -608,6 +624,7 @@ class LLMClient:
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
         top_p: Optional[float] = None,
+        seed: Optional[int] = None,
         include_system: bool = True
     ) -> str:
         """
@@ -625,13 +642,13 @@ class LLMClient:
             Complete response text
         """
         if self.provider == "google":
-            return await self._stream_chat_google(messages, on_token, max_tokens, temperature, top_p, include_system)
+            return await self._stream_chat_google(messages, on_token, max_tokens, temperature, top_p, seed, include_system)
         elif self.provider == "anthropic":
-            return await self._stream_chat_anthropic(messages, on_token, max_tokens, temperature, top_p, include_system)
+            return await self._stream_chat_anthropic(messages, on_token, max_tokens, temperature, top_p, seed, include_system)
         elif self.provider == "openai":
-            return await self._stream_chat_openai(messages, on_token, max_tokens, temperature, top_p, include_system)
+            return await self._stream_chat_openai(messages, on_token, max_tokens, temperature, top_p, seed, include_system)
         else:
-            return await self._stream_chat_ollama(messages, on_token, max_tokens, temperature, top_p, include_system)
+            return await self._stream_chat_ollama(messages, on_token, max_tokens, temperature, top_p, seed, include_system)
 
 
 
@@ -652,6 +669,7 @@ class LLMConfig:
         max_tokens: Optional[int] = None,
         temperature: float = 0.9,
         top_p: float = 0.9,
+        seed: Optional[int] = None,
         system_prompt: Optional[str] = None
     ):
         """
@@ -676,6 +694,7 @@ class LLMConfig:
         self.max_tokens = max_tokens
         self.temperature = temperature
         self.top_p = top_p
+        self.seed = seed
         self.system_prompt = system_prompt or SYSTEM_PROMPT
 
     @property
@@ -726,6 +745,7 @@ class LLMConfig:
         """Update an existing client with current configuration."""
         client.temperature = self.temperature
         client.top_p = self.top_p
+        client.seed = self.seed
         client.system_prompt = self.system_prompt
         # Note: model_key and api_key would require re-initialization of the provider client
         # which is handled by creating a new client if needed.

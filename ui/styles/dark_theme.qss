@@ -446,3 +446,160 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 .apiOk { color: #a3d977; }
 .apiMissing { color: #d9a377; }
 
+
+/* LLM Settings Dialog Styling */
+#llmSettingsDialog {
+    background-color: #1e1e1e;
+}
+
+#settingsPanel {
+    background-color: #1e1e1e;
+    border: 1px solid #333333;
+    border-radius: 10px;
+}
+
+#settingsHeader {
+    padding: 15px 20px;
+    border-bottom: 1px solid #333333;
+}
+
+#settingsTitle {
+    font-size: 15px;
+    font-weight: bold;
+    color: #dddddd;
+}
+
+#modelPill {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 99px;
+    background-color: #2d2d2d;
+    border: 1px solid #333333;
+    color: #888888;
+    font-family: Consolas, monospace;
+}
+
+#settingsBody {
+    padding: 15px 20px;
+}
+
+.presetBtn {
+    height: 32px;
+    border-radius: 6px;
+    font-size: 12px;
+    border: 1px solid #333333;
+    background-color: transparent;
+    color: #aaaaaa;
+}
+
+.presetBtn:hover {
+    background-color: #2d2d2d;
+    color: #dddddd;
+}
+
+.presetBtn[active="true"] {
+    background-color: #dddddd;
+    color: #1e1e1e;
+    border: 1px solid #dddddd;
+}
+
+.sectionDivider {
+    font-size: 11px;
+    font-weight: bold;
+    color: #888888;
+    text-transform: uppercase;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #333333;
+    padding-bottom: 5px;
+}
+
+.paramLabel {
+    font-size: 13px;
+    color: #dddddd;
+    font-weight: bold;
+}
+
+.paramDesc {
+    font-size: 11px;
+    color: #888888;
+}
+
+.paramValue {
+    font-size: 13px;
+    font-weight: bold;
+    color: #dddddd;
+    font-family: Consolas, monospace;
+}
+
+.rangeLabel {
+    font-size: 11px;
+    color: #888888;
+}
+
+#seedInput {
+    background-color: #2d2d2d;
+    color: #dddddd;
+    border: 1px solid #333333;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-family: Consolas, monospace;
+}
+
+#seedInput:focus {
+    border-color: #444444;
+}
+
+#seedInput:disabled {
+    color: #555555;
+}
+
+/* Toggle Switch Styling */
+#seedToggle {
+    background-color: #2d2d2d;
+    border: 1px solid #333333;
+    border-radius: 9px;
+    width: 32px;
+    height: 18px;
+}
+
+#seedToggle[checked="true"] {
+    background-color: #dddddd;
+}
+
+#settingsFooter {
+    padding: 15px 20px;
+    border-top: 1px solid #333333;
+    background-color: #2d2d2d;
+}
+
+#resetToDefaultsBtn {
+    font-size: 12px;
+    color: #888888;
+    background: none;
+    border: none;
+}
+
+#resetToDefaultsBtn:hover {
+    color: #aaaaaa;
+}
+
+.footerBtn {
+    height: 30px;
+    padding: 0 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    border: 1px solid #333333;
+    background-color: transparent;
+    color: #dddddd;
+}
+
+.btnPrimary {
+    background-color: #dddddd;
+    color: #1e1e1e;
+    border: 1px solid #dddddd;
+}
+
+.btnPrimary:hover {
+    background-color: #ffffff;
+}
