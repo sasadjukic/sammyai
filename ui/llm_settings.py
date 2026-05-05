@@ -221,7 +221,7 @@ class LLMSettingsDialog(QDialog):
         cancel_btn.clicked.connect(self.reject)
         
         apply_btn = QPushButton("Apply")
-        apply_btn.setProperty("class", "footerBtn btnPrimary")
+        apply_btn.setProperty("class", "btnPrimary")
         apply_btn.setCursor(Qt.PointingHandCursor)
         apply_btn.clicked.connect(self.accept)
         

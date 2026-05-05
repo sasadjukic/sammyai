@@ -297,7 +297,7 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 
 #llmSetupHeader {
     padding: 20px;
-    border-bottom: 1px solid #333333;
+    border-bottom: 1px solid #e9a5a5;
 }
 
 #llmSetupTitle {
@@ -313,17 +313,18 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 
 #llmSetupBody {
     padding: 10px 20px;
+    background-color: #1e1e1e;
 }
 
 .providerSection {
-    border-bottom: 1px solid #333333;
+    border-bottom: 1px solid #e9a5a5;
     padding: 15px 0;
 }
 
 .providerLabel {
     font-size: 13px;
     font-weight: bold;
-    color: #aaaaaa;
+    color: #e9a5a5;
     text-transform: uppercase;
 }
 
@@ -333,17 +334,23 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
     border-radius: 10px;
 }
 
-.badgeLocal { background-color: #2d3d24; color: #a3d977; }
-.badgeCloud { background-color: #1a2d3d; color: #81c1d9; }
+.badgeLocal { background-color: #1e1e1e; color: #65c0e0; }
+.badgeCloud { background-color: #1e1e1e; color: #65c0e0; }
 
 .apiKeyRow {
     margin-top: 10px;
 }
 
-.apiKeyInput {
-    background-color: #252526;
+.apiKeyLabel {
+    font-size: 13px;
+    font-weight: bold;
     color: #dddddd;
-    border: 1px solid #333333;
+}
+
+.apiKeyInput {
+    background-color: #1e1e1e;
+    color: #dddddd;
+    border: 1px solid #dddddd;
     border-radius: 4px;
     padding: 5px 10px;
     font-family: Consolas, monospace;
@@ -354,14 +361,14 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 }
 
 .modelInput {
-    background-color: #252526;
+    background-color: #1e1e1e;
     color: #dddddd;
-    border: 1px solid #333333;
+    border: 1px solid #dddddd;
     border-radius: 4px;
     padding: 5px 10px;
 }
 
-.modelInputValid { border-color: #4b7a2a; }
+.modelInputValid { border-color: #dddddd; }
 .modelInputInvalid { border-color: #a33c3c; }
 
 .removeBtn {
@@ -380,8 +387,8 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 
 .addBtn {
     background-color: transparent;
-    color: #aaaaaa;
-    border: 1px dashed #444444;
+    color: #dddddd;
+    border: 1px dashed #dddddd;
     border-radius: 4px;
     padding: 6px 12px;
     font-size: 12px;
@@ -389,9 +396,9 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 }
 
 .addBtn:hover {
-    color: #dddddd;
-    border-color: #666666;
-    background-color: #2d2d2d;
+    color: #1e1e1e;
+    border-color: #e9a5a5;
+    background-color: #e9a5a5;
 }
 
 .validationMsg {
@@ -401,8 +408,8 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
     margin-top: 4px;
 }
 
-.validationWarn { background-color: #3d2d1a; color: #d9a377; }
-.validationOk { background-color: #2d3d24; color: #a3d977; }
+.validationWarn { background-color: #a33c3c; color: #dddddd; }
+.validationOk { background-color: #1e1e1e; color: #65c0e0; }    
 
 .cloudNote {
     font-size: 11px;
@@ -413,29 +420,23 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 
 #llmSetupFooter {
     padding: 20px;
-    background-color: #252526;
-    border-top: 1px solid #333333;
+    background-color: #1e1e1e;
+    color: #dddddd;
+    border-top: 1px solid #e9a5a5;
+}
+
+.defaultLabel {
+    font-size: 13px;
+    font-weight: bold;
+    color: #dddddd;
 }
 
 .defaultSelect {
     background-color: #1e1e1e;
     color: #dddddd;
-    border: 1px solid #333333;
+    border: 1px solid #e9a5a5;
     border-radius: 4px;
     padding: 5px;
-}
-
-.btnPrimary {
-    background-color: #81c1d9;
-    color: #1e1e1e;
-    font-weight: bold;
-    border: none;
-    border-radius: 4px;
-    padding: 8px 16px;
-}
-
-.btnPrimary:hover {
-    background-color: #a5d9e9;
 }
 
 .apiStatus {
@@ -472,10 +473,10 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 #modelPill {
     font-size: 11px;
     padding: 3px 10px;
-    border-radius: 99px;
-    background-color: #2d2d2d;
+    border-radius: 6px;
+    background-color: #dddddd;
     border: 1px solid #333333;
-    color: #888888;
+    color: #1e1e1e;
     font-family: Consolas, monospace;
 }
 
@@ -506,7 +507,7 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 .sectionDivider {
     font-size: 11px;
     font-weight: bold;
-    color: #888888;
+    color: #e9a5a5;
     text-transform: uppercase;
     margin-top: 20px;
     margin-bottom: 10px;
@@ -557,6 +558,7 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 /* Toggle Switch Styling */
 #seedToggle {
     background-color: #2d2d2d;
+    color: #dddddd;
     border: 1px solid #333333;
     border-radius: 9px;
     width: 32px;
@@ -587,17 +589,22 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 .footerBtn {
     height: 30px;
     padding: 0 14px;
+    border: none;
     border-radius: 6px;
     font-size: 13px;
-    border: 1px solid #333333;
     background-color: transparent;
     color: #dddddd;
 }
 
+/* Styles for "Save" and "Apply" buttons in both settings panel and LLM setup panel */
+
 .btnPrimary {
     background-color: #dddddd;
     color: #1e1e1e;
+    font-weight: bold;
     border: 1px solid #dddddd;
+    padding: 4px 14px;
+    border-radius: 4px;
 }
 
 .btnPrimary:hover {

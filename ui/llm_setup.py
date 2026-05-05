@@ -87,6 +87,7 @@ class ProviderSection(QWidget):
             key_row.setProperty("class", "apiKeyRow")
             
             key_label = QLabel("API key")
+            key_label.setProperty("class", "apiKeyLabel")
             key_label.setFixedWidth(60)
             
             self.key_input = QLineEdit()
@@ -355,8 +356,8 @@ class LLMSetupDialog(QDialog):
         footer_layout = QVBoxLayout(footer)
         
         default_row = QHBoxLayout()
-        default_label = QLabel("Default model on startup")
-        default_label.setFixedWidth(150)
+        default_label = QLabel("Default model:")
+        default_label.setProperty("class", "defaultLabel")
         self.default_combo = QComboBox()
         self.default_combo.setProperty("class", "defaultSelect")
         default_row.addWidget(default_label)
@@ -366,10 +367,13 @@ class LLMSetupDialog(QDialog):
         btns_layout = QHBoxLayout()
         btns_layout.addStretch()
         cancel_btn = QPushButton("Cancel")
+        cancel_btn.setProperty("class", "footerBtn")
+        cancel_btn.clicked.connect(self.reject)
+
         save_btn = QPushButton("Save")
         save_btn.setProperty("class", "btnPrimary")
         save_btn.clicked.connect(self.on_save)
-        cancel_btn.clicked.connect(self.reject)
+        
         btns_layout.addWidget(cancel_btn)
         btns_layout.addWidget(save_btn)
         footer_layout.addLayout(btns_layout)
