@@ -439,6 +439,13 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
     padding: 5px;
 }
 
+.defaultSelect QAbstractItemView {
+    background-color: #2d2d2d;
+    color: #eeeeee;
+    selection-background-color: #444444;
+    border: 1px solid #444444;
+}
+
 .apiStatus {
     font-size: 11px;
     margin-left: 8px;
@@ -583,7 +590,7 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 }
 
 #resetToDefaultsBtn:hover {
-    color: #aaaaaa;
+    color: #65c0e0;
 }
 
 .footerBtn {
@@ -594,6 +601,10 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
     font-size: 13px;
     background-color: transparent;
     color: #dddddd;
+}
+
+.footerBtn:hover {
+    color: #65c0e0;
 }
 
 /* Styles for "Save" and "Apply" buttons in both settings panel and LLM setup panel */
@@ -608,5 +619,5 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 }
 
 .btnPrimary:hover {
-    background-color: #ffffff;
+    background-color: #65c0e0;
 }

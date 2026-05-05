@@ -369,10 +369,12 @@ class LLMSetupDialog(QDialog):
         cancel_btn = QPushButton("Cancel")
         cancel_btn.setProperty("class", "footerBtn")
         cancel_btn.clicked.connect(self.reject)
+        cancel_btn.setCursor(Qt.PointingHandCursor)
 
         save_btn = QPushButton("Save")
         save_btn.setProperty("class", "btnPrimary")
         save_btn.clicked.connect(self.on_save)
+        save_btn.setCursor(Qt.PointingHandCursor)
         
         btns_layout.addWidget(cancel_btn)
         btns_layout.addWidget(save_btn)
