@@ -27,6 +27,8 @@
 
 ## 🔑 Key Features
 
+- **Set up Your Own LLM's**: Install and run your own LLM's locally using Ollama or choose your favorite cloud LLM provider and their latest releases.
+- **Change LLM Settings**: Change LLM settings such as temperature, top-p and seed to tailor assistance to your specific needs.
 - **Multi-model Chat**: Seamlessly switch between different AI models during a single session to tailor assistance to your specific needs.
 - **Context Injection (CIN)**: Directly inject specific reference files into the current AI conversation for informed brainstorming.
 - **Retrieval-Augmented Generation (RAG)**: Index your project files to provide the AI with a deep "memory" of your world and characters.
@@ -76,10 +78,9 @@ Read more in our [Cost, Privacy and Copyrights document](https://github.com/sasa
 ## 🗺️ Roadmap
 
 Planned updates include:
-- **Long-Form Stress Testing**: Ensuring stability for full-length novels.
-- **Custom LLM Integration**: Bringing your own models into the workflow.
+- **Long-Form Stress Testing**: Ensuring stability and output quality.
 - **Improved Dialogue System**: Dialogue that tailors to your character traits and speech patterns.
-- **UI Improvements**: Improving UI and UX.
+- **Improving Diff-Based Editing**: Adding more features to the diff-based editing system to make it more user-friendly and powerful.
 
 See [Planned Updates](https://github.com/sasadjukic/sammyai/blob/main/documentation/7_NEXT_STEPS/1_Planned_Updates.md) for more details.
 
