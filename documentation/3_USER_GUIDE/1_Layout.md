@@ -12,7 +12,7 @@ The vertical Sidebar Toolbar provides instant access to core file operations and
 *   **File Operations**: Quick access to **New**, **Open**, **Save**, and **Close**.
 *   **Search (Ctrl+F)**: Toggles the inline search and replace widget.
 *   **AI Agent Context**: Toggle the chat interface for AI collaboration.
-*   **System Settings**: Configure **API Keys** and **LLM Parameters** (Temperature, Top-P) to fine-tune your creative partner.
+*   **System Settings**: Configure models with **LLM Setup** and parameters with **LLM Settings** to fine-tune your creative partner.
 
 ## 2. Top Menu Bar
 The Menu Bar contains comprehensive command sets for advanced document and AI management.

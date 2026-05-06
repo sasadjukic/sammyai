@@ -15,10 +15,14 @@ This option tells SammyAI to actively "read" and store the contents of your curr
     *   `✓ Indexed [Filename]`: Successfully added to memory.
 
 ## 2. Clear RAG Index
-Use this command to wipe the AI's project memory completely.
+Use this command to manage or wipe the AI's project memory. In Alpha 0.3.1, this feature has been expanded to allow for granular control over individual indexed files.
 
-*   **When to Use**: Essential when switching to a completely different project or if you wish to "clean the slate" after significant structural changes to your documents.
-*   **Safety First**: This action requires a confirmation click to prevent accidental data removal from the RAG system.
+*   **Delete All Files**: Resets the RAG system completely. This is essential when switching to a new project or if you wish to "clean the slate" after significant structural changes to your documents.
+*   **Select Specific Files**: Opens the **RAG Index Management** panel, where you can view all currently indexed documents and remove them individually. This is ideal for correcting mistakes or removing outdated notes without losing your entire library.
+
+![RAG Index Management](pictures/sammyai_RAG_index_Panel.png)
+
+*   **Safety First**: Both clearing the entire index and deleting specific files require confirmation to prevent accidental data loss.
 
 ## 3. Show RAG Statistics
 This provides a high-level overview of everything SammyAI currently "knows" about your project.
@@ -32,4 +36,4 @@ This provides a high-level overview of everything SammyAI currently "knows" abou
 ---
 
 > [!IMPORTANT]
-> The RAG system is persistent. Once a file is indexed, it remains in SammyAI's memory even after you close the application, until you manually clear the index from the application. You can also manually delete files from *cache* folder to remove any indexed files.
+> The RAG system is persistent. Once a file is indexed, it remains in SammyAI's memory even after you close the application, until you manually remove it or clear the entire index.
