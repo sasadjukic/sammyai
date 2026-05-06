@@ -12,13 +12,7 @@ To ensure a smooth experience with local LLM execution and memory-intensive feat
 - **CPU**: Modern multi-core processor (Intel i5/AMD Ryzen 5 or better).
 
 > [!IMPORTANT]
-> These specifications align with the requirements for **Gemma 3:4B**. While the model may function on lower-end hardware, performance stability and response speeds may be significantly impacted.
-
-### **Why are only four LLM models included as default?**
-We have curated a selection of models known for their high-quality reasoning and creative output. This provides a stable starting point for users while keeping the initial footprint manageable.
-
-### **Why are Anthropic and OpenAI models not included by default?**
-Access to premium models from Anthropic and OpenAI requires paid API subscriptions. To keep SammyAI a cost-effective tool accessible to everyone, we prioritize high-performance open-source and free-tier models. We may consider integration options for these providers in future updates.
+> These specifications align with the requirements for **Gemma 3:4B**. While the model may function on lower-end hardware, performance stability and response speeds may be significantly impacted. If you run even smaller local models than Gemma 3:4B your system requirements will also be smaller. 
 
 ## 2. Creative Capabilities & Content
 
