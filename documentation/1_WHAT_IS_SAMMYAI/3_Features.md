@@ -1,10 +1,10 @@
-# ✨ SammyAI Features
+# 🪄 SammyAI Features
 
 To elevate your creative endeavors, SammyAI offers a suite of powerful features designed to help you create with better context, precision, and control. Understanding when and how to use these tools will ensure you get the absolute most out of your creative experience.
 
 ---
 
-## 💉 Context Injection (CIN)
+## 🗎 Context Injection (CIN)
 
 *Context Injection* allows you to provide extra information—such as world-building documents, character notes, or specific snippets—that the model uses to ground its outputs. Think of it as providing "background reading" for the AI.
 
@@ -15,7 +15,7 @@ To elevate your creative endeavors, SammyAI offers a suite of powerful features 
 > **Mind the Context Window**
 > When using Context Injection, you must be aware of the LLM's context window limits. Massive files might exceed these limits, leading to lost information or errors.
 
-*You can manage this via the **CIN** tab in the main menu.*
+*You can manage this via the **CIN** button in the chat panel.*
 
 ---
 
@@ -30,7 +30,7 @@ To elevate your creative endeavors, SammyAI offers a suite of powerful features 
 > **Resource Usage**
 > RAG can be resource-intensive, particularly for your system's RAM. It is highly recommended for longer works like novels or series, but may be overkill for short stories or essays.
 
-*Current limit: Up to 50MB files. Manage via the **RAG** tab.*
+*Current limit: Up to 50MB files. Manage via the **RAG** button in the chat panel.*
 
 ---
 
@@ -56,7 +56,38 @@ Choosing the right approach depends on the scale of your project:
 > **Timing is Everything**
 > Enable **DBE** during the "polishing" phase. Keeping it on during initial brainstorming or draft-writing may slow your creative flow.
 
-*Access via the **DBE** tab in the menu bar.*
+*Access via the **DBE** button in the chat panel.*
+
+---
+
+## ⚙️ LLM Setup Panel
+
+The *LLM Setup Panel* (formerly API Key Settings) gives you the freedom to build your own personal arsenal of AI models. Instead of relying on a fixed list, you decide exactly which models SammyAI has at its disposal.
+
+*   **Dynamic Management**: Add or remove models on the fly. As new models are released, you can integrate them into your workflow instantly.
+*   **15 Model Slots**: Configure up to 15 different LLMs simultaneously across five categories:
+    *   **Local Models**: Up to 3 via Ollama.
+    *   **Cloud Providers**: Up to 3 models each for Google, Anthropic, OpenAI, and Ollama (Cloud).
+*   **Customization**: Tailor your workspace with a mix of fast local models for privacy and massive cloud models for complex reasoning.
+
+---
+
+## 🎚️ LLM Settings Panel
+
+The *LLM Settings Panel* provides a refined interface for controlling the "personality" and behavior of your selected model.
+
+*   **Core Parameters**:
+    *   **Temperature**: Adjust the creativity level.
+    *   **Top-P**: Control the diversity of the AI's vocabulary.
+    *   **Seed**: Set a specific seed for reproducible results—perfect for iterative editing.
+*   **Creative Presets**: Quickly switch between three optimized modes:
+    *   **Exploratory**: High randomness for unexpected twists and brainstorming.
+    *   **Balanced**: The "sweet spot" for standard drafting and dialogue.
+    *   **Focused**: Low randomness for strict adherence to facts and instructions.
+
+> [!TIP]
+> **Experiment with Presets**
+> Try starting a scene with the **Exploratory** preset to find a unique direction, then switch to **Balanced** or **Focused** to refine the prose.
 
 ---
 
