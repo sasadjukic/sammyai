@@ -12,6 +12,7 @@ ENV/
 .pytest_cache/
 .coverage
 htmlcov/
+__pycache__/
 
 # Models and data (these will be downloaded at runtime)
 models/
