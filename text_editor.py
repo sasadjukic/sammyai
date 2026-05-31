@@ -4,15 +4,13 @@ import os
 from typing import Optional
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QPlainTextEdit, QFileDialog, QMessageBox, QToolBar,
-    QToolButton, QMenu, QWidget, QLabel, QStatusBar, QInputDialog, QLineEdit,
-    QHBoxLayout, QPushButton, QVBoxLayout, QDockWidget
+    QMenu, QWidget, QLabel, QDockWidget, QLineEdit,
+    QHBoxLayout, QPushButton, QVBoxLayout, QSizePolicy, QStyle, QTextEdit, QDialog
 )
-from PySide6.QtGui import QAction, QKeySequence, QIcon, QPainter, QColor, QFont, QTextFormat, QPalette, QTextCursor, QPixmap
+from PySide6.QtGui import QAction, QKeySequence, QIcon, QPainter, QColor, QFont, QPalette, QTextCursor, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtCore import Qt, QRect, QSize, QTimer, Signal, Slot
 import threading
-from PySide6.QtWidgets import QSizePolicy
-from PySide6.QtWidgets import QApplication, QStyle, QTextEdit
 from api_key_manager import APIKeyManager
 from ui.llm_setup import LLMSetupDialog
 
@@ -28,7 +26,6 @@ from ui.chat_panel import ChatPanel
 from rag.rag_system import RAGSystem
 
 # Diff-based editing
-from PySide6.QtWidgets import QDialog
 from editing.diff_viewer import DiffViewerWidget
 from editing.diff_manager import DiffManager
 
@@ -483,8 +480,6 @@ class TextEditor(QMainWindow):
         # Fallback to theme/fallback icon if something goes wrong
         return self._load_icon(base_name, QStyle.SP_FileIcon)
 
-    # We no longer create a top menu bar; the File menu is a drop-down on the toolbar
-
     def create_toolbar(self):
         toolbar = QToolBar()
         toolbar.setMovable(False)
@@ -495,11 +490,6 @@ class TextEditor(QMainWindow):
         self.addToolBar(Qt.LeftToolBarArea, toolbar)
         # Add quick toolbar actions: New, Open, Save, Close in this order
         # Set icons if available
-        # Helper to retrieve themed or fallback icons
-        # Use the shared icon loader
-        def _icon(theme_name, fallback):
-            return self._load_icon(theme_name, fallback)
-
         # Prefer local SVG icons (tinted to match the editor text color) if available
         self.new_action.setIcon(self._load_colored_svg_icon("new"))
         self.open_action.setIcon(self._load_colored_svg_icon("open"))
@@ -1336,17 +1326,7 @@ class TextEditor(QMainWindow):
         self.update_window_title()
 
     def new_file(self):
-        # Unmark previous file as active in RAG system
-        if self.rag_system and self.current_file:
-            try:
-                self.rag_system.unmark_active_file(self.current_file)
-            except Exception as e:
-                print(f"Failed to unmark active file: {e}")
-        
-        self.editor.clear()
-        self.current_file = None
-        self.untitled_count += 1
-        self.update_window_title()
+        self.close_file()
 
     def update_window_title(self):
         """Update the window title to show document name and editor name."""
@@ -1511,7 +1491,6 @@ class TextEditor(QMainWindow):
         t = threading.Thread(target=index_worker, daemon=True)
         t.start()
 
-    # Clear RAG index method
     # Manage RAG index method
     def _manage_rag_index(self):
         """Open the RAG file management dialog."""
@@ -1856,10 +1835,6 @@ class LineNumberArea(QWidget):
 
     def paintEvent(self, event):
         self._editor.lineNumberAreaPaintEvent(event)
-
-
-from PySide6.QtGui import QPainter, QColor, QFont
-from PySide6.QtCore import QRect, QSize
 
 
 class CodeEditor(QPlainTextEdit):
