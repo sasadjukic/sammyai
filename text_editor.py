@@ -5,7 +5,7 @@ from typing import Optional
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QPlainTextEdit, QFileDialog, QMessageBox, QToolBar,
     QMenu, QWidget, QLabel, QDockWidget, QLineEdit,
-    QHBoxLayout, QPushButton, QVBoxLayout, QSizePolicy, QStyle, QTextEdit, QDialog
+    QHBoxLayout, QPushButton, QVBoxLayout, QSizePolicy, QStyle, QDialog
 )
 from PySide6.QtGui import QAction, QKeySequence, QIcon, QPainter, QColor, QFont, QPalette, QTextCursor, QPixmap
 from PySide6.QtSvg import QSvgRenderer
@@ -34,6 +34,29 @@ from ui.llm_settings import LLMSettingsDialog
 
 # RAG management UI
 from ui.rag_management import RAGFileManagementDialog
+
+
+# --- Module-level helper functions ---
+
+def _extract_color_from_stylesheet(selector: str, css_property: str) -> Optional[str]:
+    """Extract a CSS color value from the application stylesheet.
+    
+    Args:
+        selector: CSS selector (e.g., 'QPlainTextEdit')
+        css_property: CSS property name (e.g., 'color', 'background-color')
+        
+    Returns:
+        Color string or None if not found
+    """
+    try:
+        ss = QApplication.instance().styleSheet() or ""
+        pattern = rf"{selector}\s*\{{[^}}]*(?<!-){css_property}\s*:\s*([^;]+);"
+        m = re.search(pattern, ss)
+        if m:
+            return m.group(1).strip()
+    except Exception:
+        pass
+    return None
 
 
 class SearchWidget(QWidget):
@@ -229,8 +252,9 @@ class TextEditor(QMainWindow):
         try:
             sessions_dir = os.path.join(os.path.dirname(__file__), "llm", "chat_sessions")
             self.chat_manager = ChatManager(storage_dir=sessions_dir, rag_system=self.rag_system)
-        except Exception:
+        except Exception as e:
             # Fall back to in-memory manager
+            print(f"Warning: Failed to initialize session storage: {e}")
             self.chat_manager = ChatManager(rag_system=self.rag_system)
 
         # Load existing sessions and ensure an active one exists
@@ -272,6 +296,71 @@ class TextEditor(QMainWindow):
         self.dbe_context_lines = 20  # Number of lines before/after cursor for context
         self.diff_manager = DiffManager()
 
+        # Status message duration constants (in milliseconds)
+        self.STATUS_QUICK = 2000      # Quick feedback (2 seconds)
+        self.STATUS_NORMAL = 3000     # Normal message (3 seconds)
+        self.STATUS_ERROR = 5000      # Error message (5 seconds)
+        self.STATUS_PERSISTENT = 0    # Persist until overwritten
+
+
+    # --- Helper Methods ---
+    
+    def _open_file_dialog(self, title: str, file_filter: str) -> Optional[str]:
+        """Open a file selection dialog and return the selected path.
+        
+        Args:
+            title: Dialog title
+            file_filter: File type filter (Qt format)
+            
+        Returns:
+            Selected file path or None if cancelled
+        """
+        path, _ = QFileDialog.getOpenFileName(self, title, "", file_filter)
+        return path if path else None
+
+    def _show_indexing_status(self, filename: str, status: str, file_size_kb: float = 0, total_chunks: int = 0):
+        """Display indexing status message in statusbar.
+        
+        Args:
+            filename: Name of the file being indexed
+            status: One of 'start', 'success', 'error'
+            file_size_kb: File size in KB (for 'start' status)
+            total_chunks: Total chunks indexed (for 'success' status)
+        """
+        if status == "start":
+            self.statusBar().showMessage(
+                f"Indexing {filename} ({file_size_kb:.1f}KB)...", 
+                self.STATUS_PERSISTENT
+            )
+        elif status == "success":
+            self.statusBar().showMessage(
+                f"✓ Indexed {filename} ({total_chunks} total chunks)", 
+                self.STATUS_NORMAL
+            )
+        elif status == "error":
+            self.statusBar().showMessage(
+                f"✗ Failed to index {filename}", 
+                self.STATUS_ERROR
+            )
+
+    def _chat_panel_safe(self, method_name: str, *args):
+        """Safely call a chat panel method if it exists.
+        
+        Args:
+            method_name: Name of the method to call
+            *args: Arguments to pass to the method
+            
+        Returns:
+            Method result or None if chat_panel doesn't exist
+        """
+        if self.chat_panel:
+            try:
+                method = getattr(self.chat_panel, method_name, None)
+                if method and callable(method):
+                    return method(*args)
+            except Exception as e:
+                print(f"Error calling {method_name}: {e}")
+        return None
 
     def create_actions(self):
         # New File
@@ -325,9 +414,6 @@ class TextEditor(QMainWindow):
 
 
         # --- Edit actions ---
-        # We'll track the last edit-related action so "Repeat" can re-run it
-        self._last_edit_action = None
-
         self.copy_action = QAction("Copy", self)
         self.copy_action.setShortcut(QKeySequence.Copy)  # Ctrl+C
         self.copy_action.triggered.connect(self._on_copy)
@@ -344,9 +430,9 @@ class TextEditor(QMainWindow):
         self.undo_action.setShortcut(QKeySequence.Undo)  # Ctrl+Z
         self.undo_action.triggered.connect(self._on_undo)
 
-        # Redo: use Ctrl+Y
+        # Redo
         self.redo_action = QAction("Redo", self)
-        self.redo_action.setShortcut(QKeySequence("Ctrl+Y"))  # Ctrl+Y
+        self.redo_action.setShortcut(QKeySequence("Ctrl+Y"))
         self.redo_action.triggered.connect(self._on_redo)
 
         # Repeat: Shift+Ctrl+Y
@@ -354,7 +440,7 @@ class TextEditor(QMainWindow):
         self.repeat_action.setShortcut(QKeySequence("Ctrl+Shift+Y"))  # Shift+Ctrl+Y
         self.repeat_action.triggered.connect(self._on_repeat)
 
-        # Extra placeholder actions (icons only, no functionality yet)
+        # Chat and settings actions
         self.agent_action = QAction("Chat", self)
         self.agent_action.setEnabled(True)
         self.agent_action.setToolTip("Open Sammy AI chat panel")
@@ -439,13 +525,7 @@ class TextEditor(QMainWindow):
         """
         if color is None:
             # Try to derive the icon color from the QToolButton style in the stylesheet
-            ss = QApplication.instance().styleSheet() or ""
-            m = re.search(r"QToolButton\s*\{[^}]*(?<!-)color\s*:\s*([^;]+);", ss)
-            if m:
-                try:
-                    color = m.group(1).strip()
-                except Exception:
-                    pass
+            color = _extract_color_from_stylesheet("QToolButton", "color")
             
             # Fallback to editor text color if not found in QToolButton
             if color is None:
@@ -891,14 +971,13 @@ class TextEditor(QMainWindow):
         # Then add user message to session
         try:
             self.chat_manager.add_message(MessageRole.USER, message)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warning: Failed to add message to session: {e}")
 
         # If LLM not available, inform the user
         if not self.llm_client:
-            if self.chat_panel:
-                self.chat_panel.add_system_message("LLM client not initialized. Configure API key or check environment.")
-                self.chat_panel.set_thinking(False)
+            self._chat_panel_safe("set_thinking", False)
+            self._chat_panel_safe("add_system_message", "LLM client not initialized. Configure API key or check environment.")
             return
 
         # Check if DBE mode is enabled
@@ -959,9 +1038,8 @@ class TextEditor(QMainWindow):
         text, cursor_line, selection_start, selection_end = self._get_editor_context_for_dbe()
         
         if not text:
-            if self.chat_panel:
-                self.chat_panel.set_thinking(False)
-                self.chat_panel.add_system_message("⚠️ Editor is empty. Please add some text before using DBE mode.")
+            self._chat_panel_safe("set_thinking", False)
+            self._chat_panel_safe("add_system_message", "⚠️ Editor is empty. Please add some text before using DBE mode.")
             return
         
         # Store original text for diff
@@ -1049,8 +1127,7 @@ class TextEditor(QMainWindow):
     @Slot(str, str, str)
     def _show_dbe_diff(self, original: str, modified: str, user_request: str):
         """Show DBE diff in viewer (called on main thread)."""
-        if self.chat_panel:
-            self.chat_panel.set_thinking(False)
+        self._chat_panel_safe("set_thinking", False)
         
         # Create diff dialog
         dialog = self._create_diff_dialog()
@@ -1068,29 +1145,25 @@ class TextEditor(QMainWindow):
             modified_text = dialog.diff_viewer.get_modified_text()
             if modified_text:
                 self.editor.setPlainText(modified_text)
-                if self.chat_panel:
-                    self.chat_panel.add_system_message("✓ Changes applied successfully!")
-                self.statusBar().showMessage("✓ DBE changes applied", 3000)
+                self._chat_panel_safe("add_system_message", "✓ Changes applied successfully!")
+                self.statusBar().showMessage("✓ DBE changes applied", self.STATUS_NORMAL)
         else:
             # User rejected
-            if self.chat_panel:
-                self.chat_panel.add_system_message("✗ Changes rejected")
-            self.statusBar().showMessage("✗ DBE changes rejected", 3000)
+            self._chat_panel_safe("add_system_message", "✗ Changes rejected")
+            self.statusBar().showMessage("✗ DBE changes rejected", self.STATUS_NORMAL)
 
     
     @Slot(str)
     def _handle_llm_response(self, reply: str):
         """Handle successful LLM response on main thread."""
-        if self.chat_panel:
-            self.chat_panel.set_thinking(False)
-            self.chat_panel.add_assistant_message(reply)
+        self._chat_panel_safe("set_thinking", False)
+        self._chat_panel_safe("add_assistant_message", reply)
             
     @Slot(str)
     def _handle_llm_error(self, error_msg: str):
         """Handle LLM error on main thread."""
-        if self.chat_panel:
-            self.chat_panel.set_thinking(False)
-            self.chat_panel.add_system_message(f"LLM error: {error_msg}")
+        self._chat_panel_safe("set_thinking", False)
+        self._chat_panel_safe("add_system_message", f"LLM error: {error_msg}")
 
     def _on_model_selected(self, model_key: str):
         """Handle a model selection change from the UI.
@@ -1107,15 +1180,13 @@ class TextEditor(QMainWindow):
             old_model = None
 
         try:
-
             # Update config and create client
             self.llm_config.model_key = model_key
             new_client = self.llm_config.create_client()
             self.llm_client = new_client
-            if self.chat_panel:
-                self.chat_panel.set_status(f"Using model: {model_key}")
+            self._chat_panel_safe("set_status", f"Using model: {model_key}")
             # Also show a short statusbar message
-            self.statusBar().showMessage(f"Using model: {model_key}", 3000)
+            self.statusBar().showMessage(f"Using model: {model_key}", self.STATUS_NORMAL)
         except Exception as e:
             # Rollback model_key if possible
             try:
@@ -1124,47 +1195,30 @@ class TextEditor(QMainWindow):
             except Exception:
                 pass
             # Inform the user in the chat panel
-            if self.chat_panel:
-                self.chat_panel.add_system_message(f"Failed to switch model to {model_key}: {e}")
-            self.statusBar().showMessage(f"Failed to switch model: {e}", 5000)
+            self._chat_panel_safe("add_system_message", f"Failed to switch model to {model_key}: {e}")
+            self.statusBar().showMessage(f"Failed to switch model: {e}", self.STATUS_ERROR)
 
 
 
     # --- Edit action handlers (TextEditor forwards to the editor widget) ---
     def _on_copy(self):
         self.editor.copy()
-        self._last_edit_action = "copy"
 
     def _on_paste(self):
         self.editor.paste()
-        self._last_edit_action = "paste"
 
     def _on_cut(self):
         self.editor.cut()
-        self._last_edit_action = "cut"
 
     def _on_undo(self):
         self.editor.undo()
-        self._last_edit_action = "undo"
 
     def _on_redo(self):
         self.editor.redo()
-        self._last_edit_action = "redo"
 
     def _on_repeat(self):
-        action = self._last_edit_action
-        if not action:
-            return
-        if action == "copy":
-            self.editor.copy()
-        elif action == "paste":
-            self.editor.paste()
-        elif action == "cut":
-            self.editor.cut()
-        elif action == "undo":
-            self.editor.undo()
-        elif action == "redo":
-            self.editor.redo()
+        # Repeat last redo action
+        self.editor.redo()
 
     def _on_show_llm_settings(self):
         """Show the LLM parameter settings dialog and update configuration."""
@@ -1192,7 +1246,7 @@ class TextEditor(QMainWindow):
                 self.llm_config.apply_to_client(self.llm_client)
             
             seed_msg = f", Seed={seed}" if seed is not None else ""
-            self.statusBar().showMessage(f"LLM Parameters updated: Temperature={temp}, Top-P={top_p}{seed_msg}", 3000)
+            self.statusBar().showMessage(f"LLM Parameters updated: Temperature={temp}, Top-P={top_p}{seed_msg}", self.STATUS_NORMAL)
 
     def _on_configure_llm_setup(self):
         """Open the LLM setup configuration dialog."""
@@ -1220,7 +1274,7 @@ class TextEditor(QMainWindow):
                     # Force a client refresh
                     self._on_model_selected(self.llm_config.model_key)
             except Exception as e:
-                self.statusBar().showMessage(f"Error updating LLM setup: {e}", 3000)
+                self.statusBar().showMessage(f"Error updating LLM setup: {e}", self.STATUS_ERROR)
 
 
 
@@ -1271,7 +1325,7 @@ class TextEditor(QMainWindow):
                     try:
                         self.rag_system.mark_active_file(path)
                         self.statusBar().showMessage(
-                            f"Opened {os.path.basename(path)}", 2000
+                            f"Opened {os.path.basename(path)}", self.STATUS_QUICK
                         )
                     except Exception as e:
                         print(f"Failed to mark active file: {e}")
@@ -1296,7 +1350,7 @@ class TextEditor(QMainWindow):
             # Just show a saved message
             if self.rag_system:
                 self.statusBar().showMessage(
-                    f"Saved {os.path.basename(self.current_file)}", 2000
+                    f"Saved {os.path.basename(self.current_file)}", self.STATUS_QUICK
                 )
                 
         except Exception as e:
@@ -1369,9 +1423,10 @@ class TextEditor(QMainWindow):
         file_to_index = self.current_file
         file_size_kb = os.path.getsize(file_to_index) / 1024
         
-        self.statusBar().showMessage(
-            f"Indexing {os.path.basename(file_to_index)} ({file_size_kb:.1f}KB)...", 
-            0  # Keep showing until done
+        self._show_indexing_status(
+            os.path.basename(file_to_index), 
+            "start", 
+            file_size_kb
         )
         
         def index_worker():
@@ -1387,28 +1442,28 @@ class TextEditor(QMainWindow):
                     stats = self.rag_system.get_stats()
                     
                     # Update UI on main thread
-                    QTimer.singleShot(0, lambda: self.statusBar().showMessage(
-                        f"✓ Indexed {os.path.basename(file_to_index)} "
-                        f"({stats['total_documents']} total chunks)", 
-                        3000
+                    QTimer.singleShot(0, lambda: self._show_indexing_status(
+                        os.path.basename(file_to_index),
+                        "success",
+                        total_chunks=stats['total_documents']
                     ))
                 else:
-                    QTimer.singleShot(0, lambda: self.statusBar().showMessage(
-                        f"✗ Failed to index {os.path.basename(file_to_index)}", 
-                        3000
+                    QTimer.singleShot(0, lambda: self._show_indexing_status(
+                        os.path.basename(file_to_index),
+                        "error"
                     ))
             except Exception as e:
                 print(f"Indexing error: {e}")
                 QTimer.singleShot(0, lambda: self.statusBar().showMessage(
                     f"✗ Error indexing: {str(e)}", 
-                    5000
+                    self.STATUS_ERROR
                 ))
             finally:
                 # Release the lock
                 with self._indexing_lock:
                     self._indexing_in_progress = False
         
-        # Start indexing in background
+        # Start indexing in background (thread started within lock released)
         t = threading.Thread(target=index_worker, daemon=True)
         t.start()
 
@@ -1418,8 +1473,8 @@ class TextEditor(QMainWindow):
             QMessageBox.warning(self, "RAG Unavailable", "RAG system not initialized.")
             return
 
-        path, _ = QFileDialog.getOpenFileName(
-            self, "Upload File for RAG indexing", "", 
+        path = self._open_file_dialog(
+            "Upload File for RAG indexing", 
             "Allowed Files (*.txt *.pdf *.md);;Text Files (*.txt);;Markdown Files (*.md);;PDF Files (*.pdf);;All Files (*)"
         )
         if not path:
@@ -1445,9 +1500,10 @@ class TextEditor(QMainWindow):
         file_to_index = path
         file_size_kb = os.path.getsize(file_to_index) / 1024
 
-        self.statusBar().showMessage(
-            f"Indexing {os.path.basename(file_to_index)} ({file_size_kb:.1f}KB)...", 
-            0  # Keep showing until done
+        self._show_indexing_status(
+            os.path.basename(file_to_index),
+            "start",
+            file_size_kb
         )
 
         def index_worker():
@@ -1460,10 +1516,10 @@ class TextEditor(QMainWindow):
                     stats = self.rag_system.get_stats()
                     
                     # Update UI on main thread
-                    QTimer.singleShot(0, lambda: self.statusBar().showMessage(
-                        f"✓ Indexed {os.path.basename(file_to_index)} "
-                        f"({stats['total_documents']} total chunks)", 
-                        3000
+                    QTimer.singleShot(0, lambda: self._show_indexing_status(
+                        os.path.basename(file_to_index),
+                        "success",
+                        total_chunks=stats['total_documents']
                     ))
                     # Also show success dialog as it's a manual upload
                     QTimer.singleShot(0, lambda: QMessageBox.information(
@@ -1472,15 +1528,15 @@ class TextEditor(QMainWindow):
                         f"Total chunks in system: {stats['total_documents']}"
                     ))
                 else:
-                    QTimer.singleShot(0, lambda: self.statusBar().showMessage(
-                        f"✗ Failed to index {os.path.basename(file_to_index)}", 
-                        3000
+                    QTimer.singleShot(0, lambda: self._show_indexing_status(
+                        os.path.basename(file_to_index),
+                        "error"
                     ))
             except Exception as e:
                 print(f"Indexing error: {e}")
                 QTimer.singleShot(0, lambda: self.statusBar().showMessage(
                     f"✗ Error indexing: {str(e)}", 
-                    5000
+                    self.STATUS_ERROR
                 ))
             finally:
                 # Release the lock
@@ -1572,8 +1628,9 @@ class TextEditor(QMainWindow):
     # --- CIN (Context-Injection System) methods ---
     def _upload_cin_file(self):
         """Upload a file for CIN context injection."""
-        path, _ = QFileDialog.getOpenFileName(
-            self, "Upload File for CIN", "", "Allowed Files (*.txt *.pdf *.md);;Text Files (*.txt);;Markdown Files (*.md);;PDF Files (*.pdf);;All Files (*)"
+        path = self._open_file_dialog(
+            "Upload File for CIN", 
+            "Allowed Files (*.txt *.pdf *.md);;Text Files (*.txt);;Markdown Files (*.md);;PDF Files (*.pdf);;All Files (*)"
         )
         if not path:
             return
@@ -1612,24 +1669,24 @@ class TextEditor(QMainWindow):
 
             if content:
                 self.chat_manager.cin_context = content
-                self.statusBar().showMessage(f"✓ Injected {os.path.basename(path)} via CIN", 3000)
+                self.statusBar().showMessage(f"✓ Injected {os.path.basename(path)} via CIN", self.STATUS_NORMAL)
                 QMessageBox.information(
                     self, "CIN Success", 
                     f"File '{os.path.basename(path)}' has been injected into the assistant's context.\n"
                     "Sammy AI will now consider this content in your conversation."
                 )
             else:
-                self.statusBar().showMessage("✗ Failed to extract content for CIN", 3000)
+                self.statusBar().showMessage("✗ Failed to extract content for CIN", self.STATUS_ERROR)
                 QMessageBox.warning(self, "CIN Error", "Could not extract any text from the selected file.")
 
         except Exception as e:
-            self.statusBar().showMessage(f"✗ CIN error: {str(e)}", 5000)
+            self.statusBar().showMessage(f"✗ CIN error: {str(e)}", self.STATUS_ERROR)
             QMessageBox.critical(self, "CIN Error", f"An error occurred during CIN injection: {str(e)}")
 
     def _clear_cin_context(self):
         """Clear the current CIN context."""
         self.chat_manager.cin_context = None
-        self.statusBar().showMessage("CIN context cleared", 3000)
+        self.statusBar().showMessage("CIN context cleared", self.STATUS_NORMAL)
         QMessageBox.information(self, "CIN Cleared", "The injected CIN context has been cleared.")
 
     # --- DBE (Diff-Based Editing) methods ---
@@ -1643,8 +1700,8 @@ class TextEditor(QMainWindow):
             return
         
         # Select file to compare
-        path, _ = QFileDialog.getOpenFileName(
-            self, "Select File to Compare", "", 
+        path = self._open_file_dialog(
+            "Select File to Compare", 
             "Text Files (*.txt);;All Files (*)"
         )
         
@@ -1667,7 +1724,7 @@ class TextEditor(QMainWindow):
                 modified_text = dialog.diff_viewer.get_modified_text()
                 if modified_text:
                     self.editor.setPlainText(modified_text)
-                    self.statusBar().showMessage("Diff applied successfully", 3000)
+                    self.statusBar().showMessage("Diff applied successfully", self.STATUS_NORMAL)
         
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to compare files: {e}")
@@ -1700,7 +1757,7 @@ class TextEditor(QMainWindow):
             modified_text = dialog.diff_viewer.get_modified_text()
             if modified_text:
                 self.editor.setPlainText(modified_text)
-                self.statusBar().showMessage("Diff applied successfully", 3000)
+                self.statusBar().showMessage("Diff applied successfully", self.STATUS_NORMAL)
 
     def _apply_diff_from_file(self):
         """Apply a diff file to current text."""
@@ -1712,8 +1769,8 @@ class TextEditor(QMainWindow):
             return
         
         # Select diff file
-        path, _ = QFileDialog.getOpenFileName(
-            self, "Select Diff File", "", 
+        path = self._open_file_dialog(
+            "Select Diff File", 
             "Diff Files (*.diff *.patch);;All Files (*)"
         )
         
@@ -1734,7 +1791,7 @@ class TextEditor(QMainWindow):
                 modified_text = dialog.diff_viewer.get_modified_text()
                 if modified_text:
                     self.editor.setPlainText(modified_text)
-                    self.statusBar().showMessage("Diff applied successfully", 3000)
+                    self.statusBar().showMessage("Diff applied successfully", self.STATUS_NORMAL)
         
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to apply diff: {e}")
@@ -1764,13 +1821,11 @@ class TextEditor(QMainWindow):
         self.dbe_enabled = self.toggle_dbe_action.isChecked()
         
         if self.dbe_enabled:
-            self.statusBar().showMessage("🔧 DBE Mode ENABLED - LLM suggestions will show as diffs", 3000)
-            if self.chat_panel:
-                self.chat_panel.add_system_message("🔧 DBE Mode enabled. LLM suggestions will now appear as diffs for your review.")
+            self.statusBar().showMessage("🔧 DBE Mode ENABLED - LLM suggestions will show as diffs", self.STATUS_NORMAL)
+            self._chat_panel_safe("add_system_message", "🔧 DBE Mode enabled. LLM suggestions will now appear as diffs for your review.")
         else:
-            self.statusBar().showMessage("DBE Mode disabled - Normal chat mode", 3000)
-            if self.chat_panel:
-                self.chat_panel.add_system_message("DBE Mode disabled. Returning to normal chat mode.")
+            self.statusBar().showMessage("DBE Mode disabled - Normal chat mode", self.STATUS_NORMAL)
+            self._chat_panel_safe("add_system_message", "DBE Mode disabled. Returning to normal chat mode.")
     
     def _get_editor_context_for_dbe(self) -> tuple[str, int, Optional[int], Optional[int]]:
         """
@@ -1870,11 +1925,10 @@ class CodeEditor(QPlainTextEdit):
         return self.palette().color(QPalette.Base)
 
     def _get_editor_text_color(self):
-        ss = QApplication.instance().styleSheet() or ""
-        m = re.search(r"QPlainTextEdit\s*\{[^}]*(?<!-)color\s*:\s*([^;]+);", ss)
-        if m:
+        color_str = _extract_color_from_stylesheet("QPlainTextEdit", "color")
+        if color_str:
             try:
-                return QColor(m.group(1).strip())
+                return QColor(color_str)
             except Exception:
                 pass
         return self.palette().color(QPalette.Text)
