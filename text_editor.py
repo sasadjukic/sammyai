@@ -228,6 +228,7 @@ class TextEditor(QMainWindow):
         self.create_statusbar()
         self.current_file = None
         self.untitled_count = 1
+        self.editor.document().modificationChanged.connect(self.update_window_title)
         self.update_window_title()
 
         # --- Initialize RAG system ---
@@ -1318,6 +1319,7 @@ class TextEditor(QMainWindow):
                 with open(path, "r", encoding="utf-8") as file:
                     self.editor.setPlainText(file.read())
                 self.current_file = path
+                self.editor.document().setModified(False)
                 self.update_window_title()
                 
                 # Only mark as active, DON'T index automatically
@@ -1344,6 +1346,7 @@ class TextEditor(QMainWindow):
         try:
             with open(self.current_file, "w", encoding="utf-8") as file:
                 file.write(self.editor.toPlainText())
+            self.editor.document().setModified(False)
             self.update_window_title()
             
             # No auto-reindex on save
@@ -1377,12 +1380,13 @@ class TextEditor(QMainWindow):
         self.editor.clear()
         self.current_file = None
         self.untitled_count += 1
+        self.editor.document().setModified(False)
         self.update_window_title()
 
     def new_file(self):
         self.close_file()
 
-    def update_window_title(self):
+    def update_window_title(self, *args):
         """Update the window title to show document name and editor name."""
         if self.current_file:
             import os
@@ -1390,7 +1394,10 @@ class TextEditor(QMainWindow):
         else:
             doc_name = f"Untitled {self.untitled_count}"
         
-        self.setWindowTitle(f"{doc_name} - SammyAI")
+        is_modified = getattr(self.editor.document(), "isModified", lambda: False)()
+        star = "*" if is_modified else ""
+        
+        self.setWindowTitle(f"{star}{doc_name} - SammyAI")
 
     # Manual indexing method
     def _index_current_file_manually(self):
