@@ -12,9 +12,6 @@ from .system_prompt import SYSTEM_PROMPT
 # Import API key manager so we can pick up a stored key by default
 from api_key_manager import APIKeyManager
 
-
-from api_key_manager import APIKeyManager
-
 try:
     import anthropic
 except ImportError:
@@ -211,167 +208,6 @@ class LLMClient:
         combined_system = "\n\n".join(system_contents)
         return [{"role": "system", "content": combined_system}] + decomposed["other_messages"]
     
-    async def _stream_chat_ollama(
-        self,
-        messages: List[Dict[str, str]],
-        on_token: Callable[[str], None],
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
-        top_p: Optional[float] = None,
-        seed: Optional[int] = None,
-        include_system: bool = True
-    ) -> str:
-        """Stream chat using Ollama client."""
-        # For local models (like Gemma), we prepend extra context to the user message
-        # as they often handle consolidated system prompts poorly.
-        # For 'ollama' provider (cloud-hosted), we stick to consolidated system prompt.
-        if self.provider == "local":
-            prepared_messages = self._prepare_messages_decomposed(messages, include_system)
-        else:
-            prepared_messages = self._prepare_messages(messages, include_system)
-            
-        full_response = ""
-        
-        try:
-            # Build options dict
-            options = {
-                "temperature": temperature if temperature is not None else self.temperature,
-                "top_p": top_p if top_p is not None else self.top_p,
-                "seed": seed if seed is not None else self.seed,
-            }
-            if max_tokens:
-                options["num_predict"] = max_tokens
-            
-            # Stream response from Ollama
-            stream = self._client.chat(
-                model=self.model_name,
-                messages=prepared_messages,
-                stream=True,
-                options=options
-            )
-            
-            for chunk in stream:
-                if "message" in chunk and "content" in chunk["message"]:
-                    token = chunk["message"]["content"]
-                    full_response += token
-                    on_token(token)
-        
-        except Exception as e:
-            raise RuntimeError(f"Error during streaming chat: {e}")
-        
-        return full_response
-    
-    async def _stream_chat_google(
-        self,
-        messages: List[Dict[str, str]],
-        on_token: Callable[[str], None],
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
-        top_p: Optional[float] = None,
-        seed: Optional[int] = None,
-        include_system: bool = True
-    ) -> str:
-        """Stream chat using Google Gen AI SDK."""
-        try:
-            # Convert messages to Google format
-            google_messages = self._convert_to_google_format(messages, include_system)
-            
-            # Configure generation config
-            config = {
-                "temperature": temperature if temperature is not None else self.temperature,
-                "top_p": top_p if top_p is not None else self.top_p,
-                "seed": seed if seed is not None else self.seed,
-                "system_instruction": self.system_prompt
-            }
-            if max_tokens:
-                config["max_output_tokens"] = max_tokens
-            
-            # Start chat session with history
-            chat = self._google_client.chats.create(
-                model=self.model_name,
-                history=google_messages["history"],
-                config=config
-            )
-            
-            # Send the last message and get streaming response
-            response = chat.send_message(
-                google_messages["last_message"],
-                stream=True
-            )
-            
-            full_response = ""
-            for chunk in response:
-                if chunk.text:
-                    full_response += chunk.text
-                    on_token(chunk.text)
-            
-            return full_response
-        
-        except Exception as e:
-            raise RuntimeError(f"Error during streaming chat: {e}")
-    
-    async def _stream_chat_anthropic(
-        self,
-        messages: List[Dict[str, str]],
-        on_token: Callable[[str], None],
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
-        top_p: Optional[float] = None,
-        seed: Optional[int] = None,
-        include_system: bool = True
-    ) -> str:
-        """Stream chat using Anthropic SDK."""
-        try:
-            decomposed = self._decompose_messages(messages, include_system)
-            system_prompt = "\n\n".join([decomposed["primary_system"]] + decomposed["extra_system"])
-            
-            with self._anthropic_client.messages.stream(
-                model=self.model_name,
-                max_tokens=max_tokens or 4096,
-                temperature=temperature if temperature is not None else self.temperature,
-                system=system_prompt,
-                messages=decomposed["other_messages"]
-            ) as stream:
-                full_response = ""
-                for text in stream.text_stream:
-                    full_response += text
-                    on_token(text)
-                return full_response
-        except Exception as e:
-            raise RuntimeError(f"Error during Anthropic streaming: {e}")
-
-    async def _stream_chat_openai(
-        self,
-        messages: List[Dict[str, str]],
-        on_token: Callable[[str], None],
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
-        top_p: Optional[float] = None,
-        seed: Optional[int] = None,
-        include_system: bool = True
-    ) -> str:
-        """Stream chat using OpenAI SDK."""
-        try:
-            prepared_messages = self._prepare_messages(messages, include_system)
-            stream = self._openai_client.chat.completions.create(
-                model=self.model_name,
-                messages=prepared_messages,
-                max_tokens=max_tokens,
-                temperature=temperature if temperature is not None else self.temperature,
-                top_p=top_p if top_p is not None else self.top_p,
-                seed=seed if seed is not None else self.seed,
-                stream=True
-            )
-            full_response = ""
-            for chunk in stream:
-                if chunk.choices and chunk.choices[0].delta.content:
-                    token = chunk.choices[0].delta.content
-                    full_response += token
-                    on_token(token)
-            return full_response
-        except Exception as e:
-            raise RuntimeError(f"Error during OpenAI streaming: {e}")
-
     
     def chat(
         self,
@@ -417,7 +253,7 @@ class LLMClient:
         """Chat using Ollama client."""
         # For local models (like Gemma), we prepend extra context to the user message
         # as they often handle consolidated system prompts poorly.
-        # For 'ollama' provider (cloud-hosted), we stick to consolidated system prompt.
+        # For cloud providers (ollama_cloud, etc.), we stick to consolidated system prompt.
         if self.provider == "local":
             prepared_messages = self._prepare_messages_decomposed(messages, include_system)
         else:
@@ -617,40 +453,6 @@ class LLMClient:
         result.extend(other_messages)
         return result
     
-    async def stream_chat(
-        self,
-        messages: List[Dict[str, str]],
-        on_token: Callable[[str], None],
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
-        top_p: Optional[float] = None,
-        seed: Optional[int] = None,
-        include_system: bool = True
-    ) -> str:
-        """
-        Stream chat completion and call on_token for each token.
-        
-        Args:
-            messages: List of message dicts with 'role' and 'content'
-            on_token: Callback function called with each token
-            max_tokens: Maximum tokens to generate (optional)
-            temperature: Sampling temperature (None to use instance default)
-            top_p: Top-p sampling parameter (None to use instance default)
-            include_system: Whether to include system prompt (default: True)
-            
-        Returns:
-            Complete response text
-        """
-        if self.provider == "google":
-            return await self._stream_chat_google(messages, on_token, max_tokens, temperature, top_p, seed, include_system)
-        elif self.provider == "anthropic":
-            return await self._stream_chat_anthropic(messages, on_token, max_tokens, temperature, top_p, seed, include_system)
-        elif self.provider == "openai":
-            return await self._stream_chat_openai(messages, on_token, max_tokens, temperature, top_p, seed, include_system)
-        else:
-            return await self._stream_chat_ollama(messages, on_token, max_tokens, temperature, top_p, seed, include_system)
-
-
 
 class LLMConfig:
     """Configuration for LLM client."""
