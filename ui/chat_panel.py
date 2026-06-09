@@ -5,32 +5,40 @@ Provides a chat interface similar to VS Code and Antigravity.
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, 
-    QLineEdit, QPushButton, QLabel, QScrollArea, QFrame, QComboBox,
-    QApplication, QMenu
+    QPushButton, QLabel, QFrame, QComboBox,
+    QApplication
 )
-from PySide6.QtCore import Qt, Signal, QThread, QRect, QSize
-from PySide6.QtGui import QFont, QTextCursor, QPixmap, QPainter, QColor, QIcon
+from PySide6.QtCore import Qt, Signal, QRect, QSize
+from PySide6.QtGui import QTextCursor, QPixmap, QPainter, QColor, QIcon
 from PySide6.QtSvg import QSvgRenderer
-import asyncio
 import os
-from typing import Optional
 
 
 class ChatPanel(QWidget):
     """Chat panel widget for LLM interaction."""
     
-    # Signal emitted when a message is sent
+    # Signals
     message_sent = Signal(str)
-    # Signal emitted when user selects a different model
     model_selected = Signal(str)
-    
-    # Signal emitted when "Clear Chat" is requested
     clear_chat_requested = Signal()
+    close_requested = Signal()
+    
+    # UI Color constants
+    COLOR_USER = "#e9a5a5"          # User message color (pinkish)
+    COLOR_ASSISTANT = "#81c1d9"     # Assistant message color (blue)
+    COLOR_SYSTEM = "#888888"        # System message color (gray)
+    COLOR_TEXT = "#dddddd"          # Regular text color
+    COLOR_ICON = "#81c1d9"          # Icon color
+    
+    # Icon directory path
+    ICONS_DIR = None  # Will be initialized in __init__
     
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setMinimumWidth(500)
         self.setMaximumWidth(1000)
+        # Initialize icon directory path
+        ChatPanel.ICONS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "icons")
         self.setup_ui()
         self._thinking_cursor = None
     
@@ -66,10 +74,9 @@ class ChatPanel(QWidget):
         header_layout.addWidget(self.text_label)
         # Model selection combo box
         try:
-            # Import here to avoid cyclic imports at module import time
             from llm.client import get_model_mapping
             model_keys = list(get_model_mapping().keys())
-        except Exception:
+        except (ImportError, AttributeError):
             model_keys = []
 
 
@@ -84,6 +91,7 @@ class ChatPanel(QWidget):
         self.close_button = QPushButton("✕")
         self.close_button.setMaximumWidth(30)
         self.close_button.setToolTip("Close chat panel")
+        self.close_button.clicked.connect(self._on_close_clicked)
         
         header_layout.addStretch()
         header_layout.addWidget(self.model_combo)
@@ -137,6 +145,7 @@ class ChatPanel(QWidget):
         self.input_field = QTextEdit()
         self.input_field.setObjectName("chatInput")
         self.input_field.setPlaceholderText("Type your message here...")
+        # Set heights: max prevents excessive expansion, min ensures usability
         self.input_field.setMaximumHeight(100)
         self.input_field.setMinimumHeight(60)
         input_layout.addWidget(self.input_field)
@@ -151,8 +160,6 @@ class ChatPanel(QWidget):
         layout.addLayout(input_layout)
 
         self.setObjectName("chatPanel")
-
-        # Styles moved to ui/styles/dark_theme.qss
 
         # Connect signals
         self.send_button.clicked.connect(self._on_send_clicked)
@@ -183,9 +190,8 @@ class ChatPanel(QWidget):
         button_size = self.send_button.size()
         rect = self.input_field.rect()
         
-        # Position at bottom right, accounting for scrollbar if visible
         x = rect.width() - button_size.width() - margin
-        # If scrollbar is visible, shift button to the left
+        # Shift button left if scrollbar is visible to avoid overlap
         if self.input_field.verticalScrollBar().isVisible():
             x -= self.input_field.verticalScrollBar().width()
             
@@ -195,15 +201,34 @@ class ChatPanel(QWidget):
     def _setup_send_button_ui(self):
         """Load, tint and set the send arrow icon."""
         try:
-            icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "icons", "send_arrow.svg")
-            if not os.path.exists(icon_path):
-                # Fallback text if icon missing
-                self.send_button.setText("➤")
-                return
-
+            icon_path = os.path.join(self.ICONS_DIR, "send_arrow.svg")
             size = 24
-            color = "#81c1d9"
-
+            icon = self._load_and_tint_icon(icon_path, size, self.COLOR_ICON)
+            if icon:
+                self.send_button.setIcon(icon)
+                self.send_button.setIconSize(QSize(size, size))
+                self.send_button.setFixedSize(size + 8, size + 8)
+                self.send_button.setText("")
+            else:
+                self.send_button.setText("Send")
+        except FileNotFoundError:
+            self.send_button.setText("Send")
+    
+    def _load_and_tint_icon(self, icon_path: str, size: int, color: str) -> QIcon:
+        """Load an SVG icon, tint it with the specified color, and return as QIcon.
+        
+        Args:
+            icon_path: Path to the SVG file
+            size: Icon size in pixels
+            color: Hex color code (e.g., "#81c1d9")
+            
+        Returns:
+            QIcon object, or None if icon cannot be loaded
+        """
+        try:
+            if not os.path.exists(icon_path):
+                return None
+                
             renderer = QSvgRenderer(icon_path)
             pix = QPixmap(size, size)
             pix.fill(Qt.transparent)
@@ -211,18 +236,14 @@ class ChatPanel(QWidget):
             painter = QPainter(pix)
             renderer.render(painter, QRect(0, 0, size, size))
             
-            # Tint the icon
+            # Tint the icon by applying color in SourceIn mode
             painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
             painter.fillRect(pix.rect(), QColor(color))
             painter.end()
-
-            self.send_button.setIcon(QIcon(pix))
-            self.send_button.setIconSize(QSize(size, size))
-            self.send_button.setFixedSize(size + 8, size + 8)
-            self.send_button.setText("") 
-        except Exception as e:
-            print(f"Failed to load send icon: {e}")
-            self.send_button.setText("Send")
+            
+            return QIcon(pix)
+        except (FileNotFoundError, OSError):
+            return None
     
     def _on_send_clicked(self):
         """Handle send button click."""
@@ -233,9 +254,7 @@ class ChatPanel(QWidget):
 
     def _on_model_changed(self, model_key: str):
         """Handle model selection changes from the combo box."""
-        # Emit signal so the parent can attempt to switch LLMs
         self.model_selected.emit(model_key)
-        # Give immediate feedback in the panel
         self.set_status(f"Selected model: {model_key}")
     
     def _on_clear_clicked(self):
@@ -243,6 +262,10 @@ class ChatPanel(QWidget):
         self.chat_display.clear()
         self.status_label.setText("Chat history cleared")
         self.clear_chat_requested.emit()
+    
+    def _on_close_clicked(self):
+        """Handle close button click."""
+        self.close_requested.emit()
     
     def _on_copy_clicked(self):
         """Handle copy button click."""
@@ -256,23 +279,23 @@ class ChatPanel(QWidget):
     def add_user_message(self, message: str):
         """Add a user message to the chat display."""
         self.chat_display.append(f"<div style='margin-bottom: 10px;'>"
-                                 f"<b style='color: #e9a5a5;'>You:</b><br>"
-                                 f"<span style='color: #dddddd;'>{self._escape_html(message)}</span>"
+                                 f"<b style='color: {self.COLOR_USER};'>You:</b><br>"
+                                 f"<span style='color: {self.COLOR_TEXT};'>{self._escape_html(message)}</span>"
                                  f"</div>")
         self._scroll_to_bottom()
     
     def add_assistant_message(self, message: str):
         """Add an assistant message to the chat display."""
         self.chat_display.append(f"<div style='margin-bottom: 10px;'>"
-                                 f"<b style='color: #81c1d9;'>Sammy:</b><br>"
-                                 f"<span style='color: #dddddd;'>{self._escape_html(message)}</span>"
+                                 f"<b style='color: {self.COLOR_ASSISTANT};'>Sammy:</b><br>"
+                                 f"<span style='color: {self.COLOR_TEXT};'>{self._escape_html(message)}</span>"
                                  f"</div>")
         self._scroll_to_bottom()
     
     def add_system_message(self, message: str):
         """Add a system message to the chat display."""
         self.chat_display.append(f"<div style='margin-bottom: 10px;'>"
-                                 f"<i style='color: #888888;'>{self._escape_html(message)}</i>"
+                                 f"<i style='color: {self.COLOR_SYSTEM};'>{self._escape_html(message)}</i>"
                                  f"</div>")
         self._scroll_to_bottom()
     
@@ -337,31 +360,15 @@ class ChatPanel(QWidget):
     def _setup_header_icon(self):
         """Load, tint and set the dialogue icon."""
         try:
-            # Path to the icon
-            icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "icons", "dialogue.svg")
-            
-            if not os.path.exists(icon_path):
-                return
-
+            icon_path = os.path.join(self.ICONS_DIR, "dialogue.svg")
             # Target size (matching font-size 18px)
             size = 20
-            color = "#81c1d9"
-
-            renderer = QSvgRenderer(icon_path)
-            pix = QPixmap(size, size)
-            pix.fill(Qt.transparent)
-
-            painter = QPainter(pix)
-            renderer.render(painter, QRect(0, 0, size, size))
-            
-            # Tint the icon
-            painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
-            painter.fillRect(pix.rect(), QColor(color))
-            painter.end()
-
-            self.icon_label.setPixmap(pix)
-            self.icon_label.setFixedSize(size, size)
-        except Exception as e:
+            icon = self._load_and_tint_icon(icon_path, size, self.COLOR_ICON)
+            if icon:
+                pix = icon.pixmap(QSize(size, size))
+                self.icon_label.setPixmap(pix)
+                self.icon_label.setFixedSize(size, size)
+        except FileNotFoundError as e:
             print(f"Failed to load header icon: {e}")
 
     def refresh_model_dropdown(self):
@@ -396,6 +403,6 @@ class ChatPanel(QWidget):
             if self.model_combo.currentText() != current_text:
                 self._on_model_changed(self.model_combo.currentText())
                 
-        except Exception as e:
+        except (ImportError, AttributeError) as e:
             print(f"Failed to refresh model dropdown: {e}")
 
