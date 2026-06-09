@@ -33,6 +33,33 @@ class ChatPanel(QWidget):
     # Icon directory path
     ICONS_DIR = None  # Will be initialized in __init__
     
+    # Message templates for chat display with color placeholders
+    MESSAGE_TEMPLATE_USER = (
+        "<div style='margin-bottom: 10px;'>"
+        "<b style='color: {user_color};'>You:</b><br>"
+        "<span style='color: {text_color};'>{message}</span>"
+        "</div>"
+    )
+    
+    MESSAGE_TEMPLATE_ASSISTANT = (
+        "<div style='margin-bottom: 10px;'>"
+        "<b style='color: {assistant_color};'>Sammy:</b><br>"
+        "<span style='color: {text_color};'>{message}</span>"
+        "</div>"
+    )
+    
+    MESSAGE_TEMPLATE_SYSTEM = (
+        "<div style='margin-bottom: 10px;'>"
+        "<i style='color: {system_color};'>{message}</i>"
+        "</div>"
+    )
+    
+    MESSAGE_THINKING = (
+        "<div id='thinking_msg' style='margin-bottom: 10px;'>"
+        "<i style='color: {thinking_color};'>Sammy is thinking...</i>"
+        "</div>"
+    )
+    
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setMinimumWidth(500)
@@ -278,25 +305,31 @@ class ChatPanel(QWidget):
     
     def add_user_message(self, message: str):
         """Add a user message to the chat display."""
-        self.chat_display.append(f"<div style='margin-bottom: 10px;'>"
-                                 f"<b style='color: {self.COLOR_USER};'>You:</b><br>"
-                                 f"<span style='color: {self.COLOR_TEXT};'>{self._escape_html(message)}</span>"
-                                 f"</div>")
+        html = self.MESSAGE_TEMPLATE_USER.format(
+            user_color=self.COLOR_USER,
+            text_color=self.COLOR_TEXT,
+            message=self._escape_html(message)
+        )
+        self.chat_display.append(html)
         self._scroll_to_bottom()
     
     def add_assistant_message(self, message: str):
         """Add an assistant message to the chat display."""
-        self.chat_display.append(f"<div style='margin-bottom: 10px;'>"
-                                 f"<b style='color: {self.COLOR_ASSISTANT};'>Sammy:</b><br>"
-                                 f"<span style='color: {self.COLOR_TEXT};'>{self._escape_html(message)}</span>"
-                                 f"</div>")
+        html = self.MESSAGE_TEMPLATE_ASSISTANT.format(
+            assistant_color=self.COLOR_ASSISTANT,
+            text_color=self.COLOR_TEXT,
+            message=self._escape_html(message)
+        )
+        self.chat_display.append(html)
         self._scroll_to_bottom()
     
     def add_system_message(self, message: str):
         """Add a system message to the chat display."""
-        self.chat_display.append(f"<div style='margin-bottom: 10px;'>"
-                                 f"<i style='color: {self.COLOR_SYSTEM};'>{self._escape_html(message)}</i>"
-                                 f"</div>")
+        html = self.MESSAGE_TEMPLATE_SYSTEM.format(
+            system_color=self.COLOR_SYSTEM,
+            message=self._escape_html(message)
+        )
+        self.chat_display.append(html)
         self._scroll_to_bottom()
     
     def append_to_last_message(self, text: str):
@@ -321,9 +354,8 @@ class ChatPanel(QWidget):
         if thinking:
             if self._thinking_cursor is None:
                 # Add the thinking message
-                self.chat_display.append("<div id='thinking_msg' style='margin-bottom: 10px;'>"
-                                         "<i style='color: #888888;'>Sammy is thinking...</i>"
-                                         "</div>")
+                html = self.MESSAGE_THINKING.format(thinking_color=self.COLOR_SYSTEM)
+                self.chat_display.append(html)
                 self._scroll_to_bottom()
                 
                 # Record the position to remove it later
