@@ -4,7 +4,7 @@ import os
 from typing import Optional
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QPlainTextEdit, QFileDialog, QMessageBox, QToolBar,
-    QMenu, QWidget, QLabel, QDockWidget, QLineEdit,
+    QMenu, QWidget, QLabel, QDockWidget, QLineEdit, QTextEdit,
     QHBoxLayout, QPushButton, QVBoxLayout, QSizePolicy, QStyle, QDialog
 )
 from PySide6.QtGui import QAction, QKeySequence, QIcon, QPainter, QColor, QFont, QPalette, QTextCursor, QPixmap
