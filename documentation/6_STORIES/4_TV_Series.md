@@ -44,4 +44,22 @@ It is also important to note that not EVERY SINGLE word in these pilots had been
 
 ---
 
+##  ⛈ Ten Degrees of Sky
+
+> [!NOTE]
+> **Story Summary**
+> When a collapsed climate tech firm Atmos-Tech Solutions (A.T.S) decommissioned land turns into a lawless Wild West frontier, Alex Norvell, an ex-engineer turned scavenger navigates corporate mercenaries, local militias, and emergent technology to protect an unlikely community of workers and refugees.
+
+| Metadata | Details |
+| :--- | :--- |
+| **Release Date** | June 26th, 2026 |
+| **Brainstorming Model** | Gemma4:31b |
+| **Writing Model** | Gemma4:31b |
+| **Genre** | Sci-Fi Drama, Neo-Western |
+| **Inspiration** | Mad Max 2 (The Road Warrior), Spaghetti Westerns, Arc Raiders |
+ 
+[📖 Ten Degrees of Sky](https://drive.google.com/file/d/19VKaJBBaQxAjxXBP_5xKTGlnfcfRjFPh/view?usp=sharing)
+
+---
+
 [⬅️ Back to Story Archive](file:///home/sasa/Desktop/Projects/sammyai_v1/documentation/6_STORIES/1_Stories_Introduction.md)
