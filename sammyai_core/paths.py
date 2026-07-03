@@ -35,6 +35,24 @@ class AppPaths:
     def embedding_cache_dir(self) -> Path:
         return self.cache_dir / "embeddings"
 
+    @property
+    def project_database_path(self) -> Path:
+        return self.data_dir / "sammyai.sqlite3"
+
+    @property
+    def projects_data_dir(self) -> Path:
+        return self.data_dir / "projects"
+
+    @property
+    def projects_cache_dir(self) -> Path:
+        return self.cache_dir / "projects"
+
+    def project_data_dir(self, project_id: str) -> Path:
+        return self.projects_data_dir / project_id
+
+    def project_cache_dir(self, project_id: str) -> Path:
+        return self.projects_cache_dir / project_id
+
     def ensure_created(self) -> "AppPaths":
         for path in (
             self.config_dir,
@@ -44,6 +62,8 @@ class AppPaths:
             self.sessions_dir,
             self.rag_index_dir,
             self.embedding_cache_dir,
+            self.projects_data_dir,
+            self.projects_cache_dir,
         ):
             path.mkdir(parents=True, exist_ok=True)
         return self

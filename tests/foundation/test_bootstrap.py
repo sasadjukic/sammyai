@@ -36,6 +36,8 @@ def test_runtime_services_are_built_from_application_paths(tmp_path):
     )
     assert services.rag_system is fake_rag
     assert services.llm_client is fake_client
+    assert services.project_database.path == paths.project_database_path
+    assert services.project_service is not None
     assert services.chat_manager.autosave is True
     assert services.chat_manager.get_active_session() is not None
 

@@ -19,8 +19,10 @@ class FakeRuntimeServices:
             seed=None,
         )
         self.llm_client = None
+        self.project_service = None
         self.rag_error = None
         self.llm_error = "No test LLM configured"
+        self.project_error = None
         self.shutdown_called = False
 
     def shutdown(self):
