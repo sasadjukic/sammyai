@@ -4,6 +4,7 @@ RAG System - Main interface using separate retriever and context builder modules
 from typing import List, Dict, Optional, Set
 from pathlib import Path
 import hashlib
+import logging
 import time
 
 # Import our RAG components
@@ -20,6 +21,9 @@ except ImportError:
     from vector_store import VectorStore
     from retriever import ContextRetriever
     from context_builder import ContextBuilder, FormattedContext
+
+
+logger = logging.getLogger(__name__)
 
 
 class RAGSystem:
@@ -49,7 +53,7 @@ class RAGSystem:
             embedding_batch_size: Batch size for generating embeddings (smaller reduces RAM spikes)
             max_chunks_per_file: Maximum chunks allowed per file to prevent RAM spikes
         """
-        print("Initializing RAG system...")
+        logger.info("Initializing RAG system")
         
         # Initialize core components
         self.indexer = FileIndexer(chunk_size=chunk_size, overlap=overlap)
@@ -69,11 +73,19 @@ class RAGSystem:
         self._last_context_result = None
         self._context_cooldown = 2.0  # seconds
         
-        print("RAG system ready")
+        logger.info("RAG system ready")
     
     def _get_file_hash(self, file_path: str) -> str:
-        """Generate hash of file path for cache key"""
-        return hashlib.md5(file_path.encode()).hexdigest()
+        """Generate a cache key for the content and embedding configuration."""
+        digest = hashlib.sha256()
+        digest.update(str(Path(file_path).absolute()).encode("utf-8"))
+        with open(file_path, "rb") as source:
+            for block in iter(lambda: source.read(1024 * 1024), b""):
+                digest.update(block)
+        digest.update(self.embedding_manager.model_name.encode("utf-8"))
+        digest.update(str(self.indexer.chunk_size).encode("ascii"))
+        digest.update(str(self.indexer.overlap).encode("ascii"))
+        return digest.hexdigest()
     
     def index_file(self, file_path: str, force_reindex: bool = False) -> bool:
         """
@@ -100,17 +112,17 @@ class RAGSystem:
             if not force_reindex:
                 existing_files = self.vector_store.get_all_file_paths()
                 if file_path in existing_files:
-                    print(f"File already indexed: {file_path}")
+                    logger.info("File already indexed: %s", file_path)
                     return True
             else:
                 # Delete existing chunks for this file
                 self.vector_store.delete_by_file(file_path)
             
             # Step 1: Parse and chunk the file
-            print(f"Parsing and chunking {file_path}...")
+            logger.info("Parsing and chunking %s", file_path)
             chunks = self.indexer.index_file(file_path)
             if not chunks:
-                print(f"No chunks created for {file_path}")
+                logger.warning("No chunks created for %s", file_path)
                 return False
             
             # Limit chunks per file
@@ -132,7 +144,11 @@ class RAGSystem:
             
             if embeddings is None or len(embeddings) != len(texts):
                 # Generate new embeddings
-                print(f"Generating embeddings for {len(texts)} chunks (batch size: {self.embedding_batch_size})...")
+                logger.info(
+                    "Generating embeddings for %s chunks (batch size: %s)",
+                    len(texts),
+                    self.embedding_batch_size,
+                )
                 embeddings = self.embedding_manager.batch_generate(texts, batch_size=self.embedding_batch_size)
                 
                 # Cache embeddings
@@ -144,13 +160,11 @@ class RAGSystem:
             
             self.vector_store.add_documents(chunk_ids, texts, embeddings, metadatas)
             
-            print(f"Successfully indexed {file_path}")
+            logger.info("Successfully indexed %s", file_path)
             return True
             
-        except Exception as e:
-            print(f"Error indexing file {file_path}: {e}")
-            import traceback
-            traceback.print_exc()
+        except Exception:
+            logger.exception("Error indexing file %s", file_path)
             return False
     
     def index_directory(self, directory_path: str, recursive: bool = True) -> int:
@@ -166,7 +180,7 @@ class RAGSystem:
         """
         path = Path(directory_path)
         if not path.exists() or not path.is_dir():
-            print(f"Invalid directory: {directory_path}")
+            logger.warning("Invalid directory: %s", directory_path)
             return 0
         
         files = path.rglob('*') if recursive else path.glob('*')
@@ -177,7 +191,7 @@ class RAGSystem:
                 if self.index_file(str(file_path)):
                     indexed_count += 1
         
-        print(f"Indexed {indexed_count} files from {directory_path}")
+        logger.info("Indexed %s files from %s", indexed_count, directory_path)
         return indexed_count
     
     def remove_file(self, file_path: str) -> None:
@@ -329,7 +343,11 @@ class RAGSystem:
         self.vector_store.clear_collection()
         self.embedding_manager.clear_cache()
         self.retriever.active_files.clear()
-        print("Index and cache cleared")
+        logger.info("RAG index and embedding cache cleared")
+
+    def close(self) -> None:
+        """Release persistent database handles before application shutdown."""
+        self.vector_store.close()
 
 
 # Example usage

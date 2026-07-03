@@ -10,7 +10,7 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from llm.client import LLMClient, MODEL_MAPPING
+from llm.client import LLMClient
 
 def test_client_initialization():
     """Test that clients can be initialized for each model type."""

@@ -1,0 +1,61 @@
+# Python bytecode and test/tool caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# This checkout currently also contains a virtual environment at its root.
+/Include/
+/Lib/
+/Scripts/
+/share/
+/pyvenv.cfg
+
+# Build and packaging output
+build/
+dist/
+*.egg-info/
+*.whl
+
+# SammyAI runtime state (runtime data belongs in the OS application-data dirs)
+/cache/
+/llm/chat_sessions/
+/logs/
+/runtime/
+*.log
+*.db
+*.sqlite
+*.sqlite3
+
+# Downloaded model artifacts
+/models/
+*.bin
+*.pt
+*.pth
+*.onnx
+*.h5
+*.safetensors
+
+# IDE and OS files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example

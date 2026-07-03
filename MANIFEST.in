@@ -1,0 +1,3 @@
+include LICENSE.md
+recursive-include icons *.svg
+recursive-include ui/styles *.qss

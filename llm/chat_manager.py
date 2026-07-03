@@ -9,8 +9,12 @@ from datetime import datetime
 from enum import Enum
 import json
 import os
+import logging
 from pathlib import Path
 from llm.dbe_system_prompt import get_dbe_system_prompt
+
+
+logger = logging.getLogger(__name__)
 
 
 class MessageRole(Enum):
@@ -164,18 +168,25 @@ class ChatSession:
 class ChatManager:
     """Manages multiple chat sessions and provides session persistence."""
     
-    def __init__(self, storage_dir: Optional[str] = None, rag_system: Optional[Any] = None):
+    def __init__(
+        self,
+        storage_dir: Optional[str] = None,
+        rag_system: Optional[Any] = None,
+        autosave: bool = False,
+    ):
         """
         Initialize the chat manager.
         
         Args:
             storage_dir: Directory for storing session data (optional)
             rag_system: Optional RAG system for context-aware responses
+            autosave: Persist mutations immediately when storage is configured
         """
         self.sessions: Dict[str, ChatSession] = {}
         self.active_session_id: Optional[str] = None
         self.storage_dir = storage_dir
         self.rag_system = rag_system
+        self.autosave = autosave
         self.cin_context: Optional[str] = None
         
         if storage_dir:
@@ -207,6 +218,8 @@ class ChatManager:
         # Set as active if it's the first session
         if self.active_session_id is None:
             self.active_session_id = session_id
+
+        self._autosave_session(session_id)
         
         return session
     
@@ -260,6 +273,11 @@ class ChatManager:
         """
         if session_id in self.sessions:
             del self.sessions[session_id]
+            if self.storage_dir:
+                try:
+                    Path(self.storage_dir, f"{session_id}.json").unlink(missing_ok=True)
+                except OSError as error:
+                    logger.exception("Error deleting persisted session %s", session_id)
             
             # If deleted session was active, clear active session
             if self.active_session_id == session_id:
@@ -301,7 +319,9 @@ class ChatManager:
         
         session = self.get_session(session_id)
         if session:
-            return session.add_message(role, content, metadata)
+            message = session.add_message(role, content, metadata)
+            self._autosave_session(session.session_id)
+            return message
         return None
     
     def get_messages_for_llm(self, session_id: Optional[str] = None, 
@@ -372,7 +392,7 @@ class ChatManager:
                     messages.insert(insert_pos, context_message)
             except Exception as e:
                 # If RAG fails, continue without context
-                print(f"RAG context retrieval failed: {e}")
+                logger.exception("RAG context retrieval failed")
 
         # If CIN context is available, retrieve and inject context
         if self.cin_context:
@@ -409,6 +429,7 @@ class ChatManager:
         session = self.get_session(session_id)
         if session:
             session.clear_messages(keep_system)
+            self._autosave_session(session.session_id)
             return True
         return False
     
@@ -430,12 +451,14 @@ class ChatManager:
             return False
         
         try:
-            filepath = os.path.join(self.storage_dir, f"{session_id}.json")
-            with open(filepath, 'w', encoding='utf-8') as f:
+            filepath = Path(self.storage_dir, f"{session_id}.json")
+            temporary_filepath = filepath.with_suffix(".json.tmp")
+            with temporary_filepath.open('w', encoding='utf-8') as f:
                 json.dump(session.to_dict(), f, indent=2, ensure_ascii=False)
+            os.replace(temporary_filepath, filepath)
             return True
         except Exception as e:
-            print(f"Error saving session: {e}")
+            logger.exception("Error saving session %s", session_id)
             return False
     
     def load_session(self, session_id: str) -> Optional[ChatSession]:
@@ -468,7 +491,7 @@ class ChatManager:
             
             return session
         except Exception as e:
-            print(f"Error loading session: {e}")
+            logger.exception("Error loading session %s", session_id)
             return None
     
     def save_all_sessions(self) -> int:
@@ -506,8 +529,12 @@ class ChatManager:
                         count += 1
             return count
         except Exception as e:
-            print(f"Error loading sessions: {e}")
+            logger.exception("Error loading sessions from %s", self.storage_dir)
             return 0
+
+    def _autosave_session(self, session_id: str) -> None:
+        if self.autosave and self.storage_dir:
+            self.save_session(session_id)
     
     # --- DBE (Diff-Based Editing) methods ---
     

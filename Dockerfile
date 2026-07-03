@@ -9,6 +9,10 @@ ENV QT_DEBUG_PLUGINS=1
 # Set paths for persistent storage
 ENV HF_HOME=/app/models
 ENV SENTENCE_TRANSFORMERS_HOME=/app/models
+ENV SAMMYAI_CONFIG_DIR=/app/runtime/config
+ENV SAMMYAI_DATA_DIR=/app/runtime/data
+ENV SAMMYAI_CACHE_DIR=/app/runtime/cache
+ENV SAMMYAI_LOG_DIR=/app/runtime/logs
 
 # Install system dependencies for PySide6/Qt and other libraries
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -49,5 +53,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code and assets
 COPY . .
 
-# Set the entry point to run the text editor
-CMD ["python", "text_editor.py"]
+# Set the entry point to run SammyAI
+CMD ["python", "sammyai.py"]

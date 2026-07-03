@@ -12,6 +12,7 @@ from PySide6.QtCore import Qt, Signal, QRect, QSize
 from PySide6.QtGui import QTextCursor, QPixmap, QPainter, QColor, QIcon
 from PySide6.QtSvg import QSvgRenderer
 import os
+from sammyai_core.resources import asset_path
 
 
 class ChatPanel(QWidget):
@@ -65,7 +66,7 @@ class ChatPanel(QWidget):
         self.setMinimumWidth(500)
         self.setMaximumWidth(1000)
         # Initialize icon directory path
-        ChatPanel.ICONS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "icons")
+        ChatPanel.ICONS_DIR = str(asset_path("icons"))
         self.setup_ui()
         self._thinking_cursor = None
     
