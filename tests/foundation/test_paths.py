@@ -34,6 +34,9 @@ def test_environment_overrides_are_created(tmp_path: Path):
     assert paths.sessions_dir.is_dir()
     assert paths.rag_index_dir.is_dir()
     assert paths.embedding_cache_dir.is_dir()
+    assert paths.projects_data_dir.is_dir()
+    assert paths.projects_cache_dir.is_dir()
+    assert paths.project_database_path == tmp_path / "data" / "sammyai.sqlite3"
     assert paths.log_dir.is_dir()
 
 

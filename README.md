@@ -30,6 +30,7 @@
 - **Set up Your Own LLM's**: Install and run your own LLM's locally using Ollama or choose your favorite cloud LLM provider and their latest releases.
 - **Change LLM Settings**: Change LLM settings such as temperature, top-p and seed to tailor assistance to your specific needs.
 - **Multi-model Chat**: Seamlessly switch between different AI models during a single session to tailor assistance to your specific needs.
+- **Writing Projects**: Open a folder as a persistent project and browse its files from a live, collapsible explorer.
 - **Context Injection (CIN)**: Directly inject specific reference files into the current AI conversation for informed brainstorming.
 - **Retrieval-Augmented Generation (RAG)**: Index your project files to provide the AI with a deep "memory" of your world and characters.
 - **Diff-Based Editing (DBE)**: Review AI suggestions via visual diffs and surgically apply changes to your drafts.
@@ -87,5 +88,4 @@ See [Planned Updates](https://github.com/sasadjukic/sammyai/blob/main/documentat
 ## ⚖️ License
 
 This project is licensed under the MIT License.
-
 

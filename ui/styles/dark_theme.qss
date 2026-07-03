@@ -68,6 +68,37 @@ QDockWidget::close-button:hover, QDockWidget::float-button:hover {
     background-color: #3e3e3e;
 }
 
+/* Project explorer */
+#projectExplorer {
+    background-color: #252526;
+    color: #dddddd;
+}
+#projectExplorerName {
+    color: #f0f0f0;
+    font-weight: 600;
+    font-size: 14px;
+}
+#projectExplorerPath {
+    color: #999999;
+    font-size: 11px;
+}
+#projectFileTree {
+    color: #dddddd;
+    background-color: #252526;
+    border: none;
+    outline: none;
+}
+#projectFileTree::item {
+    padding: 3px 2px;
+}
+#projectFileTree::item:hover {
+    background-color: #2a2d2e;
+}
+#projectFileTree::item:selected {
+    background-color: #37373d;
+    color: #ffffff;
+}
+
 /* ScrollBar styling */
 QScrollBar:vertical {
     border: none;

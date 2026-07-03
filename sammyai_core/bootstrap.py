@@ -11,7 +11,9 @@ from llm.chat_manager import ChatManager
 from llm.client import LLMConfig
 from rag.rag_system import RAGSystem
 
+from .database import ProjectDatabase
 from .paths import AppPaths
+from .projects import ProjectRepository, ProjectService
 
 
 logger = logging.getLogger(__name__)
@@ -19,20 +21,42 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class RuntimeServices:
+    project_database: ProjectDatabase | None
+    project_service: ProjectService | None
     rag_system: RAGSystem | None
     chat_manager: ChatManager
     llm_config: LLMConfig
     llm_client: Any | None
     rag_error: str | None = None
     llm_error: str | None = None
+    project_error: str | None = None
 
     def shutdown(self) -> None:
         self.chat_manager.save_all_sessions()
         if self.rag_system is not None:
             self.rag_system.close()
+        if self.project_database is not None:
+            self.project_database.close()
 
 
 def build_runtime_services(paths: AppPaths) -> RuntimeServices:
+    project_database: ProjectDatabase | None = None
+    project_service: ProjectService | None = None
+    project_error: str | None = None
+    try:
+        project_database = ProjectDatabase(paths.project_database_path)
+        project_database.migrate()
+        project_service = ProjectService(
+            ProjectRepository(project_database),
+            paths,
+        )
+    except Exception as error:
+        project_error = str(error)
+        logger.exception("Project database initialization failed")
+        if project_database is not None:
+            project_database.close()
+            project_database = None
+
     rag_system: RAGSystem | None = None
     rag_error: str | None = None
     try:
@@ -71,10 +95,13 @@ def build_runtime_services(paths: AppPaths) -> RuntimeServices:
         logger.warning("LLM client initialization failed: %s", error)
 
     return RuntimeServices(
+        project_database=project_database,
+        project_service=project_service,
         rag_system=rag_system,
         chat_manager=chat_manager,
         llm_config=llm_config,
         llm_client=llm_client,
         rag_error=rag_error,
         llm_error=llm_error,
+        project_error=project_error,
     )

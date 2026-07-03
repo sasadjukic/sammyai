@@ -8,7 +8,8 @@ from typing import Optional
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QPlainTextEdit, QFileDialog, QMessageBox, QToolBar,
     QMenu, QWidget, QLabel, QDockWidget, QLineEdit, QTextEdit,
-    QHBoxLayout, QPushButton, QVBoxLayout, QSizePolicy, QStyle, QDialog
+    QHBoxLayout, QPushButton, QVBoxLayout, QSizePolicy, QStyle, QDialog,
+    QInputDialog
 )
 from PySide6.QtGui import QAction, QKeySequence, QIcon, QPainter, QColor, QFont, QPalette, QTextCursor, QPixmap
 from PySide6.QtSvg import QSvgRenderer
@@ -30,12 +31,14 @@ from ui.llm_settings import LLMSettingsDialog
 
 # RAG management UI
 from ui.rag_management import RAGFileManagementDialog
+from ui.project_explorer import ProjectExplorer
 from sammyai_core.bootstrap import RuntimeServices, build_runtime_services
 from sammyai_core.documents import DocumentService
 from sammyai_core.logging_config import configure_logging, install_exception_hook
 from sammyai_core.paths import AppPaths, get_app_paths, migrate_legacy_runtime_data
 from sammyai_core.resources import asset_path, source_root
 from sammyai_core.tasks import BackgroundTaskRunner
+from sammyai_core.projects import Project, ProjectError
 
 
 logger = logging.getLogger("sammyai")
@@ -252,7 +255,13 @@ class TextEditor(QMainWindow):
         self.chat_manager = self.runtime_services.chat_manager
         self.llm_config = self.runtime_services.llm_config
         self.llm_client = self.runtime_services.llm_client
-        if self.runtime_services.llm_error:
+        self.project_service = self.runtime_services.project_service
+        if self.runtime_services.project_error:
+            self.statusBar().showMessage(
+                f"Project system not initialized: "
+                f"{self.runtime_services.project_error}"
+            )
+        elif self.runtime_services.llm_error:
             self.statusBar().showMessage(
                 f"LLM client not initialized: {self.runtime_services.llm_error}"
             )
@@ -286,6 +295,12 @@ class TextEditor(QMainWindow):
         self.STATUS_NORMAL = 3000     # Normal message (3 seconds)
         self.STATUS_ERROR = 5000      # Error message (5 seconds)
         self.STATUS_PERSISTENT = 0    # Persist until overwritten
+
+        # Project explorer is a separate, collapsible dock beside the activity rail.
+        self.project_dock: QDockWidget | None = None
+        self.project_explorer: ProjectExplorer | None = None
+        self._create_project_explorer()
+        self._restore_active_project()
 
     def closeEvent(self, event):
         """Persist state and release runtime resources on normal shutdown."""
@@ -356,7 +371,211 @@ class TextEditor(QMainWindow):
                 logger.exception("Error calling chat panel method %s", method_name)
         return None
 
+    # --- Project system ---
+
+    def _create_project_explorer(self) -> None:
+        self.project_explorer = ProjectExplorer(self)
+        self.project_explorer.file_activated.connect(self._open_file_path)
+
+        self.project_dock = QDockWidget("Project Explorer", self)
+        self.project_dock.setObjectName("projectExplorerDock")
+        self.project_dock.setAllowedAreas(
+            Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea
+        )
+        self.project_dock.setFeatures(
+            QDockWidget.DockWidgetClosable | QDockWidget.DockWidgetMovable
+        )
+        self.project_dock.setMinimumWidth(240)
+        self.project_dock.setWidget(self.project_explorer)
+        self.project_dock.visibilityChanged.connect(
+            self.toggle_project_explorer_action.setChecked
+        )
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.project_dock)
+        self.project_dock.hide()
+
+        project_actions = (
+            self.new_project_action,
+            self.open_project_action,
+            self.toggle_project_explorer_action,
+        )
+        enabled = self.project_service is not None
+        for action in project_actions:
+            action.setEnabled(enabled)
+
+    def _restore_active_project(self) -> None:
+        if self.project_service is None:
+            return
+        try:
+            project = self.project_service.restore_active_project()
+        except ProjectError as error:
+            logger.exception("Unable to restore active project")
+            self.statusBar().showMessage(
+                f"Unable to restore project: {error}",
+                self.STATUS_ERROR,
+            )
+            return
+        if project is not None:
+            self._set_active_project(project)
+
+    def _create_project(self) -> None:
+        if self.project_service is None:
+            return
+        parent = QFileDialog.getExistingDirectory(
+            self,
+            "Choose Parent Folder for New Project",
+        )
+        if not parent:
+            return
+
+        name, accepted = QInputDialog.getText(
+            self,
+            "New Project",
+            "Project name:",
+        )
+        name = name.strip()
+        if not accepted or not name:
+            return
+        if name in {".", ".."} or Path(name).name != name:
+            QMessageBox.warning(
+                self,
+                "Invalid Project Name",
+                "Use a folder name without path separators.",
+            )
+            return
+
+        try:
+            project = self.project_service.create_project(
+                Path(parent) / name,
+                name=name,
+            )
+        except ProjectError as error:
+            QMessageBox.critical(self, "Unable to Create Project", str(error))
+            return
+        self._set_active_project(project)
+
+    def _open_project(self) -> None:
+        path = QFileDialog.getExistingDirectory(
+            self,
+            "Open Project Folder",
+        )
+        if path:
+            self._open_project_path(path)
+
+    def _open_project_path(self, path: str | Path) -> None:
+        if self.project_service is None:
+            return
+        try:
+            project = self.project_service.open_project(path)
+        except ProjectError as error:
+            QMessageBox.critical(self, "Unable to Open Project", str(error))
+            return
+        self._set_active_project(project)
+
+    def _open_registered_project(self, project_id: str) -> None:
+        if self.project_service is None:
+            return
+        try:
+            project = self.project_service.open_registered_project(project_id)
+        except ProjectError as error:
+            QMessageBox.critical(self, "Unable to Open Project", str(error))
+            self._populate_recent_projects_menu()
+            return
+        self._set_active_project(project)
+
+    def _set_active_project(self, project: Project) -> None:
+        if self.project_explorer is not None:
+            self.project_explorer.set_project(project)
+        if self.project_dock is not None:
+            self.project_dock.show()
+            self.project_dock.raise_()
+        self.close_project_action.setEnabled(True)
+        self.update_window_title()
+        self.statusBar().showMessage(
+            f"Opened project: {project.name}",
+            self.STATUS_NORMAL,
+        )
+
+    def _close_project(self) -> None:
+        if self.project_service is None:
+            return
+        self.project_service.close_project()
+        if self.project_explorer is not None:
+            self.project_explorer.clear_project()
+        if self.project_dock is not None:
+            self.project_dock.hide()
+        self.close_project_action.setEnabled(False)
+        self.update_window_title()
+        self.statusBar().showMessage("Project closed", self.STATUS_NORMAL)
+
+    def _toggle_project_explorer(self, visible: bool) -> None:
+        if self.project_dock is None:
+            return
+        self.project_dock.setVisible(visible)
+
+    def _populate_recent_projects_menu(self) -> None:
+        menu = getattr(self, "recent_projects_menu", None)
+        if menu is None:
+            return
+        menu.clear()
+        if self.project_service is None:
+            unavailable = menu.addAction("Project system unavailable")
+            unavailable.setEnabled(False)
+            return
+
+        projects = self.project_service.recent_projects(limit=10)
+        if not projects:
+            empty = menu.addAction("No recent projects")
+            empty.setEnabled(False)
+            return
+
+        for project in projects:
+            exists = project.root_path.is_dir()
+            label = project.name if exists else f"{project.name} (missing)"
+            action = menu.addAction(label)
+            action.setToolTip(str(project.root_path))
+            action.setEnabled(exists)
+            if exists:
+                action.triggered.connect(
+                    lambda _checked=False, project_id=project.id: (
+                        self._open_registered_project(project_id)
+                    )
+                )
+
     def create_actions(self):
+        # Project actions
+        self.new_project_action = QAction("New Project...", self)
+        self.new_project_action.setShortcut(QKeySequence("Ctrl+Shift+N"))
+        self.new_project_action.setStatusTip(
+            "Create and open a new SammyAI writing project"
+        )
+        self.new_project_action.triggered.connect(self._create_project)
+
+        self.open_project_action = QAction("Open Project...", self)
+        self.open_project_action.setShortcut(QKeySequence("Ctrl+Shift+O"))
+        self.open_project_action.setStatusTip(
+            "Open a folder as a SammyAI writing project"
+        )
+        self.open_project_action.triggered.connect(self._open_project)
+
+        self.close_project_action = QAction("Close Project", self)
+        self.close_project_action.setStatusTip(
+            "Close the active project without closing the current document"
+        )
+        self.close_project_action.triggered.connect(self._close_project)
+        self.close_project_action.setEnabled(False)
+
+        self.toggle_project_explorer_action = QAction("Project Explorer", self)
+        self.toggle_project_explorer_action.setShortcut(
+            QKeySequence("Ctrl+Shift+E")
+        )
+        self.toggle_project_explorer_action.setCheckable(True)
+        self.toggle_project_explorer_action.setStatusTip(
+            "Show or hide the project explorer"
+        )
+        self.toggle_project_explorer_action.triggered.connect(
+            self._toggle_project_explorer
+        )
+
         # New File
         self.new_action = QAction("New", self)
         self.new_action.setShortcut(QKeySequence.New)  # Ctrl+N
@@ -617,6 +836,14 @@ class TextEditor(QMainWindow):
         menubar = self.menuBar()
         # File menu
         file_menu = menubar.addMenu("File")
+        file_menu.addAction(self.new_project_action)
+        file_menu.addAction(self.open_project_action)
+        self.recent_projects_menu = file_menu.addMenu("Open Recent Project")
+        self.recent_projects_menu.aboutToShow.connect(
+            self._populate_recent_projects_menu
+        )
+        file_menu.addAction(self.close_project_action)
+        file_menu.addSeparator()
         file_menu.addAction(self.new_action)
         file_menu.addAction(self.open_action)
         file_menu.addAction(self.save_action)
@@ -649,6 +876,9 @@ class TextEditor(QMainWindow):
         self.replace_action.setIcon(self._load_icon("edit-find-replace", QStyle.SP_FileDialogContentsView))
         edit_menu.addAction(self.search_action)
         edit_menu.addAction(self.replace_action)
+
+        view_menu = menubar.addMenu("View")
+        view_menu.addAction(self.toggle_project_explorer_action)
 
     def create_statusbar(self):
         """Create status bar with line/column and word count indicators."""
@@ -1305,24 +1535,37 @@ class TextEditor(QMainWindow):
     def open_file(self):
         path, _ = QFileDialog.getOpenFileName(self, "Open File", "", "Text Files (*.txt *.md);;Markdown Files (*.md);;Plain Text (*.txt);;All Files (*)")
         if path:
-            try:
-                self.editor.setPlainText(self.document_service.read_text(path))
-                self.current_file = path
-                self.editor.document().setModified(False)
-                self.update_window_title()
-                
-                # Only mark as active, DON'T index automatically
-                if self.rag_system:
-                    try:
-                        self.rag_system.mark_active_file(path)
-                        self.statusBar().showMessage(
-                            f"Opened {os.path.basename(path)}", self.STATUS_QUICK
-                        )
-                    except Exception as e:
-                        logger.exception("Failed to mark active file %s", path)
-                        
-            except Exception as e:
-                QMessageBox.critical(self, "Error", str(e))
+            self._open_file_path(path)
+
+    def _open_file_path(self, path: str | Path) -> None:
+        document_path = str(Path(path).resolve())
+        try:
+            content = self.document_service.read_text(document_path)
+            previous_file = self.current_file
+            self.editor.setPlainText(content)
+            self.current_file = document_path
+            self.editor.document().setModified(False)
+            self.update_window_title()
+
+            # Opening remains separate from indexing, but only the current file
+            # receives the active-file retrieval boost.
+            if self.rag_system:
+                try:
+                    if previous_file and previous_file != document_path:
+                        self.rag_system.unmark_active_file(previous_file)
+                    self.rag_system.mark_active_file(document_path)
+                except Exception:
+                    logger.exception(
+                        "Failed to update active RAG file to %s",
+                        document_path,
+                    )
+            self.statusBar().showMessage(
+                f"Opened {os.path.basename(document_path)}",
+                self.STATUS_QUICK,
+            )
+        except Exception as error:
+            logger.exception("Unable to open document %s", document_path)
+            QMessageBox.critical(self, "Error", str(error))
 
 
     def save_file(self):
@@ -1387,8 +1630,11 @@ class TextEditor(QMainWindow):
         
         is_modified = getattr(self.editor.document(), "isModified", lambda: False)()
         star = "*" if is_modified else ""
-        
-        self.setWindowTitle(f"{star}{doc_name} - SammyAI")
+        project_service = getattr(self, "project_service", None)
+        project = project_service.active_project if project_service else None
+        project_label = f" — {project.name}" if project else ""
+
+        self.setWindowTitle(f"{star}{doc_name}{project_label} - SammyAI")
 
     # Manual indexing method
     def _index_current_file_manually(self):
