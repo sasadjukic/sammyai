@@ -83,6 +83,19 @@ def test_delete_by_file(store):
     assert store.get_document_count() == 1
     assert store.get_all_file_paths() == ["f2"]
 
+def test_get_file_metadata(store):
+    store.add_document(
+        "id1",
+        "text",
+        np.random.rand(384),
+        {"file_path": "f1", "project_id": "project-1"},
+    )
+
+    metadata = store.get_file_metadata("f1")
+
+    assert metadata["project_id"] == "project-1"
+    assert store.get_file_metadata("missing") is None
+
 def test_clear_collection(store):
     store.add_document("id1", "text", np.random.rand(384), {"file_path": "f1"})
     assert store.get_document_count() == 1

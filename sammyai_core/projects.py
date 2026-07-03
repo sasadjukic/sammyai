@@ -114,29 +114,32 @@ class ProjectRepository:
         return project
 
     def get(self, project_id: str) -> Project | None:
-        row = self.database.connection.execute(
-            "SELECT * FROM projects WHERE id = ?",
-            (project_id,),
-        ).fetchone()
+        with self.database.read() as connection:
+            row = connection.execute(
+                "SELECT * FROM projects WHERE id = ?",
+                (project_id,),
+            ).fetchone()
         return self._project_from_row(row) if row is not None else None
 
     def get_by_root(self, path: str | Path) -> Project | None:
         key = root_key(path)
-        row = self.database.connection.execute(
-            "SELECT * FROM projects WHERE root_key = ?",
-            (key,),
-        ).fetchone()
+        with self.database.read() as connection:
+            row = connection.execute(
+                "SELECT * FROM projects WHERE root_key = ?",
+                (key,),
+            ).fetchone()
         return self._project_from_row(row) if row is not None else None
 
     def list_recent(self, limit: int = 10) -> list[Project]:
-        rows = self.database.connection.execute(
-            """
-            SELECT * FROM projects
-            ORDER BY last_opened_at DESC, name COLLATE NOCASE
-            LIMIT ?
-            """,
-            (max(0, limit),),
-        ).fetchall()
+        with self.database.read() as connection:
+            rows = connection.execute(
+                """
+                SELECT * FROM projects
+                ORDER BY last_opened_at DESC, name COLLATE NOCASE
+                LIMIT ?
+                """,
+                (max(0, limit),),
+            ).fetchall()
         return [self._project_from_row(row) for row in rows]
 
     def touch_opened(self, project_id: str) -> Project | None:
@@ -179,13 +182,14 @@ class ProjectRepository:
         key: str,
         default: Any = None,
     ) -> Any:
-        row = self.database.connection.execute(
-            """
-            SELECT value_json FROM project_settings
-            WHERE project_id = ? AND key = ?
-            """,
-            (project_id, key),
-        ).fetchone()
+        with self.database.read() as connection:
+            row = connection.execute(
+                """
+                SELECT value_json FROM project_settings
+                WHERE project_id = ? AND key = ?
+                """,
+                (project_id, key),
+            ).fetchone()
         return default if row is None else json.loads(row["value_json"])
 
     def set_application_state(self, key: str, value: str | None) -> None:
@@ -208,10 +212,11 @@ class ProjectRepository:
                 )
 
     def get_application_state(self, key: str) -> str | None:
-        row = self.database.connection.execute(
-            "SELECT value FROM application_state WHERE key = ?",
-            (key,),
-        ).fetchone()
+        with self.database.read() as connection:
+            row = connection.execute(
+                "SELECT value FROM application_state WHERE key = ?",
+                (key,),
+            ).fetchone()
         return None if row is None else str(row["value"])
 
 

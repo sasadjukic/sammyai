@@ -256,6 +256,11 @@ class TextEditor(QMainWindow):
         self.llm_config = self.runtime_services.llm_config
         self.llm_client = self.runtime_services.llm_client
         self.project_service = self.runtime_services.project_service
+        self.context_engine = getattr(
+            self.runtime_services,
+            "context_engine",
+            None,
+        )
         if self.runtime_services.project_error:
             self.statusBar().showMessage(
                 f"Project system not initialized: "
@@ -493,6 +498,29 @@ class TextEditor(QMainWindow):
         self.statusBar().showMessage(
             f"Opened project: {project.name}",
             self.STATUS_NORMAL,
+        )
+        self._schedule_project_context_sync(project)
+
+    def _schedule_project_context_sync(self, project: Project) -> None:
+        if self.context_engine is None:
+            return
+
+        def sync_worker() -> None:
+            report = self.context_engine.sync_project(project)
+            logger.info(
+                "Project context synchronized for %s: "
+                "%s added, %s updated, %s removed, %s unchanged, %s failed",
+                project.id,
+                report.added,
+                report.updated,
+                report.removed,
+                report.unchanged,
+                report.failed,
+            )
+
+        self.task_runner.submit(
+            sync_worker,
+            name=f"context-sync-{project.id}",
         )
 
     def _close_project(self) -> None:
@@ -1582,9 +1610,20 @@ class TextEditor(QMainWindow):
             )
             self.editor.document().setModified(False)
             self.update_window_title()
+
+            project = (
+                self.project_service.active_project
+                if self.project_service is not None
+                else None
+            )
+            if project is not None:
+                try:
+                    Path(self.current_file).resolve().relative_to(project.root_path)
+                except ValueError:
+                    pass
+                else:
+                    self._schedule_project_context_sync(project)
             
-            # No auto-reindex on save
-            # Just show a saved message
             if self.rag_system:
                 self.statusBar().showMessage(
                     f"Saved {os.path.basename(self.current_file)}", self.STATUS_QUICK

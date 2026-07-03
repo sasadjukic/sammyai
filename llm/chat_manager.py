@@ -172,6 +172,7 @@ class ChatManager:
         self,
         storage_dir: Optional[str] = None,
         rag_system: Optional[Any] = None,
+        context_engine: Optional[Any] = None,
         autosave: bool = False,
     ):
         """
@@ -180,12 +181,15 @@ class ChatManager:
         Args:
             storage_dir: Directory for storing session data (optional)
             rag_system: Optional RAG system for context-aware responses
+            context_engine: Optional project-aware context assembly service
             autosave: Persist mutations immediately when storage is configured
         """
         self.sessions: Dict[str, ChatSession] = {}
         self.active_session_id: Optional[str] = None
         self.storage_dir = storage_dir
         self.rag_system = rag_system
+        self.context_engine = context_engine
+        self.last_context_result = None
         self.autosave = autosave
         self.cin_context: Optional[str] = None
         
@@ -363,6 +367,25 @@ class ChatManager:
         """
         # Get base messages
         messages = self.get_messages_for_llm(session_id, include_system)
+
+        if self.context_engine is not None:
+            self.last_context_result = self.context_engine.build_context(
+                query,
+                cin_context=self.cin_context,
+                top_k=top_k,
+            )
+            insert_pos = 0
+            for i, message in enumerate(messages):
+                if message.get("role") == "system":
+                    insert_pos = i + 1
+                else:
+                    break
+            context_messages = [
+                {"role": "system", "content": content}
+                for content in self.last_context_result.system_messages
+            ]
+            messages[insert_pos:insert_pos] = context_messages
+            return messages
         
         # If RAG system is available, retrieve and inject context
         if self.rag_system and query:

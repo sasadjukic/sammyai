@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 import hashlib
 from pathlib import Path
 import sqlite3
+from threading import RLock
 
 
 class MigrationError(RuntimeError):
@@ -72,6 +73,32 @@ MIGRATIONS = (
             """,
         ),
     ),
+    Migration(
+        version=3,
+        name="create_project_files",
+        statements=(
+            """
+            CREATE TABLE project_files (
+                project_id TEXT NOT NULL,
+                relative_path TEXT NOT NULL,
+                relative_key TEXT NOT NULL,
+                content_hash TEXT NOT NULL,
+                size_bytes INTEGER NOT NULL,
+                modified_ns INTEGER NOT NULL,
+                indexed_at TEXT,
+                sync_status TEXT NOT NULL,
+                last_error TEXT,
+                PRIMARY KEY (project_id, relative_path),
+                UNIQUE (project_id, relative_key),
+                FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+            )
+            """,
+            """
+            CREATE INDEX project_files_status_idx
+            ON project_files(project_id, sync_status)
+            """,
+        ),
+    ),
 )
 
 LATEST_SCHEMA_VERSION = MIGRATIONS[-1].version
@@ -87,30 +114,42 @@ class ProjectDatabase:
     def __init__(self, path: str | Path):
         self.path = Path(path)
         self._connection: sqlite3.Connection | None = None
+        self._lock = RLock()
 
     @property
     def connection(self) -> sqlite3.Connection:
-        if self._connection is None:
-            self.path.parent.mkdir(parents=True, exist_ok=True)
-            connection = sqlite3.connect(self.path)
-            connection.row_factory = sqlite3.Row
-            connection.execute("PRAGMA foreign_keys = ON")
-            connection.execute("PRAGMA busy_timeout = 5000")
-            connection.execute("PRAGMA journal_mode = WAL")
-            self._connection = connection
-        return self._connection
+        with self._lock:
+            if self._connection is None:
+                self.path.parent.mkdir(parents=True, exist_ok=True)
+                connection = sqlite3.connect(
+                    self.path,
+                    check_same_thread=False,
+                )
+                connection.row_factory = sqlite3.Row
+                connection.execute("PRAGMA foreign_keys = ON")
+                connection.execute("PRAGMA busy_timeout = 5000")
+                connection.execute("PRAGMA journal_mode = WAL")
+                self._connection = connection
+            return self._connection
 
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
-        connection = self.connection
-        try:
-            connection.execute("BEGIN IMMEDIATE")
-            yield connection
-        except Exception:
-            connection.rollback()
-            raise
-        else:
-            connection.commit()
+        with self._lock:
+            connection = self.connection
+            try:
+                connection.execute("BEGIN IMMEDIATE")
+                yield connection
+            except Exception:
+                connection.rollback()
+                raise
+            else:
+                connection.commit()
+
+    @contextmanager
+    def read(self) -> Iterator[sqlite3.Connection]:
+        """Serialize reads with writes on the shared cross-thread connection."""
+        with self._lock:
+            yield self.connection
 
     def migrate(self, target_version: int | None = None) -> int:
         target = LATEST_SCHEMA_VERSION if target_version is None else target_version
@@ -191,13 +230,14 @@ class ProjectDatabase:
         return int(row["version"])
 
     def close(self) -> None:
-        if self._connection is None:
-            return
-        try:
-            self._connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-        finally:
-            self._connection.close()
-            self._connection = None
+        with self._lock:
+            if self._connection is None:
+                return
+            try:
+                self._connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            finally:
+                self._connection.close()
+                self._connection = None
 
     def __enter__(self) -> "ProjectDatabase":
         self.migrate()

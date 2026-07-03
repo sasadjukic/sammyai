@@ -38,6 +38,8 @@ def test_runtime_services_are_built_from_application_paths(tmp_path):
     assert services.llm_client is fake_client
     assert services.project_database.path == paths.project_database_path
     assert services.project_service is not None
+    assert services.context_engine.project_service is services.project_service
+    assert services.chat_manager.context_engine is services.context_engine
     assert services.chat_manager.autosave is True
     assert services.chat_manager.get_active_session() is not None
 

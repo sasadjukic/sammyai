@@ -11,6 +11,7 @@ from llm.chat_manager import ChatManager
 from llm.client import LLMConfig
 from rag.rag_system import RAGSystem
 
+from .context_engine import ProjectContextEngine, ProjectFileRepository
 from .database import ProjectDatabase
 from .paths import AppPaths
 from .projects import ProjectRepository, ProjectService
@@ -24,6 +25,7 @@ class RuntimeServices:
     project_database: ProjectDatabase | None
     project_service: ProjectService | None
     rag_system: RAGSystem | None
+    context_engine: ProjectContextEngine | None
     chat_manager: ChatManager
     llm_config: LLMConfig
     llm_client: Any | None
@@ -72,9 +74,18 @@ def build_runtime_services(paths: AppPaths) -> RuntimeServices:
         rag_error = str(error)
         logger.exception("RAG initialization failed")
 
+    context_engine: ProjectContextEngine | None = None
+    if project_database is not None:
+        context_engine = ProjectContextEngine(
+            project_service,
+            ProjectFileRepository(project_database),
+            rag_system,
+        )
+
     chat_manager = ChatManager(
         storage_dir=str(paths.sessions_dir),
         rag_system=rag_system,
+        context_engine=context_engine,
         autosave=True,
     )
     chat_manager.load_all_sessions()
@@ -98,6 +109,7 @@ def build_runtime_services(paths: AppPaths) -> RuntimeServices:
         project_database=project_database,
         project_service=project_service,
         rag_system=rag_system,
+        context_engine=context_engine,
         chat_manager=chat_manager,
         llm_config=llm_config,
         llm_client=llm_client,

@@ -201,6 +201,20 @@ class VectorStore:
                 
         except Exception:
             logger.exception("Error deleting chunks for %s", file_path)
+
+    def get_file_metadata(self, file_path: str) -> Dict | None:
+        """Return representative metadata for an indexed file."""
+        try:
+            results = self.collection.get(
+                where={"file_path": file_path},
+                limit=1,
+                include=["metadatas"],
+            )
+            metadatas = results.get("metadatas") or []
+            return dict(metadatas[0]) if metadatas else None
+        except Exception:
+            logger.exception("Error reading metadata for %s", file_path)
+            return None
     
     def update_document(self, 
                        chunk_id: str, 
