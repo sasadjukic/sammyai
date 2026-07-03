@@ -2,6 +2,7 @@
 Embedding Manager - Generates vector embeddings for text chunks
 """
 import os
+import logging
 # Limit CPU threads for better stability on machines with limited RAM
 os.environ["OMP_NUM_THREADS"] = "4"
 os.environ["MKL_NUM_THREADS"] = "4"
@@ -12,6 +13,9 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 import pickle
 from pathlib import Path
+
+
+logger = logging.getLogger(__name__)
 
 
 class EmbeddingManager:
@@ -29,9 +33,12 @@ class EmbeddingManager:
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         
-        print(f"Loading embedding model: {model_name}")
+        logger.info("Loading embedding model %s", model_name)
         self.model = SentenceTransformer(model_name)
-        print(f"Model loaded. Embedding dimension: {self.model.get_sentence_embedding_dimension()}")
+        logger.info(
+            "Embedding model loaded; dimension=%s",
+            self.model.get_sentence_embedding_dimension(),
+        )
     
     def generate_embedding(self, text: str) -> np.ndarray:
         """
@@ -107,9 +114,9 @@ class EmbeddingManager:
         try:
             with open(cache_file, 'wb') as f:
                 pickle.dump(embeddings, f)
-            print(f"Cached embeddings to {cache_file}")
-        except Exception as e:
-            print(f"Error caching embeddings: {e}")
+            logger.debug("Cached embeddings to %s", cache_file)
+        except Exception:
+            logger.exception("Error caching embeddings to %s", cache_file)
     
     def load_cached_embeddings(self, cache_key: str) -> Optional[List[np.ndarray]]:
         """
@@ -128,10 +135,10 @@ class EmbeddingManager:
         try:
             with open(cache_file, 'rb') as f:
                 embeddings = pickle.load(f)
-            print(f"Loaded cached embeddings from {cache_file}")
+            logger.debug("Loaded cached embeddings from %s", cache_file)
             return embeddings
-        except Exception as e:
-            print(f"Error loading cached embeddings: {e}")
+        except Exception:
+            logger.exception("Error loading cached embeddings from %s", cache_file)
             return None
     
     def clear_cache(self) -> None:
@@ -139,9 +146,9 @@ class EmbeddingManager:
         for cache_file in self.cache_dir.glob("*.pkl"):
             try:
                 cache_file.unlink()
-                print(f"Deleted cache file: {cache_file}")
-            except Exception as e:
-                print(f"Error deleting {cache_file}: {e}")
+                logger.debug("Deleted embedding cache file %s", cache_file)
+            except Exception:
+                logger.exception("Error deleting embedding cache file %s", cache_file)
     
     def get_embedding_dimension(self) -> int:
         """Get the dimension of embeddings produced by this model"""

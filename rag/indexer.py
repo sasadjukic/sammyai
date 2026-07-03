@@ -3,9 +3,13 @@ File Indexer - Handles parsing and chunking of files for RAG system
 """
 import os
 import subprocess
+import logging
 from pathlib import Path
 from typing import List, Dict, Optional
 import hashlib
+
+
+logger = logging.getLogger(__name__)
 
 
 class Document:
@@ -48,11 +52,11 @@ class FileIndexer:
             File content as string, or None if parsing fails
         """
         if not os.path.exists(file_path):
-            print(f"File not found: {file_path}")
+            logger.warning("File not found: %s", file_path)
             return None
         
         if not self.is_supported_file(file_path):
-            print(f"Unsupported file type: {file_path}")
+            logger.warning("Unsupported file type: %s", file_path)
             return None
         
         # CRITICAL: Check file size before reading
@@ -71,7 +75,11 @@ class FileIndexer:
                 if result.returncode == 0:
                     return result.stdout
                 else:
-                    print(f"Error parsing PDF {file_path}: pdftotext failed with exit code {result.returncode}")
+                    logger.error(
+                        "Unable to parse PDF %s: pdftotext exited with %s",
+                        file_path,
+                        result.returncode,
+                    )
                     return None
             else:
                 # Default text parsing
@@ -84,8 +92,8 @@ class FileIndexer:
                     with open(file_path, 'r', encoding='latin-1') as f:
                         content = f.read()
                     return content
-        except Exception as e:
-            print(f"Error reading file {file_path}: {e}")
+        except Exception:
+            logger.exception("Error reading file %s", file_path)
             return None
     
     def extract_metadata(self, file_path: str) -> Dict:
@@ -220,9 +228,9 @@ class FileIndexer:
         chunks = self.chunk_text(content, metadata)
         
         if not chunks:
-             print(f"Warning: No chunks generated from {file_path}")
+             logger.warning("No chunks generated from %s", file_path)
         else:
-             print(f"Indexed {file_path}: {len(chunks)} chunks created")
+             logger.info("Indexed %s: %s chunks created", file_path, len(chunks))
         return chunks
     
     def index_directory(self, directory_path: str, recursive: bool = True) -> List[Document]:
@@ -240,7 +248,7 @@ class FileIndexer:
         path = Path(directory_path)
         
         if not path.exists() or not path.is_dir():
-            print(f"Invalid directory: {directory_path}")
+            logger.warning("Invalid directory: %s", directory_path)
             return []
         
         # Get all files
@@ -255,7 +263,11 @@ class FileIndexer:
                 chunks = self.index_file(str(file_path))
                 all_chunks.extend(chunks)
         
-        print(f"Indexed directory {directory_path}: {len(all_chunks)} total chunks")
+        logger.info(
+            "Indexed directory %s: %s total chunks",
+            directory_path,
+            len(all_chunks),
+        )
         return all_chunks
 
 

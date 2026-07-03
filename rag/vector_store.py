@@ -6,6 +6,11 @@ from chromadb.config import Settings
 from typing import List, Dict, Optional, Tuple
 import numpy as np
 from pathlib import Path
+import gc
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 class VectorStore:
@@ -43,7 +48,11 @@ class VectorStore:
                 name=self.collection_name,
                 metadata={"hnsw:space": "cosine"}
             )
-            print(f"Lazy-loaded Chroma collection '{self.collection_name}' with {self._collection.count()} documents")
+            logger.info(
+                "Loaded Chroma collection %s with %s documents",
+                self.collection_name,
+                self._collection.count(),
+            )
         return self._collection
 
     @collection.setter
@@ -65,7 +74,8 @@ class VectorStore:
             embeddings: List of embedding vectors
             metadatas: List of metadata dictionaries
         """
-        if not chunk_ids or len(chunk_ids) != len(texts) != len(embeddings) != len(metadatas):
+        lengths = {len(chunk_ids), len(texts), len(embeddings), len(metadatas)}
+        if not chunk_ids or len(lengths) != 1:
             raise ValueError("All input lists must have the same length")
         
         # Convert numpy arrays to lists for ChromaDB
@@ -90,9 +100,9 @@ class VectorStore:
                 documents=texts,
                 metadatas=clean_metadatas
             )
-            print(f"Added {len(chunk_ids)} documents to vector store")
-        except Exception as e:
-            print(f"Error adding documents: {e}")
+            logger.info("Added %s documents to vector store", len(chunk_ids))
+        except Exception:
+            logger.exception("Error adding documents")
             raise
     
     def add_document(self, 
@@ -133,7 +143,7 @@ class VectorStore:
             # Check if collection is empty
             count = self.collection.count()
             if count == 0:
-                print("Collection is empty, returning no results")
+                logger.debug("Chroma collection is empty")
                 return [], [], [], []
                 
             results = self.collection.query(
@@ -153,8 +163,8 @@ class VectorStore:
             
             return ids, documents, metadatas, similarities
             
-        except Exception as e:
-            print(f"Error searching: {e}")
+        except Exception:
+            logger.exception("Error searching vector store")
             return [], [], [], []
     
     def delete_document(self, chunk_id: str) -> None:
@@ -166,9 +176,9 @@ class VectorStore:
         """
         try:
             self.collection.delete(ids=[chunk_id])
-            print(f"Deleted document {chunk_id}")
-        except Exception as e:
-            print(f"Error deleting document: {e}")
+            logger.info("Deleted document %s", chunk_id)
+        except Exception:
+            logger.exception("Error deleting document %s", chunk_id)
     
     def delete_by_file(self, file_path: str) -> None:
         """
@@ -185,12 +195,12 @@ class VectorStore:
             
             if results['ids']:
                 self.collection.delete(ids=results['ids'])
-                print(f"Deleted {len(results['ids'])} chunks from {file_path}")
+                logger.info("Deleted %s chunks from %s", len(results['ids']), file_path)
             else:
-                print(f"No existing chunks found to delete for {file_path}")
+                logger.debug("No existing chunks found for %s", file_path)
                 
-        except Exception as e:
-            print(f"Error deleting file chunks: {e}")
+        except Exception:
+            logger.exception("Error deleting chunks for %s", file_path)
     
     def update_document(self, 
                        chunk_id: str, 
@@ -222,8 +232,8 @@ class VectorStore:
                 file_paths = set(meta.get('file_path', '') for meta in results['metadatas'])
                 return sorted(list(file_paths))
             return []
-        except Exception as e:
-            print(f"Error getting file paths: {e}")
+        except Exception:
+            logger.exception("Error getting indexed file paths")
             return []
     
     def clear_collection(self) -> None:
@@ -235,9 +245,25 @@ class VectorStore:
                 name=self.collection_name,
                 metadata={"hnsw:space": "cosine"}
             )
-            print("Collection cleared")
-        except Exception as e:
-            print(f"Error clearing collection: {e}")
+            logger.info("Chroma collection cleared")
+        except Exception:
+            logger.exception("Error clearing Chroma collection")
+
+    def close(self) -> None:
+        """Drop Chroma references so local files can be released on Windows."""
+        client = self._client
+        self._collection = None
+        self._client = None
+        if client is not None:
+            client.clear_system_cache()
+        del client
+        gc.collect()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exception_type, exception, traceback):
+        self.close()
 
 
 # Example usage

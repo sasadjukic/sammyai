@@ -24,12 +24,14 @@ def rag_dirs():
 @pytest.fixture
 def rag(rag_dirs):
     persist_dir, cache_dir = rag_dirs
-    return RAGSystem(
+    system = RAGSystem(
         chunk_size=200, 
         overlap=20, 
         persist_dir=persist_dir, 
         cache_dir=cache_dir
     )
+    yield system
+    system.close()
 
 def test_index_file(rag):
     content = "This is a test file for the RAG system. It contains some text that will be indexed."

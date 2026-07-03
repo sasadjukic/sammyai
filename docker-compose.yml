@@ -11,7 +11,7 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix
       - ${XAUTHORITY:-$HOME/.Xauthority}:/tmp/.Xauthority
       - ./models:/app/models      # Persist downloaded HF/SentenceTransformers models
-      - ./cache:/app/cache        # Persist ChromaDB index and embedding cache
+      - ./runtime:/app/runtime    # Persist sessions, indexes, caches, and logs
     # If using local Ollama on host, you might need:
     # extra_hosts:
     #   - "host.docker.internal:host-gateway"

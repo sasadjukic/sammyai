@@ -26,6 +26,7 @@ models/
 # ChromaDB and Application Cache
 chroma_data/
 cache/
+runtime/
 *.db
 *.sqlite
 *.sqlite3

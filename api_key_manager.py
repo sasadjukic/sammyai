@@ -1,13 +1,15 @@
 """
 API Key Manager for LLM integration.
-Handles secure storage and retrieval of API keys using QSettings.
+Handles persistent storage and retrieval of API keys using QSettings.
+
+QSettings is configuration storage, not an encrypted credential vault.
 """
 
 from PySide6.QtCore import QSettings
 
 
 class APIKeyManager:
-    """Manages API key storage and retrieval using QSettings."""
+    """Manages persistent API key configuration using QSettings."""
     
     ORGANIZATION = "SammyAI"
     APPLICATION = "TextEditor"

@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sammyai"
+version = "0.3.1a0"
+description = "A local-first creative writing assistant"
+readme = "README.md"
+requires-python = ">=3.11,<3.15"
+license = "MIT"
+authors = [{ name = "SammyAI contributors" }]
+dependencies = [
+    "PySide6==6.10.1",
+    "ollama==0.6.1",
+    "sentence-transformers==5.2.0",
+    "chromadb==1.3.7",
+    "numpy==2.4.0",
+    "google-genai==2.10.0",
+    "anthropic==0.115.0",
+    "openai==2.44.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest==9.0.2"]
+
+[project.scripts]
+sammyai = "sammyai:main"
+
+[tool.setuptools]
+include-package-data = true
+py-modules = ["sammyai", "text_editor", "api_key_manager"]
+
+[tool.setuptools.data-files]
+"share/sammyai/icons" = ["icons/*.svg"]
+"share/sammyai/ui/styles" = ["ui/styles/*.qss"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["editing*", "llm*", "rag*", "sammyai_core*", "ui*"]
+exclude = ["tests*"]
+
+[tool.pytest.ini_options]
+minversion = "9.0"
+testpaths = ["tests"]
+addopts = '-ra -m "not external and not model"'
+markers = [
+    "external: requires configured credentials or a running external service",
+    "integration: exercises multiple application subsystems",
+    "model: loads or downloads a machine-learning model",
+]

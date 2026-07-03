@@ -1,32 +1,22 @@
-import sys
-import os
-
-# Add project root to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+"""Basic model-backed RAG smoke test."""
 
 from rag.rag_system import RAGSystem
 
-def test_indexing():
-    print("Initializing RAG system...")
-    rag = RAGSystem()
-    
-    test_file = "text_editor.py"
-    print(f"Indexing {test_file}...")
-    try:
-        success = rag.index_file(test_file)
-        print(f"Indexing result: {success}")
-        
-        if success:
-            print("Getting context...")
-            context = rag.get_context("How is the toolbar created?", top_k=2)
-            print("Context retrieved successfully.")
-            print(f"Retrieved {len(context.chunks)} chunks.")
-            print("Formatting for LLM...")
-            print(context.format_for_llm())
-    except Exception as e:
-        print(f"Error during testing: {e}")
-        import traceback
-        traceback.print_exc()
 
-if __name__ == "__main__":
-    test_indexing()
+def test_indexing(tmp_path):
+    story_file = tmp_path / "chapter.md"
+    story_file.write_text(
+        "Mara steers the airship Meridian through a violent electrical storm.",
+        encoding="utf-8",
+    )
+    rag = RAGSystem(
+        persist_dir=str(tmp_path / "index"),
+        cache_dir=str(tmp_path / "embeddings"),
+    )
+    try:
+        assert rag.index_file(str(story_file)) is True
+        context = rag.get_context("Who steers the Meridian?", top_k=2)
+        assert context.chunks
+        assert "Mara" in context.format_for_llm()
+    finally:
+        rag.close()

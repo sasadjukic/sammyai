@@ -1,0 +1,39 @@
+name: Quality
+
+on:
+  push:
+    branches: ["main", "codex/**"]
+  pull_request:
+
+jobs:
+  cross-platform-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.12"]
+    runs-on: ${{ matrix.os }}
+
+    env:
+      QT_QPA_PLATFORM: offscreen
+      SAMMYAI_CONFIG_DIR: ${{ runner.temp }}/sammyai/config
+      SAMMYAI_DATA_DIR: ${{ runner.temp }}/sammyai/data
+      SAMMYAI_CACHE_DIR: ${{ runner.temp }}/sammyai/cache
+      SAMMYAI_LOG_DIR: ${{ runner.temp }}/sammyai/logs
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install SammyAI and test dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[test]"
+
+      - name: Verify imports
+        run: python -c "import sammyai; import sammyai_core; print('SammyAI imports successfully')"
+
+      - name: Run deterministic tests
+        run: python -m pytest -q

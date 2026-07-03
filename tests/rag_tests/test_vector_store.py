@@ -15,7 +15,9 @@ def persist_dir():
 
 @pytest.fixture
 def store(persist_dir):
-    return VectorStore(persist_directory=persist_dir, collection_name="test_collection")
+    store = VectorStore(persist_directory=persist_dir, collection_name="test_collection")
+    yield store
+    store.close()
 
 def test_initialization(store, persist_dir):
     assert str(store.persist_directory) == persist_dir

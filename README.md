@@ -37,7 +37,7 @@
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Python 3.10+
+- Python 3.11–3.14
 - [Ollama](https://ollama.com/) (for local model support)
 
 ### Quick Install
@@ -48,11 +48,11 @@
    ```
 2. **Install dependencies:**
    ```bash
-   pip install -r requirements.txt
+   python -m pip install -e .
    ```
 3. **Run SammyAI:**
    ```bash
-   python text_editor.py
+   sammyai
    ```
 
 For detailed installation options including Docker support, see the [Installation Guide](https://github.com/sasadjukic/sammyai/blob/main/documentation/2_INSTALLATION/1_Start.md).
