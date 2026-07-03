@@ -69,7 +69,7 @@ class RAGSystem:
         
         # Cooldown and caching for get_context
         self._last_context_time = 0
-        self._last_context_query = ""
+        self._last_context_query = None
         self._last_context_result = None
         self._context_cooldown = 2.0  # seconds
         
@@ -86,8 +86,21 @@ class RAGSystem:
         digest.update(str(self.indexer.chunk_size).encode("ascii"))
         digest.update(str(self.indexer.overlap).encode("ascii"))
         return digest.hexdigest()
+
+    def _invalidate_context_cache(self) -> None:
+        self._last_context_time = 0
+        self._last_context_query = None
+        self._last_context_result = None
     
-    def index_file(self, file_path: str, force_reindex: bool = False) -> bool:
+    def index_file(
+        self,
+        file_path: str,
+        force_reindex: bool = False,
+        *,
+        project_id: str | None = None,
+        relative_path: str | None = None,
+        content_hash: str | None = None,
+    ) -> bool:
         """
         Index a single file
         
@@ -115,8 +128,15 @@ class RAGSystem:
                     logger.info("File already indexed: %s", file_path)
                     return True
             else:
+                existing_metadata = self.vector_store.get_file_metadata(file_path)
+                if existing_metadata:
+                    project_id = project_id or existing_metadata.get("project_id")
+                    relative_path = (
+                        relative_path or existing_metadata.get("relative_path")
+                    )
                 # Delete existing chunks for this file
                 self.vector_store.delete_by_file(file_path)
+                current_count = self.vector_store.get_document_count()
             
             # Step 1: Parse and chunk the file
             logger.info("Parsing and chunking %s", file_path)
@@ -124,6 +144,14 @@ class RAGSystem:
             if not chunks:
                 logger.warning("No chunks created for %s", file_path)
                 return False
+
+            for chunk in chunks:
+                if project_id is not None:
+                    chunk.metadata["project_id"] = project_id
+                if relative_path is not None:
+                    chunk.metadata["relative_path"] = relative_path
+                if content_hash is not None:
+                    chunk.metadata["content_hash"] = content_hash
             
             # Limit chunks per file
             if len(chunks) > self.max_chunks_per_file:
@@ -159,6 +187,7 @@ class RAGSystem:
             metadatas = [chunk.metadata for chunk in chunks]
             
             self.vector_store.add_documents(chunk_ids, texts, embeddings, metadatas)
+            self._invalidate_context_cache()
             
             logger.info("Successfully indexed %s", file_path)
             return True
@@ -203,6 +232,7 @@ class RAGSystem:
         """
         file_path = str(Path(file_path).absolute())
         self.vector_store.delete_by_file(file_path)
+        self._invalidate_context_cache()
         
         # Remove from active files in retriever
         self.retriever.remove_active_file(file_path)
@@ -234,7 +264,8 @@ class RAGSystem:
                    format_style: str = "detailed",
                    boost_active_files: bool = True,
                    min_score: float = 0.0,
-                   filters: Optional[Dict] = None) -> FormattedContext:
+                   filters: Optional[Dict] = None,
+                   project_id: str | None = None) -> FormattedContext:
         """
         Retrieve and format relevant context for a query
         
@@ -251,8 +282,22 @@ class RAGSystem:
             FormattedContext object with formatted context
         """
         # Check cooldown and cache
+        scoped_filters = dict(filters or {})
+        if project_id is not None:
+            scoped_filters["project_id"] = project_id
+        effective_filters = scoped_filters or None
+        cache_key = (
+            query,
+            top_k,
+            retrieval_method,
+            format_style,
+            boost_active_files,
+            min_score,
+            repr(effective_filters),
+        )
+
         current_time = time.time()
-        if (query == self._last_context_query and 
+        if (cache_key == self._last_context_query and
             current_time - self._last_context_time < self._context_cooldown and
             self._last_context_result is not None):
             return self._last_context_result
@@ -262,7 +307,7 @@ class RAGSystem:
             query=query,
             top_k=top_k,
             method=retrieval_method,
-            filters=filters,
+            filters=effective_filters,
             boost_active_files=boost_active_files,
             min_score=min_score
         )
@@ -277,7 +322,7 @@ class RAGSystem:
         
         # Update cache
         self._last_context_time = current_time
-        self._last_context_query = query
+        self._last_context_query = cache_key
         self._last_context_result = formatted_context
         
         return formatted_context
@@ -343,6 +388,7 @@ class RAGSystem:
         self.vector_store.clear_collection()
         self.embedding_manager.clear_cache()
         self.retriever.active_files.clear()
+        self._invalidate_context_cache()
         logger.info("RAG index and embedding cache cleared")
 
     def close(self) -> None:
