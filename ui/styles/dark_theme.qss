@@ -7,7 +7,7 @@ QPlainTextEdit {
     background-color: #1e1e1e;
     border: none;
     font-family: Consolas, monospace;
-    font-size: 20px;
+    font-size: 15pt;
 }
 QToolBar {
     background: #252526;
@@ -52,7 +52,16 @@ QMenu::item:selected {
 /* Dock Widget styling */
 QDockWidget {
     color: #dddddd;
+    background-color: #252526;
     titlebar-close-icon: url(icons/close.svg);
+}
+
+QDockWidget::title {
+    color: #dddddd;
+    background-color: #252526;
+    border-bottom: 1px solid #3a3a3a;
+    padding: 6px;
+    text-align: left;
 }
 
 QDockWidget::close-button, QDockWidget::float-button {
@@ -76,11 +85,11 @@ QDockWidget::close-button:hover, QDockWidget::float-button:hover {
 #projectExplorerName {
     color: #f0f0f0;
     font-weight: 600;
-    font-size: 14px;
+    font-size: 10.5pt;
 }
 #projectExplorerPath {
     color: #999999;
-    font-size: 11px;
+    font-size: 8.25pt;
 }
 #projectFileTree {
     color: #dddddd;
@@ -155,7 +164,7 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 }
 
 #chatContainer #chatHeaderText {
-    font-size: 18px;
+    font-size: 13.5pt;
     font-weight: bold;
     color: #81c1d9;
 }
@@ -163,17 +172,12 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 #chatContainer #chatStatus {
     color: #888888;
     font-style: italic;
-    font-size: 11px;
+    font-size: 8.25pt;
 }
 
-#chatDisplay {
+#chatDisplay,
+#chatInput {
     background-color: #2e2e2e;
-    color: #dddddd;
-    border-radius: 10px;
-}
-
-#chatContainer QTextEdit {
-    background-color: #2d2d2d;
     color: #dddddd;
     border: 2px solid #e9a5a5;
     border-radius: 10px;
@@ -182,6 +186,7 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 
 /* Specific padding for the input field to avoid text overlapping the send button */
 #chatInput {
+    background-color: #2d2d2d;
     padding-right: 40px;
 }
 
@@ -191,7 +196,7 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
     border: 1px solid #444444;
     border-radius: 10px;
     padding: 6px 12px;
-    font-size: 11px; /* Slightly smaller for multi-button row */
+    font-size: 8.25pt; /* Slightly smaller for multi-button row */
 }
 
 /* Specific styling for dropdown buttons in chat panel */
