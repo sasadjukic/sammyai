@@ -13,6 +13,7 @@ from rag.rag_system import RAGSystem
 
 from .context_engine import ProjectContextEngine, ProjectFileRepository
 from .database import ProjectDatabase
+from .agent_workflows import AgentWorkflowService
 from .file_tools import SafeFileTools
 from .paths import AppPaths
 from .projects import ProjectRepository, ProjectService
@@ -28,6 +29,7 @@ class RuntimeServices:
     rag_system: RAGSystem | None
     context_engine: ProjectContextEngine | None
     file_tools: SafeFileTools | None
+    agent_workflows: AgentWorkflowService
     chat_manager: ChatManager
     llm_config: LLMConfig
     llm_client: Any | None
@@ -86,6 +88,7 @@ def build_runtime_services(paths: AppPaths) -> RuntimeServices:
         )
         if project_service is not None:
             file_tools = SafeFileTools(project_service)
+    agent_workflows = AgentWorkflowService(file_tools)
 
     chat_manager = ChatManager(
         storage_dir=str(paths.sessions_dir),
@@ -116,6 +119,7 @@ def build_runtime_services(paths: AppPaths) -> RuntimeServices:
         rag_system=rag_system,
         context_engine=context_engine,
         file_tools=file_tools,
+        agent_workflows=agent_workflows,
         chat_manager=chat_manager,
         llm_config=llm_config,
         llm_client=llm_client,

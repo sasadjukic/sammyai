@@ -103,6 +103,7 @@ class ContextResult:
     notices: tuple[str, ...]
     sync_report: SyncReport
     referenced_files: tuple[str, ...]
+    complete_referenced_files: tuple[str, ...]
 
 
 class ProjectFileRepository:
@@ -479,6 +480,7 @@ class ProjectContextEngine:
         budget = _ContextBudget(self.max_context_tokens)
         messages: list[str] = []
         referenced_files: list[str] = []
+        complete_referenced_files: list[str] = []
 
         for reference in references:
             if reference.path is None or reference.relative_path is None:
@@ -494,10 +496,16 @@ class ProjectContextEngine:
                 f"Explicit project file requested by the user: "
                 f"{reference.relative_path}\n\n{content}"
             )
+            fits_completely = (
+                estimate_tokens(section)
+                <= budget.max_tokens - budget.used_tokens
+            )
             fitted = budget.add(section)
             if fitted is not None:
                 messages.append(fitted)
                 referenced_files.append(reference.relative_path)
+                if fits_completely:
+                    complete_referenced_files.append(reference.relative_path)
 
         if notices:
             fitted = budget.add("Context notices:\n- " + "\n- ".join(notices))
@@ -539,6 +547,7 @@ class ProjectContextEngine:
             notices=notices,
             sync_report=sync_report,
             referenced_files=tuple(referenced_files),
+            complete_referenced_files=tuple(complete_referenced_files),
         )
 
     def _scan_project(

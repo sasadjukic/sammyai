@@ -9,6 +9,7 @@ def test_autosave_persists_each_session_mutation(tmp_path: Path):
     session = manager.create_session("chapter-planning")
     manager.add_message(MessageRole.USER, "Outline the midpoint reversal.")
     manager.add_message(MessageRole.ASSISTANT, "Here are three approaches.")
+    manager.set_session_metadata("agent_type", "brainstormer")
 
     session_file = tmp_path / "chapter-planning.json"
     data = json.loads(session_file.read_text(encoding="utf-8"))
@@ -23,6 +24,13 @@ def test_autosave_persists_each_session_mutation(tmp_path: Path):
     assert reloaded.load_all_sessions() == 1
     assert reloaded.get_session(session.session_id).messages[0].content == (
         "Outline the midpoint reversal."
+    )
+    assert (
+        reloaded.get_session_metadata(
+            "agent_type",
+            session_id=session.session_id,
+        )
+        == "brainstormer"
     )
 
 

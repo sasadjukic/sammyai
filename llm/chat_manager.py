@@ -264,6 +264,33 @@ class ChatManager:
             self.active_session_id = session_id
             return True
         return False
+
+    def set_session_metadata(
+        self,
+        key: str,
+        value: Any,
+        session_id: Optional[str] = None,
+    ) -> bool:
+        selected_id = session_id or self.active_session_id
+        session = self.get_session(selected_id)
+        if session is None:
+            return False
+        session.metadata[key] = value
+        session.updated_at = datetime.now()
+        self._autosave_session(session.session_id)
+        return True
+
+    def get_session_metadata(
+        self,
+        key: str,
+        default: Any = None,
+        session_id: Optional[str] = None,
+    ) -> Any:
+        selected_id = session_id or self.active_session_id
+        session = self.get_session(selected_id)
+        if session is None:
+            return default
+        return session.metadata.get(key, default)
     
     def delete_session(self, session_id: str) -> bool:
         """

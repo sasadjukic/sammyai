@@ -25,6 +25,7 @@ from ui.chat_panel import ChatPanel
 # Diff-based editing
 from editing.diff_viewer import DiffViewerWidget
 from editing.diff_manager import DiffManager
+from editing.change_set_viewer import ChangeSetReviewDialog
 
 # LLM Settings UI
 from ui.llm_settings import LLMSettingsDialog
@@ -39,6 +40,12 @@ from sammyai_core.paths import AppPaths, get_app_paths, migrate_legacy_runtime_d
 from sammyai_core.resources import asset_path, source_root
 from sammyai_core.tasks import BackgroundTaskRunner
 from sammyai_core.projects import Project, ProjectError
+from sammyai_core.agent_workflows import (
+    AgentRunResult,
+    AgentType,
+    AgentWorkflowService,
+)
+from sammyai_core.file_tools import FileToolError
 
 
 logger = logging.getLogger("sammyai")
@@ -190,6 +197,8 @@ class TextEditor(QMainWindow):
     llm_error_occurred = Signal(str)
     dbe_diff_ready = Signal(str, str, str)  # original, modified, user_request
     context_sync_finished = Signal(str, object, bool)
+    agent_run_completed = Signal(object)
+    agent_progress = Signal(str)
     
     def __init__(
         self,
@@ -263,6 +272,21 @@ class TextEditor(QMainWindow):
             None,
         )
         self.file_tools = getattr(self.runtime_services, "file_tools", None)
+        self.agent_workflows = getattr(
+            self.runtime_services,
+            "agent_workflows",
+            None,
+        ) or AgentWorkflowService(self.file_tools)
+        try:
+            self.active_agent_type = AgentType(
+                self.chat_manager.get_session_metadata(
+                    "agent_type",
+                    AgentType.GENERAL.value,
+                )
+            )
+        except ValueError:
+            self.active_agent_type = AgentType.GENERAL
+        self._update_change_set_history_actions()
         self.rebuild_project_context_action.setEnabled(False)
         self.rag_stats_action.setEnabled(self.rag_system is not None)
         self.clear_rag_action.setEnabled(self.rag_system is not None)
@@ -290,6 +314,8 @@ class TextEditor(QMainWindow):
         self.llm_error_occurred.connect(self._handle_llm_error)
         self.dbe_diff_ready.connect(self._show_dbe_diff)
         self.context_sync_finished.connect(self._on_context_sync_finished)
+        self.agent_run_completed.connect(self._handle_agent_run_result)
+        self.agent_progress.connect(self._handle_agent_progress)
 
         # Chat panel (created lazily when the chat button is pressed)
         self.chat_dock: QDockWidget | None = None
@@ -821,6 +847,24 @@ class TextEditor(QMainWindow):
         self.apply_diff_action.triggered.connect(self._apply_diff_from_file)
         self.apply_diff_action.setStatusTip("Apply a diff file to current text")
 
+        self.undo_change_set_action = QAction(
+            "Undo Last Applied Change Set",
+            self,
+        )
+        self.undo_change_set_action.triggered.connect(
+            self._undo_last_change_set
+        )
+        self.undo_change_set_action.setEnabled(False)
+
+        self.redo_change_set_action = QAction(
+            "Redo Last Applied Change Set",
+            self,
+        )
+        self.redo_change_set_action.triggered.connect(
+            self._redo_last_change_set
+        )
+        self.redo_change_set_action.setEnabled(False)
+
         # Legacy DBE activation is retained only as an advanced fallback.
         self.toggle_dbe_action = QAction("Enable Legacy DBE Mode", self)
         self.toggle_dbe_action.setCheckable(True)
@@ -986,6 +1030,9 @@ class TextEditor(QMainWindow):
         self.compare_menu.addAction(self.compare_clipboard_action)
         self.compare_menu.addSeparator()
         self.compare_menu.addAction(self.apply_diff_action)
+        self.compare_menu.addSeparator()
+        self.compare_menu.addAction(self.undo_change_set_action)
+        self.compare_menu.addAction(self.redo_change_set_action)
 
         view_menu = menubar.addMenu("View")
         view_menu.addAction(self.toggle_project_explorer_action)
@@ -1258,6 +1305,7 @@ class TextEditor(QMainWindow):
             self.chat_panel.message_sent.connect(self._on_chat_message_sent)
             # When the model selection changes in the UI, attempt to switch clients
             self.chat_panel.model_selected.connect(self._on_model_selected)
+            self.chat_panel.agent_selected.connect(self._on_agent_selected)
             # When clear chat is requested, clear the session
             self.chat_panel.clear_chat_requested.connect(self._on_clear_chat_requested)
 
@@ -1275,6 +1323,11 @@ class TextEditor(QMainWindow):
                     idx = self.chat_panel.model_combo.findText(current_model)
                     if idx >= 0:
                         self.chat_panel.model_combo.setCurrentIndex(idx)
+                agent_idx = self.chat_panel.agent_combo.findData(
+                    self.active_agent_type.value
+                )
+                if agent_idx >= 0:
+                    self.chat_panel.agent_combo.setCurrentIndex(agent_idx)
             except Exception:
                 pass
         except Exception as e:
@@ -1302,7 +1355,11 @@ class TextEditor(QMainWindow):
 
         # Then add user message to session
         try:
-            self.chat_manager.add_message(MessageRole.USER, message)
+            self.chat_manager.add_message(
+                MessageRole.USER,
+                message,
+                metadata={"agent_type": self.active_agent_type.value},
+            )
         except Exception as e:
             logger.exception("Failed to add user message to session")
 
@@ -1317,7 +1374,7 @@ class TextEditor(QMainWindow):
             # DBE mode: inject editor context and show diff
             self._handle_dbe_request(message)
         else:
-            # Normal mode: standard chat
+            # Agent workflows own normal chat behavior.
             self._handle_normal_chat(message)
 
     def _on_clear_chat_requested(self):
@@ -1332,37 +1389,68 @@ class TextEditor(QMainWindow):
             logger.exception("Error clearing chat session")
     
     def _handle_normal_chat(self, message: str):
-        """Handle normal chat mode (non-DBE)."""
-        # Run LLM query in background thread to avoid blocking UI
+        """Run the selected agent workflow outside the UI thread."""
+        selected_agent = self.active_agent_type
+        client = self.llm_client
+
         def worker():
             try:
-                # Prepare messages for the LLM using the chat manager's active session
-                # Always check for potential RAG or CIN context
                 if self.chat_manager:
                     msgs = self.chat_manager.get_messages_for_llm_with_context(
                         query=message,
-                        top_k=3
+                        top_k=3,
                     )
                 else:
-                    # Fallback unlikely as chat_manager is core
                     msgs = [{"role": "user", "content": message}]
-                
-                # Call the synchronous chat API (blocking) in the thread
-                with self._llm_lock:
-                    reply = self.llm_client.chat(msgs)
 
-                # Add assistant message to session
-                try:
-                    self.chat_manager.add_message(MessageRole.ASSISTANT, reply)
-                except Exception:
-                    pass
+                def complete(
+                    completion_messages: list[dict[str, str]],
+                    system_prompt: str,
+                ) -> str:
+                    with self._llm_lock:
+                        original_prompt = client.system_prompt
+                        try:
+                            client.system_prompt = system_prompt
+                            return client.chat(completion_messages)
+                        finally:
+                            client.system_prompt = original_prompt
 
-                # Emit signal to update UI on main thread
-                self.llm_response_received.emit(reply)
+                result = self.agent_workflows.run(
+                    selected_agent,
+                    user_request=message,
+                    messages=msgs,
+                    complete=complete,
+                    authorized_files=(
+                        getattr(
+                            self.chat_manager.last_context_result,
+                            "complete_referenced_files",
+                            (),
+                        )
+                        if self.chat_manager.last_context_result is not None
+                        else ()
+                    ),
+                    on_event=lambda event: self.agent_progress.emit(
+                        event.message
+                    ),
+                )
+
+                self.chat_manager.add_message(
+                    MessageRole.ASSISTANT,
+                    result.response,
+                    metadata={
+                        "agent_type": result.agent_type.value,
+                        "agent_run_id": result.run_id,
+                        "model_calls": result.model_calls,
+                    },
+                )
+                self.agent_run_completed.emit(result)
             except Exception as e:
                 self.llm_error_occurred.emit(str(e))
 
-        self.task_runner.submit(worker, name="chat")
+        self.task_runner.submit(
+            worker,
+            name=f"agent-{selected_agent.value}",
+        )
     
     def _handle_dbe_request(self, message: str):
         """Handle DBE mode request with editor context."""
@@ -1489,12 +1577,229 @@ class TextEditor(QMainWindow):
         """Handle successful LLM response on main thread."""
         self._chat_panel_safe("set_thinking", False)
         self._chat_panel_safe("add_assistant_message", reply)
+
+    @Slot(object)
+    def _handle_agent_run_result(self, result: AgentRunResult) -> None:
+        """Render one agent result and review any proposed file changes."""
+        self._chat_panel_safe("set_thinking", False)
+        self._chat_panel_safe("add_assistant_message", result.response)
+        self._chat_panel_safe(
+            "set_status",
+            f"{result.agent_type.display_name} completed "
+            f"({result.model_calls} model call"
+            f"{'s' if result.model_calls != 1 else ''})",
+        )
+        for notice in result.notices:
+            self._chat_panel_safe("add_system_message", notice)
+
+        if (
+            result.change_set is None
+            or result.change_preview is None
+            or self.file_tools is None
+        ):
+            return
+
+        dialog = ChangeSetReviewDialog(result.change_preview, self)
+        if dialog.exec() != QDialog.Accepted:
+            self._chat_panel_safe(
+                "add_system_message",
+                "Proposed file changes rejected; no files were modified.",
+            )
+            return
+
+        if self._current_document_conflicts_with(result.change_set):
+            QMessageBox.warning(
+                self,
+                "Unsaved Document Conflict",
+                "The proposed change includes the current document, which has "
+                "unsaved edits. Save or discard those edits before applying "
+                "the change set.",
+            )
+            self._chat_panel_safe(
+                "add_system_message",
+                "File changes were not applied because the current document "
+                "has unsaved edits.",
+            )
+            return
+
+        try:
+            applied = self.file_tools.apply(result.change_set)
+        except FileToolError as error:
+            QMessageBox.critical(self, "Change Set Conflict", str(error))
+            self._chat_panel_safe(
+                "add_system_message",
+                f"File changes were not applied: {error}",
+            )
+            return
+
+        self._update_change_set_history_actions()
+        self._reload_current_file_if_changed(applied.changed_paths)
+        self._sync_after_file_tool_change()
+        self._chat_panel_safe(
+            "add_system_message",
+            f"Applied {len(applied.changed_paths)} reviewed file change(s). "
+            "The change set can be undone through the file-tool history.",
+        )
+
+    @Slot(str)
+    def _handle_agent_progress(self, message: str) -> None:
+        self._chat_panel_safe("set_status", message)
+
+    def _update_change_set_history_actions(self) -> None:
+        tools = getattr(self, "file_tools", None)
+        self.undo_change_set_action.setEnabled(
+            bool(tools and tools.can_undo)
+        )
+        self.redo_change_set_action.setEnabled(
+            bool(tools and tools.can_redo)
+        )
+
+    def _undo_last_change_set(self) -> None:
+        if self.file_tools is None:
+            return
+        change_set = self.file_tools.next_undo_change_set
+        if change_set is None:
+            self._update_change_set_history_actions()
+            return
+        if self._current_document_conflicts_with(change_set):
+            QMessageBox.warning(
+                self,
+                "Unsaved Document Conflict",
+                "Save or discard the current document's edits before undoing "
+                "this change set.",
+            )
+            return
+        try:
+            applied = self.file_tools.undo_last()
+        except FileToolError as error:
+            QMessageBox.critical(self, "Undo Change Set", str(error))
+            return
+        self._update_change_set_history_actions()
+        self._reload_current_file_if_changed(applied.changed_paths)
+        self._sync_after_file_tool_change()
+        self.statusBar().showMessage(
+            "Last applied change set undone",
+            self.STATUS_NORMAL,
+        )
+
+    def _redo_last_change_set(self) -> None:
+        if self.file_tools is None:
+            return
+        change_set = self.file_tools.next_redo_change_set
+        if change_set is None:
+            self._update_change_set_history_actions()
+            return
+        if self._current_document_conflicts_with(change_set):
+            QMessageBox.warning(
+                self,
+                "Unsaved Document Conflict",
+                "Save or discard the current document's edits before redoing "
+                "this change set.",
+            )
+            return
+        try:
+            applied = self.file_tools.redo_last()
+        except FileToolError as error:
+            QMessageBox.critical(self, "Redo Change Set", str(error))
+            return
+        self._update_change_set_history_actions()
+        self._reload_current_file_if_changed(applied.changed_paths)
+        self._sync_after_file_tool_change()
+        self.statusBar().showMessage(
+            "Change set reapplied",
+            self.STATUS_NORMAL,
+        )
+
+    def _sync_after_file_tool_change(self) -> None:
+        project = (
+            self.project_service.active_project
+            if self.project_service is not None
+            else None
+        )
+        if project is not None:
+            self._schedule_project_context_sync(project)
             
     @Slot(str)
     def _handle_llm_error(self, error_msg: str):
         """Handle LLM error on main thread."""
         self._chat_panel_safe("set_thinking", False)
         self._chat_panel_safe("add_system_message", f"LLM error: {error_msg}")
+
+    def _on_agent_selected(self, agent_value: str) -> None:
+        try:
+            self.active_agent_type = AgentType(agent_value)
+        except ValueError:
+            self.active_agent_type = AgentType.GENERAL
+        self.chat_manager.set_session_metadata(
+            "agent_type",
+            self.active_agent_type.value,
+        )
+        self._chat_panel_safe(
+            "set_status",
+            f"Using agent: {self.active_agent_type.display_name}",
+        )
+
+    def _current_document_conflicts_with(self, change_set) -> bool:
+        if not self.current_file or not self.editor.document().isModified():
+            return False
+        project = (
+            self.project_service.active_project
+            if self.project_service is not None
+            else None
+        )
+        if project is None:
+            return False
+        try:
+            relative_path = (
+                Path(self.current_file)
+                .resolve()
+                .relative_to(project.root_path)
+                .as_posix()
+            )
+        except ValueError:
+            return False
+        return any(
+            os.path.normcase(change.relative_path)
+            == os.path.normcase(relative_path)
+            for change in change_set.changes
+        )
+
+    def _reload_current_file_if_changed(
+        self,
+        changed_paths: tuple[str, ...],
+    ) -> None:
+        if not self.current_file:
+            return
+        project = (
+            self.project_service.active_project
+            if self.project_service is not None
+            else None
+        )
+        if project is None:
+            return
+        try:
+            relative_path = (
+                Path(self.current_file)
+                .resolve()
+                .relative_to(project.root_path)
+                .as_posix()
+            )
+        except ValueError:
+            return
+        normalized_paths = {
+            os.path.normcase(path)
+            for path in changed_paths
+        }
+        if os.path.normcase(relative_path) not in normalized_paths:
+            return
+        current_path = Path(self.current_file)
+        if current_path.exists():
+            self.editor.setPlainText(
+                self.document_service.read_text(current_path)
+            )
+            self.editor.document().setModified(False)
+        else:
+            self.close_file()
 
     def _on_model_selected(self, model_key: str):
         """Handle a model selection change from the UI.
