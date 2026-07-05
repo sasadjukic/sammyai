@@ -64,6 +64,14 @@ def test_editor_restores_project_and_opens_tree_file(tmp_path):
     assert editor.editor.toPlainText() == "# Chapter One\n"
     assert editor.current_file == str(chapter.resolve())
 
+    assert editor._apply_reviewed_editor_change(
+        "# Chapter One\n",
+        "# Revised Chapter\n",
+    )
+    assert editor.editor.toPlainText() == "# Revised Chapter\n"
+    editor._on_undo()
+    assert editor.editor.toPlainText() == "# Chapter One\n"
+
     editor._close_project()
     assert service.active_project is None
     assert editor.project_explorer.project is None

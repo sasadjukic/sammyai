@@ -177,6 +177,15 @@ class ProjectFileRepository:
                 (project_id, relative_path),
             )
 
+    def mark_all_pending(self) -> None:
+        with self.database.transaction() as connection:
+            connection.execute(
+                """
+                UPDATE project_files
+                SET sync_status = 'pending', last_error = NULL
+                """
+            )
+
 
 class _ContextBudget:
     def __init__(self, max_tokens: int):
@@ -240,7 +249,12 @@ class ProjectContextEngine:
             return SyncReport(project_id=None)
         return self.sync_project(project)
 
-    def sync_project(self, project: Project) -> SyncReport:
+    def sync_project(
+        self,
+        project: Project,
+        *,
+        force_reindex: bool = False,
+    ) -> SyncReport:
         """Hash files and incrementally reconcile the project RAG namespace."""
         if self.rag_system is None:
             return SyncReport(project_id=project.id)
@@ -259,7 +273,8 @@ class ProjectContextEngine:
             for relative_path, (path, stat) in current.items():
                 old = previous.pop(relative_path, None)
                 if (
-                    old is not None
+                    not force_reindex
+                    and old is not None
                     and old.sync_status == "indexed"
                     and old.size_bytes == stat.st_size
                     and old.modified_ns == stat.st_mtime_ns
@@ -275,7 +290,8 @@ class ProjectContextEngine:
                     continue
 
                 needs_index = (
-                    old is None
+                    force_reindex
+                    or old is None
                     or old.content_hash != digest
                     or old.sync_status != "indexed"
                 )
@@ -364,6 +380,10 @@ class ProjectContextEngine:
                 unchanged=unchanged,
                 failed=failed,
             )
+
+    def invalidate_index_state(self) -> None:
+        """Mark manifests stale after the underlying vector index is reset."""
+        self.file_repository.mark_all_pending()
 
     def resolve_file_references(
         self,

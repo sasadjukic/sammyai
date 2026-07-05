@@ -189,6 +189,7 @@ class TextEditor(QMainWindow):
     llm_response_received = Signal(str)
     llm_error_occurred = Signal(str)
     dbe_diff_ready = Signal(str, str, str)  # original, modified, user_request
+    context_sync_finished = Signal(str, object, bool)
     
     def __init__(
         self,
@@ -261,6 +262,13 @@ class TextEditor(QMainWindow):
             "context_engine",
             None,
         )
+        self.file_tools = getattr(self.runtime_services, "file_tools", None)
+        self.rebuild_project_context_action.setEnabled(False)
+        self.rag_stats_action.setEnabled(self.rag_system is not None)
+        self.clear_rag_action.setEnabled(self.rag_system is not None)
+        self.index_action.setEnabled(self.rag_system is not None)
+        self.upload_rag_action.setEnabled(self.rag_system is not None)
+        self.manage_rag_action.setEnabled(self.rag_system is not None)
         if self.runtime_services.project_error:
             self.statusBar().showMessage(
                 f"Project system not initialized: "
@@ -281,6 +289,7 @@ class TextEditor(QMainWindow):
         self.llm_response_received.connect(self._handle_llm_response)
         self.llm_error_occurred.connect(self._handle_llm_error)
         self.dbe_diff_ready.connect(self._show_dbe_diff)
+        self.context_sync_finished.connect(self._on_context_sync_finished)
 
         # Chat panel (created lazily when the chat button is pressed)
         self.chat_dock: QDockWidget | None = None
@@ -494,6 +503,9 @@ class TextEditor(QMainWindow):
             self.project_dock.show()
             self.project_dock.raise_()
         self.close_project_action.setEnabled(True)
+        self.rebuild_project_context_action.setEnabled(
+            self.context_engine is not None and self.rag_system is not None
+        )
         self.update_window_title()
         self.statusBar().showMessage(
             f"Opened project: {project.name}",
@@ -501,12 +513,20 @@ class TextEditor(QMainWindow):
         )
         self._schedule_project_context_sync(project)
 
-    def _schedule_project_context_sync(self, project: Project) -> None:
+    def _schedule_project_context_sync(
+        self,
+        project: Project,
+        *,
+        force_reindex: bool = False,
+    ) -> None:
         if self.context_engine is None:
             return
 
         def sync_worker() -> None:
-            report = self.context_engine.sync_project(project)
+            report = self.context_engine.sync_project(
+                project,
+                force_reindex=force_reindex,
+            )
             logger.info(
                 "Project context synchronized for %s: "
                 "%s added, %s updated, %s removed, %s unchanged, %s failed",
@@ -517,11 +537,45 @@ class TextEditor(QMainWindow):
                 report.unchanged,
                 report.failed,
             )
+            self.context_sync_finished.emit(
+                project.id,
+                report,
+                force_reindex,
+            )
 
         self.task_runner.submit(
             sync_worker,
             name=f"context-sync-{project.id}",
         )
+
+    @Slot(str, object, bool)
+    def _on_context_sync_finished(
+        self,
+        project_id: str,
+        report,
+        forced: bool,
+    ) -> None:
+        project = (
+            self.project_service.active_project
+            if self.project_service is not None
+            else None
+        )
+        if project is None or project.id != project_id:
+            return
+        if forced:
+            self.rebuild_project_context_action.setEnabled(True)
+            self.statusBar().showMessage(
+                "Project context rebuilt: "
+                f"{report.added + report.updated} indexed, "
+                f"{report.failed} failed",
+                self.STATUS_ERROR if report.failed else self.STATUS_NORMAL,
+            )
+        elif report.failed:
+            self.statusBar().showMessage(
+                f"Project context synchronization failed for "
+                f"{report.failed} file(s)",
+                self.STATUS_ERROR,
+            )
 
     def _close_project(self) -> None:
         if self.project_service is None:
@@ -532,6 +586,7 @@ class TextEditor(QMainWindow):
         if self.project_dock is not None:
             self.project_dock.hide()
         self.close_project_action.setEnabled(False)
+        self.rebuild_project_context_action.setEnabled(False)
         self.update_window_title()
         self.statusBar().showMessage("Project closed", self.STATUS_NORMAL)
 
@@ -703,34 +758,53 @@ class TextEditor(QMainWindow):
         self.undo_action.setEnabled(False)
         self.redo_action.setEnabled(False)
 
-        # Manual RAG indexing action
-        self.index_action = QAction("Index Current File for RAG", self)
-        self.index_action.setShortcut(QKeySequence("Ctrl+Shift+I"))
+        # Legacy manual indexing remains available under Advanced.
+        self.index_action = QAction("Index Current File Manually...", self)
         self.index_action.triggered.connect(self._index_current_file_manually)
-        self.index_action.setStatusTip("Index current file for AI assistant context")
+        self.index_action.setStatusTip(
+            "Legacy fallback: manually index the current file"
+        )
 
-        self.upload_rag_action = QAction("Upload File for RAG", self)
+        self.upload_rag_action = QAction("Add External File to Index...", self)
         self.upload_rag_action.triggered.connect(self._upload_file_for_rag)
-        self.upload_rag_action.setStatusTip("Upload a file (.txt, .md, .pdf) for RAG indexing")
+        self.upload_rag_action.setStatusTip(
+            "Legacy fallback: persistently index a file outside the project"
+        )
 
-        # RAG management actions
-        self.manage_rag_action = QAction("Manage RAG Files...", self)
+        self.rebuild_project_context_action = QAction(
+            "Rebuild Active Project Index...",
+            self,
+        )
+        self.rebuild_project_context_action.triggered.connect(
+            self._rebuild_active_project_context
+        )
+        self.rebuild_project_context_action.setStatusTip(
+            "Regenerate context embeddings for every supported project file"
+        )
+
+        # Advanced index management actions
+        self.manage_rag_action = QAction("Legacy Index Manager...", self)
         self.manage_rag_action.triggered.connect(self._manage_rag_index)
         
-        self.clear_rag_action = QAction("Clear RAG Index", self)
+        self.clear_rag_action = QAction("Reset Entire Context Index...", self)
         self.clear_rag_action.triggered.connect(self._clear_rag_index)
         
-        self.rag_stats_action = QAction("Show RAG Statistics", self)
+        self.rag_stats_action = QAction("Context Index Statistics...", self)
         self.rag_stats_action.triggered.connect(self._show_rag_stats)
 
-        # CIN actions
-        self.upload_cin_action = QAction("Upload File for CIN", self)
+        # Temporary references remain explicit but use user-facing terminology.
+        self.upload_cin_action = QAction("Attach Reference...", self)
         self.upload_cin_action.triggered.connect(self._upload_cin_file)
-        self.upload_cin_action.setStatusTip("Upload a small file (< 50kB) for direct context injection")
+        self.upload_cin_action.setStatusTip(
+            "Attach a small external reference to the current conversation"
+        )
 
-        self.clear_cin_action = QAction("Clear CIN Context", self)
+        self.clear_cin_action = QAction("Remove Attached Reference", self)
         self.clear_cin_action.triggered.connect(self._clear_cin_context)
-        self.clear_cin_action.setStatusTip("Clear the current CIN injected context")
+        self.clear_cin_action.setStatusTip(
+            "Remove the temporary reference from this conversation"
+        )
+        self.clear_cin_action.setEnabled(False)
 
         # DBE (Diff-Based Editing) actions
         self.compare_file_action = QAction("Compare with File...", self)
@@ -747,11 +821,13 @@ class TextEditor(QMainWindow):
         self.apply_diff_action.triggered.connect(self._apply_diff_from_file)
         self.apply_diff_action.setStatusTip("Apply a diff file to current text")
 
-        # DBE mode toggle
-        self.toggle_dbe_action = QAction("Enable DBE Mode", self)
+        # Legacy DBE activation is retained only as an advanced fallback.
+        self.toggle_dbe_action = QAction("Enable Legacy DBE Mode", self)
         self.toggle_dbe_action.setCheckable(True)
         self.toggle_dbe_action.triggered.connect(self._toggle_dbe_mode)
-        self.toggle_dbe_action.setStatusTip("Enable diff-based editing mode for LLM suggestions")
+        self.toggle_dbe_action.setStatusTip(
+            "Legacy fallback: send chat replies through the original DBE workflow"
+        )
 
     def _load_icon(self, theme_name, fallback):
         icon = QIcon.fromTheme(theme_name)
@@ -904,9 +980,35 @@ class TextEditor(QMainWindow):
         self.replace_action.setIcon(self._load_icon("edit-find-replace", QStyle.SP_FileDialogContentsView))
         edit_menu.addAction(self.search_action)
         edit_menu.addAction(self.replace_action)
+        edit_menu.addSeparator()
+        self.compare_menu = edit_menu.addMenu("Compare and Review")
+        self.compare_menu.addAction(self.compare_file_action)
+        self.compare_menu.addAction(self.compare_clipboard_action)
+        self.compare_menu.addSeparator()
+        self.compare_menu.addAction(self.apply_diff_action)
 
         view_menu = menubar.addMenu("View")
         view_menu.addAction(self.toggle_project_explorer_action)
+
+        self.advanced_menu = menubar.addMenu("Advanced")
+        self.project_context_menu = self.advanced_menu.addMenu(
+            "Project Context"
+        )
+        self.project_context_menu.addAction(
+            self.rebuild_project_context_action
+        )
+        self.project_context_menu.addAction(self.rag_stats_action)
+        self.project_context_menu.addAction(self.clear_rag_action)
+
+        self.legacy_rag_menu = self.advanced_menu.addMenu(
+            "Legacy Manual Indexing"
+        )
+        self.legacy_rag_menu.addAction(self.index_action)
+        self.legacy_rag_menu.addAction(self.upload_rag_action)
+        self.legacy_rag_menu.addAction(self.manage_rag_action)
+
+        self.advanced_menu.addSeparator()
+        self.advanced_menu.addAction(self.toggle_dbe_action)
 
     def create_statusbar(self):
         """Create status bar with line/column and word count indicators."""
@@ -1159,7 +1261,7 @@ class TextEditor(QMainWindow):
             # When clear chat is requested, clear the session
             self.chat_panel.clear_chat_requested.connect(self._on_clear_chat_requested)
 
-            # Set up RAG, CIN, and DBE menus on the chat panel buttons
+            # The primary chat only exposes temporary reference attachment.
             self._setup_chat_panel_menus()
 
             self.chat_dock = QDockWidget(self)
@@ -1179,35 +1281,14 @@ class TextEditor(QMainWindow):
             QMessageBox.critical(self, "Chat Panel Error", str(e))
 
     def _setup_chat_panel_menus(self):
-        """Create and assign dropdown menus for RAG, CIN, and DBE buttons in the chat panel."""
+        """Configure the primary chat's temporary-reference menu."""
         if not self.chat_panel:
             return
 
-        # RAG Menu
-        rag_menu = QMenu(self.chat_panel.rag_button)
-        rag_menu.addAction(self.index_action)
-        rag_menu.addAction(self.upload_rag_action)
-        rag_menu.addSeparator()
-        rag_menu.addAction(self.manage_rag_action)
-        rag_menu.addAction(self.clear_rag_action)
-        rag_menu.addAction(self.rag_stats_action)
-        self.chat_panel.rag_button.setMenu(rag_menu)
-
-        # CIN Menu
-        cin_menu = QMenu(self.chat_panel.cin_button)
-        cin_menu.addAction(self.upload_cin_action)
-        cin_menu.addAction(self.clear_cin_action)
-        self.chat_panel.cin_button.setMenu(cin_menu)
-
-        # DBE Menu
-        dbe_menu = QMenu(self.chat_panel.dbe_button)
-        dbe_menu.addAction(self.toggle_dbe_action)
-        dbe_menu.addSeparator()
-        dbe_menu.addAction(self.compare_file_action)
-        dbe_menu.addAction(self.compare_clipboard_action)
-        dbe_menu.addSeparator()
-        dbe_menu.addAction(self.apply_diff_action)
-        self.chat_panel.dbe_button.setMenu(dbe_menu)
+        reference_menu = QMenu(self.chat_panel.attach_button)
+        reference_menu.addAction(self.upload_cin_action)
+        reference_menu.addAction(self.clear_cin_action)
+        self.chat_panel.attach_button.setMenu(reference_menu)
 
     def _on_chat_message_sent(self, message: str):
         """Handle message sent from chat panel UI: store in session and query LLM in background."""
@@ -1380,7 +1461,9 @@ class TextEditor(QMainWindow):
         
         # Create diff dialog
         dialog = self._create_diff_dialog()
-        dialog.setWindowTitle(f"DBE Suggestion - {user_request[:50]}...")
+        dialog.setWindowTitle(
+            f"Legacy DBE Suggestion - {user_request[:50]}..."
+        )
         
         # Load diff
         dialog.diff_viewer.load_diff(
@@ -1392,8 +1475,7 @@ class TextEditor(QMainWindow):
         if dialog.exec() == QDialog.Accepted:
             # User approved - apply changes
             modified_text = dialog.diff_viewer.get_modified_text()
-            if modified_text:
-                self.editor.setPlainText(modified_text)
+            if self._apply_reviewed_editor_change(original, modified_text):
                 self._chat_panel_safe("add_system_message", "✓ Changes applied successfully!")
                 self.statusBar().showMessage("✓ DBE changes applied", self.STATUS_NORMAL)
         else:
@@ -1468,6 +1550,29 @@ class TextEditor(QMainWindow):
     def _on_repeat(self):
         # Repeat last redo action
         self.editor.redo()
+
+    def _apply_reviewed_editor_change(
+        self,
+        expected_original: str,
+        modified_text: str,
+    ) -> bool:
+        """Apply one reviewed replacement without discarding Qt undo history."""
+        if self.editor.toPlainText() != expected_original:
+            QMessageBox.warning(
+                self,
+                "Edit Conflict",
+                "The document changed while the diff was being reviewed. "
+                "The proposed change was not applied.",
+            )
+            return False
+
+        cursor = QTextCursor(self.editor.document())
+        cursor.beginEditBlock()
+        cursor.select(QTextCursor.Document)
+        cursor.insertText(modified_text)
+        cursor.endEditBlock()
+        self.editor.setTextCursor(cursor)
+        return True
 
     def _on_show_llm_settings(self):
         """Show the LLM parameter settings dialog and update configuration."""
@@ -1675,7 +1780,44 @@ class TextEditor(QMainWindow):
 
         self.setWindowTitle(f"{star}{doc_name}{project_label} - SammyAI")
 
-    # Manual indexing method
+    def _rebuild_active_project_context(self) -> None:
+        """Force regeneration of the active project's context index."""
+        project = (
+            self.project_service.active_project
+            if self.project_service is not None
+            else None
+        )
+        if (
+            project is None
+            or self.context_engine is None
+            or self.rag_system is None
+        ):
+            QMessageBox.information(
+                self,
+                "No Active Project",
+                "Open a project before rebuilding its context index.",
+            )
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Rebuild Project Context",
+            f"Rebuild the context index for '{project.name}'?\n\n"
+            "This regenerates embeddings and may take some time.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+
+        self.rebuild_project_context_action.setEnabled(False)
+        self.statusBar().showMessage(
+            f"Rebuilding context for {project.name}...",
+            self.STATUS_PERSISTENT,
+        )
+        self._schedule_project_context_sync(project, force_reindex=True)
+
+    # Legacy manual indexing methods
     def _index_current_file_manually(self):
         """User explicitly requests indexing of current file."""
         if not self.current_file:
@@ -1830,51 +1972,67 @@ class TextEditor(QMainWindow):
 
     # Manage RAG index method
     def _manage_rag_index(self):
-        """Open the RAG file management dialog."""
+        """Open the legacy low-level index management dialog."""
         if not self.rag_system:
             QMessageBox.warning(self, "RAG Unavailable", "RAG system not initialized.")
             return
             
         dialog = RAGFileManagementDialog(self.rag_system, self)
         dialog.exec()
+        if self.context_engine is not None:
+            self.context_engine.invalidate_index_state()
 
-    # Clear RAG index method
     def _clear_rag_index(self):
-        """Provide choice to clear entire RAG index or manage specific files."""
+        """Reset the low-level index and rebuild the active project."""
         if not self.rag_system:
-            QMessageBox.warning(self, "RAG Unavailable", "RAG system not initialized.")
-            return
-        
-        msg_box = QMessageBox(self)
-        msg_box.setWindowTitle("RAG Index Management")
-        msg_box.setText("How would you like to manage the RAG index?")
-        
-        clear_all_btn = msg_box.addButton("Delete All Files", QMessageBox.ActionRole)
-        manage_btn = msg_box.addButton("Select Specific Files...", QMessageBox.ActionRole)
-        cancel_btn = msg_box.addButton(QMessageBox.Cancel)
-        
-        msg_box.exec()
-        
-        if msg_box.clickedButton() == clear_all_btn:
-            reply = QMessageBox.question(
+            QMessageBox.warning(
                 self,
-                "Confirm Clear All",
-                "This will remove ALL indexed files from the RAG system.\n\n"
-                "Are you sure you want to continue?",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No
+                "Context Index Unavailable",
+                "The context index is not initialized.",
             )
-            
-            if reply == QMessageBox.Yes:
-                try:
-                    self.rag_system.clear_index()
-                    QMessageBox.information(self, "Success", "RAG index cleared successfully.")
-                    self.statusBar().showMessage("RAG index cleared", 3000)
-                except Exception as e:
-                    QMessageBox.critical(self, "Error", f"Failed to clear RAG index: {e}")
-        
-        elif msg_box.clickedButton() == manage_btn:
-            self._manage_rag_index()
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Reset Context Index",
+            "This removes the complete local context index. The active "
+            "project will then be rebuilt automatically.\n\nContinue?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+
+        try:
+            self.rag_system.clear_index()
+            if self.context_engine is not None:
+                self.context_engine.invalidate_index_state()
+            project = (
+                self.project_service.active_project
+                if self.project_service is not None
+                else None
+            )
+            if project is not None and self.context_engine is not None:
+                self.rebuild_project_context_action.setEnabled(False)
+                self.statusBar().showMessage(
+                    f"Reset complete; rebuilding context for {project.name}...",
+                    self.STATUS_PERSISTENT,
+                )
+                self._schedule_project_context_sync(
+                    project,
+                    force_reindex=True,
+                )
+            else:
+                self.statusBar().showMessage(
+                    "Context index reset",
+                    self.STATUS_NORMAL,
+                )
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Context Index Error",
+                f"Failed to reset the context index: {e}",
+            )
     
     # Show RAG statistics method
     def _show_rag_stats(self):
@@ -1886,7 +2044,7 @@ class TextEditor(QMainWindow):
         try:
             stats = self.rag_system.get_stats()
             
-            message = f"""RAG System Statistics
+            message = f"""Context Index Statistics
 
     Total chunks indexed: {stats['total_documents']}
     Indexed files: {stats['indexed_files']}
@@ -1901,16 +2059,16 @@ class TextEditor(QMainWindow):
             if not stats['files']:
                 message += "(No files indexed yet)\n"
             
-            QMessageBox.information(self, "RAG Statistics", message)
+            QMessageBox.information(self, "Context Index Statistics", message)
             
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to get RAG stats: {e}")
 
-    # --- CIN (Context-Injection System) methods ---
+    # --- Temporary external references (legacy CIN implementation) ---
     def _upload_cin_file(self):
-        """Upload a file for CIN context injection."""
+        """Attach a small external reference to the active conversation."""
         path = self._open_file_dialog(
-            "Upload File for CIN", 
+            "Attach Reference",
             "Allowed Files (*.txt *.pdf *.md);;Text Files (*.txt);;Markdown Files (*.md);;PDF Files (*.pdf);;All Files (*)"
         )
         if not path:
@@ -1920,38 +2078,70 @@ class TextEditor(QMainWindow):
         file_size_kb = os.path.getsize(path) / 1024
         if file_size_kb > 50:
             QMessageBox.warning(
-                self, "File Too Large", 
-                f"CIN is limited to files smaller than 50kB. Selected file is {file_size_kb:.1f}kB.\n"
-                "Please use RAG for larger files."
+                self,
+                "Reference Too Large",
+                "Temporary references are limited to files smaller than "
+                f"50kB. The selected file is {file_size_kb:.1f}kB.\n"
+                "Add larger references to the active project instead.",
             )
             return
 
-        self.statusBar().showMessage(f"Injecting {os.path.basename(path)} via CIN...", 0)
+        self.statusBar().showMessage(
+            f"Attaching {os.path.basename(path)}...",
+            0,
+        )
 
         try:
             content = self.document_service.extract_context_text(path)
 
             if content:
                 self.chat_manager.cin_context = content
-                self.statusBar().showMessage(f"✓ Injected {os.path.basename(path)} via CIN", self.STATUS_NORMAL)
+                self.clear_cin_action.setEnabled(True)
+                self.statusBar().showMessage(
+                    f"✓ Attached {os.path.basename(path)}",
+                    self.STATUS_NORMAL,
+                )
                 QMessageBox.information(
-                    self, "CIN Success", 
-                    f"File '{os.path.basename(path)}' has been injected into the assistant's context.\n"
-                    "Sammy AI will now consider this content in your conversation."
+                    self,
+                    "Reference Attached",
+                    f"'{os.path.basename(path)}' is attached to this "
+                    "conversation.\nSammyAI will use it when relevant.",
                 )
             else:
-                self.statusBar().showMessage("✗ Failed to extract content for CIN", self.STATUS_ERROR)
-                QMessageBox.warning(self, "CIN Error", "Could not extract any text from the selected file.")
+                self.statusBar().showMessage(
+                    "✗ Could not read the reference",
+                    self.STATUS_ERROR,
+                )
+                QMessageBox.warning(
+                    self,
+                    "Reference Error",
+                    "No text could be extracted from the selected file.",
+                )
 
         except Exception as e:
-            self.statusBar().showMessage(f"✗ CIN error: {str(e)}", self.STATUS_ERROR)
-            QMessageBox.critical(self, "CIN Error", f"An error occurred during CIN injection: {str(e)}")
+            self.statusBar().showMessage(
+                f"✗ Reference error: {str(e)}",
+                self.STATUS_ERROR,
+            )
+            QMessageBox.critical(
+                self,
+                "Reference Error",
+                f"Unable to attach the selected reference: {str(e)}",
+            )
 
     def _clear_cin_context(self):
-        """Clear the current CIN context."""
+        """Remove the temporary reference from the active conversation."""
         self.chat_manager.cin_context = None
-        self.statusBar().showMessage("CIN context cleared", self.STATUS_NORMAL)
-        QMessageBox.information(self, "CIN Cleared", "The injected CIN context has been cleared.")
+        self.clear_cin_action.setEnabled(False)
+        self.statusBar().showMessage(
+            "Attached reference removed",
+            self.STATUS_NORMAL,
+        )
+        QMessageBox.information(
+            self,
+            "Reference Removed",
+            "The temporary reference has been removed from this conversation.",
+        )
 
     # --- DBE (Diff-Based Editing) methods ---
     def _compare_with_file(self):
@@ -1984,8 +2174,10 @@ class TextEditor(QMainWindow):
             # If user applies the diff, update the editor
             if dialog.exec() == QDialog.Accepted:
                 modified_text = dialog.diff_viewer.get_modified_text()
-                if modified_text:
-                    self.editor.setPlainText(modified_text)
+                if self._apply_reviewed_editor_change(
+                    current_text,
+                    modified_text,
+                ):
                     self.statusBar().showMessage("Diff applied successfully", self.STATUS_NORMAL)
         
         except Exception as e:
@@ -2017,8 +2209,10 @@ class TextEditor(QMainWindow):
         # If user applies the diff, update the editor
         if dialog.exec() == QDialog.Accepted:
             modified_text = dialog.diff_viewer.get_modified_text()
-            if modified_text:
-                self.editor.setPlainText(modified_text)
+            if self._apply_reviewed_editor_change(
+                current_text,
+                modified_text,
+            ):
                 self.statusBar().showMessage("Diff applied successfully", self.STATUS_NORMAL)
 
     def _apply_diff_from_file(self):
@@ -2049,8 +2243,10 @@ class TextEditor(QMainWindow):
             # If user applies the diff, update the editor
             if dialog.exec() == QDialog.Accepted:
                 modified_text = dialog.diff_viewer.get_modified_text()
-                if modified_text:
-                    self.editor.setPlainText(modified_text)
+                if self._apply_reviewed_editor_change(
+                    current_text,
+                    modified_text,
+                ):
                     self.statusBar().showMessage("Diff applied successfully", self.STATUS_NORMAL)
         
         except Exception as e:
@@ -2077,15 +2273,28 @@ class TextEditor(QMainWindow):
         return dialog
 
     def _toggle_dbe_mode(self):
-        """Toggle DBE mode on/off."""
+        """Toggle the legacy DBE chat workflow on or off."""
         self.dbe_enabled = self.toggle_dbe_action.isChecked()
         
         if self.dbe_enabled:
-            self.statusBar().showMessage("🔧 DBE Mode ENABLED - LLM suggestions will show as diffs", self.STATUS_NORMAL)
-            self._chat_panel_safe("add_system_message", "🔧 DBE Mode enabled. LLM suggestions will now appear as diffs for your review.")
+            self.statusBar().showMessage(
+                "Legacy DBE mode enabled",
+                self.STATUS_NORMAL,
+            )
+            self._chat_panel_safe(
+                "add_system_message",
+                "Legacy DBE mode enabled. Chat suggestions will be routed "
+                "through the original single-document diff workflow.",
+            )
         else:
-            self.statusBar().showMessage("DBE Mode disabled - Normal chat mode", self.STATUS_NORMAL)
-            self._chat_panel_safe("add_system_message", "DBE Mode disabled. Returning to normal chat mode.")
+            self.statusBar().showMessage(
+                "Legacy DBE mode disabled",
+                self.STATUS_NORMAL,
+            )
+            self._chat_panel_safe(
+                "add_system_message",
+                "Legacy DBE mode disabled. Returning to normal chat.",
+            )
     
     def _get_editor_context_for_dbe(self) -> tuple[str, int, Optional[int], Optional[int]]:
         """

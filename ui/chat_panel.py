@@ -143,21 +143,17 @@ class ChatPanel(QWidget):
         self.copy_button = QPushButton("Copy Chat")
         self.copy_button.setToolTip("Copy entire chat history to clipboard")
         
-        self.rag_button = QPushButton("RAG")
-        self.rag_button.setToolTip("RAG Context Management")
-        
-        self.cin_button = QPushButton("Context Injection")
-        self.cin_button.setToolTip("Context Injection Management")
-        
-        self.dbe_button = QPushButton("Diff Edits")
-        self.dbe_button.setToolTip("Diff-Based Editing Controls")
+        self.attach_button = QPushButton("Attach Reference")
+        self.attach_button.setToolTip(
+            "Attach a temporary external reference to this conversation"
+        )
+        # Compatibility alias while the legacy CIN implementation is retired.
+        self.cin_button = self.attach_button
         
         history_controls_layout.addStretch()
         history_controls_layout.addWidget(self.clear_button)
         history_controls_layout.addWidget(self.copy_button)
-        history_controls_layout.addWidget(self.rag_button)
-        history_controls_layout.addWidget(self.cin_button)
-        history_controls_layout.addWidget(self.dbe_button)
+        history_controls_layout.addWidget(self.attach_button)
         history_controls_layout.addStretch()
         layout.addLayout(history_controls_layout)
         
@@ -438,4 +434,3 @@ class ChatPanel(QWidget):
                 
         except (ImportError, AttributeError) as e:
             print(f"Failed to refresh model dropdown: {e}")
-
