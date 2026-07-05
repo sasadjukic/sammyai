@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 import subprocess
+import tempfile
 
 
 class DocumentError(RuntimeError):
@@ -19,7 +21,24 @@ class DocumentService:
         return Path(path).read_text(encoding="utf-8", errors=errors)
 
     def write_text(self, path: str | Path, content: str) -> None:
-        Path(path).write_text(content, encoding="utf-8")
+        document_path = Path(path)
+        descriptor, temporary_name = tempfile.mkstemp(
+            prefix=f".{document_path.name}.",
+            suffix=".sammyai-tmp",
+            dir=document_path.parent,
+        )
+        temporary_path = Path(temporary_name)
+        try:
+            with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as file:
+                file.write(content)
+                file.flush()
+                os.fsync(file.fileno())
+            if document_path.exists():
+                os.chmod(temporary_path, document_path.stat().st_mode)
+            os.replace(temporary_path, document_path)
+        except Exception:
+            temporary_path.unlink(missing_ok=True)
+            raise
 
     def extract_context_text(self, path: str | Path) -> str:
         document_path = Path(path)

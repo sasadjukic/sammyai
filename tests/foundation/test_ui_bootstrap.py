@@ -44,6 +44,28 @@ def test_editor_accepts_injected_runtime_services(tmp_path):
     assert editor.runtime_services is services
     assert editor.chat_manager.get_active_session().session_id == "characterization"
     assert "SammyAI" in editor.windowTitle()
+    assert [action.text() for action in editor.compare_menu.actions()] == [
+        "Compare with File...",
+        "Compare with Clipboard",
+        "",
+        "Apply Diff from File...",
+    ]
+    assert [action.text() for action in editor.advanced_menu.actions()] == [
+        "Project Context",
+        "Legacy Manual Indexing",
+        "",
+        "Enable Legacy DBE Mode",
+    ]
+    assert not editor.rebuild_project_context_action.isEnabled()
+
+    editor._create_chat_panel()
+    assert editor.chat_panel.attach_button.text() == "Attach Reference"
+    assert [action.text() for action in editor.chat_panel.attach_button.menu().actions()] == [
+        "Attach Reference...",
+        "Remove Attached Reference",
+    ]
+    assert not hasattr(editor.chat_panel, "rag_button")
+    assert not hasattr(editor.chat_panel, "dbe_button")
 
     editor.close()
     app.processEvents()

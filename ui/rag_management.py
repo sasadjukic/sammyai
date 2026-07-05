@@ -16,7 +16,7 @@ class RAGFileManagementDialog(QDialog):
     def __init__(self, rag_system, parent=None):
         super().__init__(parent)
         self.rag_system = rag_system
-        self.setWindowTitle("Manage RAG Index")
+        self.setWindowTitle("Legacy Index Manager")
         self.setMinimumSize(500, 400)
         self.setup_ui()
         self.load_files()
@@ -31,7 +31,11 @@ class RAGFileManagementDialog(QDialog):
         layout.addWidget(header)
         
         # Description
-        desc = QLabel("Select files to remove from the RAG index:")
+        desc = QLabel(
+            "Low-level diagnostic view. Automatic project synchronization "
+            "may restore project files."
+        )
+        desc.setWordWrap(True)
         desc.setObjectName("ragDescription")
         layout.addWidget(desc)
         

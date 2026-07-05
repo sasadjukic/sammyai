@@ -13,6 +13,7 @@ from rag.rag_system import RAGSystem
 
 from .context_engine import ProjectContextEngine, ProjectFileRepository
 from .database import ProjectDatabase
+from .file_tools import SafeFileTools
 from .paths import AppPaths
 from .projects import ProjectRepository, ProjectService
 
@@ -26,6 +27,7 @@ class RuntimeServices:
     project_service: ProjectService | None
     rag_system: RAGSystem | None
     context_engine: ProjectContextEngine | None
+    file_tools: SafeFileTools | None
     chat_manager: ChatManager
     llm_config: LLMConfig
     llm_client: Any | None
@@ -75,12 +77,15 @@ def build_runtime_services(paths: AppPaths) -> RuntimeServices:
         logger.exception("RAG initialization failed")
 
     context_engine: ProjectContextEngine | None = None
+    file_tools: SafeFileTools | None = None
     if project_database is not None:
         context_engine = ProjectContextEngine(
             project_service,
             ProjectFileRepository(project_database),
             rag_system,
         )
+        if project_service is not None:
+            file_tools = SafeFileTools(project_service)
 
     chat_manager = ChatManager(
         storage_dir=str(paths.sessions_dir),
@@ -110,6 +115,7 @@ def build_runtime_services(paths: AppPaths) -> RuntimeServices:
         project_service=project_service,
         rag_system=rag_system,
         context_engine=context_engine,
+        file_tools=file_tools,
         chat_manager=chat_manager,
         llm_config=llm_config,
         llm_client=llm_client,

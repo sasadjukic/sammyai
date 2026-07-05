@@ -89,6 +89,26 @@ def test_project_sync_uses_hashes_and_removes_deleted_files(tmp_path):
         database.close()
 
 
+def test_project_index_can_be_forced_and_invalidated(tmp_path):
+    database, project, repository, rag, engine = make_engine(tmp_path)
+    chapter = project.root_path / "chapter.md"
+    chapter.write_text("Stable draft", encoding="utf-8")
+
+    try:
+        engine.sync_active_project()
+        forced = engine.sync_project(project, force_reindex=True)
+        engine.invalidate_index_state()
+        pending = repository.list_for_project(project.id)
+        restored = engine.sync_active_project()
+
+        assert forced.updated == 1
+        assert pending[0].sync_status == "pending"
+        assert restored.updated == 1
+        assert len(rag.indexed) == 3
+    finally:
+        database.close()
+
+
 def test_file_references_are_resolved_and_rag_is_project_scoped(tmp_path):
     database, project, _repository, rag, engine = make_engine(tmp_path)
     chapter = project.root_path / "chapters" / "chapter one.md"
