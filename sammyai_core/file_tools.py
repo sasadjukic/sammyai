@@ -184,6 +184,14 @@ class SafeFileTools:
     def can_redo(self) -> bool:
         return bool(self._redo_stack)
 
+    @property
+    def next_undo_change_set(self) -> ChangeSet | None:
+        return self._undo_stack[-1].change_set if self._undo_stack else None
+
+    @property
+    def next_redo_change_set(self) -> ChangeSet | None:
+        return self._redo_stack[-1].change_set if self._redo_stack else None
+
     def undo_last(self) -> AppliedChangeSet:
         if not self._undo_stack:
             raise FileToolError("There is no applied change set to undo")

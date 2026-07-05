@@ -122,6 +122,9 @@ def test_file_references_are_resolved_and_rag_is_project_scoped(tmp_path):
         )
 
         assert result.referenced_files == ("chapters/chapter one.md",)
+        assert result.complete_referenced_files == (
+            "chapters/chapter one.md",
+        )
         assert "lighthouse lens" in result.system_messages[0]
         assert "ending should remain unresolved" in result.system_messages[1]
         assert rag.context_calls[-1][1]["project_id"] == project.id
@@ -164,5 +167,6 @@ def test_explicit_file_content_is_truncated_to_context_budget(tmp_path):
         assert result.truncated is True
         assert result.total_tokens <= 60
         assert "Context truncated" in result.system_messages[0]
+        assert result.complete_referenced_files == ()
     finally:
         database.close()

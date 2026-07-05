@@ -49,6 +49,9 @@ def test_editor_accepts_injected_runtime_services(tmp_path):
         "Compare with Clipboard",
         "",
         "Apply Diff from File...",
+        "",
+        "Undo Last Applied Change Set",
+        "Redo Last Applied Change Set",
     ]
     assert [action.text() for action in editor.advanced_menu.actions()] == [
         "Project Context",
@@ -66,6 +69,10 @@ def test_editor_accepts_injected_runtime_services(tmp_path):
     ]
     assert not hasattr(editor.chat_panel, "rag_button")
     assert not hasattr(editor.chat_panel, "dbe_button")
+    assert [
+        editor.chat_panel.agent_combo.itemText(index)
+        for index in range(editor.chat_panel.agent_combo.count())
+    ] == ["Assistant", "Brainstormer", "Writer", "Editor", "Critic"]
 
     editor.close()
     app.processEvents()

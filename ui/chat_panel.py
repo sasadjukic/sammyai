@@ -21,6 +21,7 @@ class ChatPanel(QWidget):
     # Signals
     message_sent = Signal(str)
     model_selected = Signal(str)
+    agent_selected = Signal(str)
     clear_chat_requested = Signal()
     close_requested = Signal()
     
@@ -149,11 +150,27 @@ class ChatPanel(QWidget):
         )
         # Compatibility alias while the legacy CIN implementation is retired.
         self.cin_button = self.attach_button
+
+        self.agent_combo = QComboBox()
+        self.agent_combo.setObjectName("agentSelector")
+        self.agent_combo.setToolTip("Choose the workflow for the next message")
+        try:
+            from sammyai_core.agent_workflows import AgentType
+
+            for agent_type in AgentType:
+                self.agent_combo.addItem(
+                    agent_type.display_name,
+                    agent_type.value,
+                )
+        except ImportError:
+            self.agent_combo.addItem("Assistant", "general")
+        self.agent_combo.currentIndexChanged.connect(self._on_agent_changed)
         
         history_controls_layout.addStretch()
         history_controls_layout.addWidget(self.clear_button)
         history_controls_layout.addWidget(self.copy_button)
         history_controls_layout.addWidget(self.attach_button)
+        history_controls_layout.addWidget(self.agent_combo)
         history_controls_layout.addStretch()
         layout.addLayout(history_controls_layout)
         
@@ -280,6 +297,12 @@ class ChatPanel(QWidget):
         """Handle model selection changes from the combo box."""
         self.model_selected.emit(model_key)
         self.set_status(f"Selected model: {model_key}")
+
+    def _on_agent_changed(self, index: int):
+        """Handle agent workflow selection."""
+        agent_type = self.agent_combo.itemData(index)
+        if agent_type:
+            self.agent_selected.emit(str(agent_type))
     
     def _on_clear_clicked(self):
         """Handle clear button click."""
