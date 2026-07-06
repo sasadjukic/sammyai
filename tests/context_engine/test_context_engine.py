@@ -32,6 +32,17 @@ class FakeRAG:
         )
 
 
+class FakeMemory:
+    def build_context(self, query, max_tokens):
+        assert query == "What does Mara fear?"
+        assert max_tokens <= 800
+        return SimpleNamespace(
+            text="[Character] Mara: Mara fears open water.",
+            memory_ids=("memory-1",),
+            summary_ids=("summary-1",),
+        )
+
+
 def make_engine(tmp_path, *, max_context_tokens=4_000):
     paths = AppPaths(
         config_dir=tmp_path / "config",
@@ -168,5 +179,21 @@ def test_explicit_file_content_is_truncated_to_context_budget(tmp_path):
         assert result.total_tokens <= 60
         assert "Context truncated" in result.system_messages[0]
         assert result.complete_referenced_files == ()
+    finally:
+        database.close()
+
+
+def test_persistent_memory_is_injected_before_semantic_rag(tmp_path):
+    database, _project, repository, rag, engine = make_engine(tmp_path)
+    engine.memory_service = FakeMemory()
+
+    try:
+        result = engine.build_context("What does Mara fear?")
+
+        assert "persistent project memory" in result.system_messages[0]
+        assert "Mara fears open water" in result.system_messages[0]
+        assert "retrieved from project files" in result.system_messages[1]
+        assert result.memory_ids == ("memory-1",)
+        assert result.summary_ids == ("summary-1",)
     finally:
         database.close()

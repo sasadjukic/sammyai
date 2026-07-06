@@ -29,6 +29,9 @@ def test_blank_database_migrates_to_latest_schema(tmp_path):
             "project_settings",
             "application_state",
             "project_files",
+            "memories",
+            "memory_provenance",
+            "conversation_summaries",
         }.issubset(tables)
 
         versions = [
