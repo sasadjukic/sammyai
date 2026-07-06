@@ -54,12 +54,21 @@ def test_editor_accepts_injected_runtime_services(tmp_path):
         "Redo Last Applied Change Set",
     ]
     assert [action.text() for action in editor.advanced_menu.actions()] == [
+        "Persistent Memory",
         "Project Context",
         "Legacy Manual Indexing",
         "",
         "Enable Legacy DBE Mode",
     ]
+    assert [
+        action.text() for action in editor.persistent_memory_menu.actions()
+    ] == [
+        "Manage Project Memory...",
+        "Summarize Current Chat...",
+    ]
     assert not editor.rebuild_project_context_action.isEnabled()
+    assert not editor.manage_memory_action.isEnabled()
+    assert not editor.summarize_chat_action.isEnabled()
 
     editor._create_chat_panel()
     assert editor.chat_panel.attach_button.text() == "Attach Reference"

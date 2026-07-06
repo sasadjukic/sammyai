@@ -15,6 +15,11 @@ from .context_engine import ProjectContextEngine, ProjectFileRepository
 from .database import ProjectDatabase
 from .agent_workflows import AgentWorkflowService
 from .file_tools import SafeFileTools
+from .memory import (
+    ConversationSummarizer,
+    MemoryRepository,
+    ProjectMemoryService,
+)
 from .paths import AppPaths
 from .projects import ProjectRepository, ProjectService
 
@@ -30,6 +35,8 @@ class RuntimeServices:
     context_engine: ProjectContextEngine | None
     file_tools: SafeFileTools | None
     agent_workflows: AgentWorkflowService
+    memory_service: ProjectMemoryService | None
+    conversation_summarizer: ConversationSummarizer
     chat_manager: ChatManager
     llm_config: LLMConfig
     llm_client: Any | None
@@ -80,15 +87,23 @@ def build_runtime_services(paths: AppPaths) -> RuntimeServices:
 
     context_engine: ProjectContextEngine | None = None
     file_tools: SafeFileTools | None = None
+    memory_service: ProjectMemoryService | None = None
     if project_database is not None:
+        if project_service is not None:
+            memory_service = ProjectMemoryService(
+                MemoryRepository(project_database),
+                project_service,
+            )
         context_engine = ProjectContextEngine(
             project_service,
             ProjectFileRepository(project_database),
             rag_system,
+            memory_service=memory_service,
         )
         if project_service is not None:
             file_tools = SafeFileTools(project_service)
     agent_workflows = AgentWorkflowService(file_tools)
+    conversation_summarizer = ConversationSummarizer()
 
     chat_manager = ChatManager(
         storage_dir=str(paths.sessions_dir),
@@ -120,6 +135,8 @@ def build_runtime_services(paths: AppPaths) -> RuntimeServices:
         context_engine=context_engine,
         file_tools=file_tools,
         agent_workflows=agent_workflows,
+        memory_service=memory_service,
+        conversation_summarizer=conversation_summarizer,
         chat_manager=chat_manager,
         llm_config=llm_config,
         llm_client=llm_client,

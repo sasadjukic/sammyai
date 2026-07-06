@@ -32,6 +32,10 @@ from ui.llm_settings import LLMSettingsDialog
 
 # RAG management UI
 from ui.rag_management import RAGFileManagementDialog
+from ui.memory_management import (
+    MemoryManagementDialog,
+    SummaryReviewDialog,
+)
 from ui.project_explorer import ProjectExplorer
 from sammyai_core.bootstrap import RuntimeServices, build_runtime_services
 from sammyai_core.documents import DocumentService
@@ -46,6 +50,11 @@ from sammyai_core.agent_workflows import (
     AgentWorkflowService,
 )
 from sammyai_core.file_tools import FileToolError
+from sammyai_core.memory import (
+    ConversationSummarizer,
+    ConversationSummaryDraft,
+    MemoryError,
+)
 
 
 logger = logging.getLogger("sammyai")
@@ -199,6 +208,8 @@ class TextEditor(QMainWindow):
     context_sync_finished = Signal(str, object, bool)
     agent_run_completed = Signal(object)
     agent_progress = Signal(str)
+    memory_summary_ready = Signal(object)
+    memory_summary_failed = Signal(str)
     
     def __init__(
         self,
@@ -272,6 +283,16 @@ class TextEditor(QMainWindow):
             None,
         )
         self.file_tools = getattr(self.runtime_services, "file_tools", None)
+        self.memory_service = getattr(
+            self.runtime_services,
+            "memory_service",
+            None,
+        )
+        self.conversation_summarizer = getattr(
+            self.runtime_services,
+            "conversation_summarizer",
+            None,
+        ) or ConversationSummarizer()
         self.agent_workflows = getattr(
             self.runtime_services,
             "agent_workflows",
@@ -293,6 +314,8 @@ class TextEditor(QMainWindow):
         self.index_action.setEnabled(self.rag_system is not None)
         self.upload_rag_action.setEnabled(self.rag_system is not None)
         self.manage_rag_action.setEnabled(self.rag_system is not None)
+        self.manage_memory_action.setEnabled(False)
+        self.summarize_chat_action.setEnabled(False)
         if self.runtime_services.project_error:
             self.statusBar().showMessage(
                 f"Project system not initialized: "
@@ -316,6 +339,8 @@ class TextEditor(QMainWindow):
         self.context_sync_finished.connect(self._on_context_sync_finished)
         self.agent_run_completed.connect(self._handle_agent_run_result)
         self.agent_progress.connect(self._handle_agent_progress)
+        self.memory_summary_ready.connect(self._review_memory_summary)
+        self.memory_summary_failed.connect(self._handle_memory_summary_error)
 
         # Chat panel (created lazily when the chat button is pressed)
         self.chat_dock: QDockWidget | None = None
@@ -532,6 +557,10 @@ class TextEditor(QMainWindow):
         self.rebuild_project_context_action.setEnabled(
             self.context_engine is not None and self.rag_system is not None
         )
+        self.manage_memory_action.setEnabled(self.memory_service is not None)
+        self.summarize_chat_action.setEnabled(
+            self.memory_service is not None and self.llm_client is not None
+        )
         self.update_window_title()
         self.statusBar().showMessage(
             f"Opened project: {project.name}",
@@ -613,6 +642,8 @@ class TextEditor(QMainWindow):
             self.project_dock.hide()
         self.close_project_action.setEnabled(False)
         self.rebuild_project_context_action.setEnabled(False)
+        self.manage_memory_action.setEnabled(False)
+        self.summarize_chat_action.setEnabled(False)
         self.update_window_title()
         self.statusBar().showMessage("Project closed", self.STATUS_NORMAL)
 
@@ -817,6 +848,25 @@ class TextEditor(QMainWindow):
         
         self.rag_stats_action = QAction("Context Index Statistics...", self)
         self.rag_stats_action.triggered.connect(self._show_rag_stats)
+
+        self.manage_memory_action = QAction("Manage Project Memory...", self)
+        self.manage_memory_action.triggered.connect(
+            self._manage_project_memory
+        )
+        self.manage_memory_action.setStatusTip(
+            "Review structured memories, provenance, and summaries"
+        )
+
+        self.summarize_chat_action = QAction(
+            "Summarize Current Chat...",
+            self,
+        )
+        self.summarize_chat_action.triggered.connect(
+            self._summarize_current_chat
+        )
+        self.summarize_chat_action.setStatusTip(
+            "Create a reviewable persistent-memory draft from this chat"
+        )
 
         # Temporary references remain explicit but use user-facing terminology.
         self.upload_cin_action = QAction("Attach Reference...", self)
@@ -1038,6 +1088,12 @@ class TextEditor(QMainWindow):
         view_menu.addAction(self.toggle_project_explorer_action)
 
         self.advanced_menu = menubar.addMenu("Advanced")
+        self.persistent_memory_menu = self.advanced_menu.addMenu(
+            "Persistent Memory"
+        )
+        self.persistent_memory_menu.addAction(self.manage_memory_action)
+        self.persistent_memory_menu.addAction(self.summarize_chat_action)
+
         self.project_context_menu = self.advanced_menu.addMenu(
             "Project Context"
         )
@@ -1820,6 +1876,11 @@ class TextEditor(QMainWindow):
             self.llm_config.model_key = model_key
             new_client = self.llm_config.create_client()
             self.llm_client = new_client
+            self.summarize_chat_action.setEnabled(
+                self.memory_service is not None
+                and self.project_service is not None
+                and self.project_service.active_project is not None
+            )
             self._chat_panel_safe("set_status", f"Using model: {model_key}")
             # Also show a short statusbar message
             self.statusBar().showMessage(f"Using model: {model_key}", self.STATUS_NORMAL)
@@ -2368,6 +2429,157 @@ class TextEditor(QMainWindow):
             
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to get RAG stats: {e}")
+
+    def _manage_project_memory(self) -> None:
+        if self.memory_service is None:
+            QMessageBox.warning(
+                self,
+                "Project Memory Unavailable",
+                "Persistent memory is not initialized.",
+            )
+            return
+        try:
+            dialog = MemoryManagementDialog(self.memory_service, self)
+        except MemoryError as error:
+            QMessageBox.warning(self, "Project Memory", str(error))
+            return
+        dialog.exec()
+
+    def _summarize_current_chat(self) -> None:
+        project = (
+            self.project_service.active_project
+            if self.project_service is not None
+            else None
+        )
+        session = self.chat_manager.get_active_session()
+        if (
+            project is None
+            or self.memory_service is None
+            or session is None
+        ):
+            QMessageBox.information(
+                self,
+                "Cannot Summarize Chat",
+                "Open a project and start a chat before creating persistent "
+                "memory.",
+            )
+            return
+        if self.llm_client is None:
+            QMessageBox.warning(
+                self,
+                "LLM Unavailable",
+                "Configure an LLM before summarizing the conversation.",
+            )
+            return
+        conversation = [
+            message.to_llm_format()
+            for message in session.messages
+            if message.role in {MessageRole.USER, MessageRole.ASSISTANT}
+        ]
+        if not conversation:
+            QMessageBox.information(
+                self,
+                "Empty Chat",
+                "The current chat has no messages to summarize.",
+            )
+            return
+
+        client = self.llm_client
+        self.summarize_chat_action.setEnabled(False)
+        self._chat_panel_safe(
+            "set_status",
+            "Preparing a conversation-memory draft...",
+        )
+
+        def worker() -> None:
+            try:
+                def complete(messages, system_prompt):
+                    with self._llm_lock:
+                        original_prompt = client.system_prompt
+                        try:
+                            client.system_prompt = system_prompt
+                            return client.chat(messages)
+                        finally:
+                            client.system_prompt = original_prompt
+
+                draft = self.conversation_summarizer.generate(
+                    project_id=project.id,
+                    session_id=session.session_id,
+                    messages=conversation,
+                    complete=complete,
+                )
+                self.memory_summary_ready.emit(draft)
+            except Exception as error:
+                self.memory_summary_failed.emit(str(error))
+
+        self.task_runner.submit(worker, name="summarize-memory")
+
+    @Slot(object)
+    def _review_memory_summary(
+        self,
+        draft: ConversationSummaryDraft,
+    ) -> None:
+        self.summarize_chat_action.setEnabled(True)
+        if self.memory_service is None:
+            return
+        project = self.memory_service.active_project
+        if project is None or project.id != draft.project_id:
+            QMessageBox.warning(
+                self,
+                "Project Changed",
+                "The active project changed while the summary was generated. "
+                "Nothing was saved.",
+            )
+            return
+        dialog = SummaryReviewDialog(draft, self)
+        if dialog.exec() != QDialog.Accepted:
+            self._chat_panel_safe(
+                "set_status",
+                "Conversation-memory draft discarded",
+            )
+            return
+        try:
+            summary, memories = self.memory_service.save_summary_draft(
+                dialog.reviewed_draft(),
+                dialog.selected_memory_indices(),
+            )
+        except MemoryError as error:
+            QMessageBox.warning(
+                self,
+                "Unable to Save Memory",
+                str(error),
+            )
+            return
+        self._chat_panel_safe(
+            "add_system_message",
+            f"Saved conversation summary '{summary.title}' and "
+            f"{len(memories)} structured memory item(s).",
+        )
+        self.statusBar().showMessage(
+            "Persistent project memory updated",
+            self.STATUS_NORMAL,
+        )
+
+    @Slot(str)
+    def _handle_memory_summary_error(self, error: str) -> None:
+        project = (
+            self.project_service.active_project
+            if self.project_service is not None
+            else None
+        )
+        self.summarize_chat_action.setEnabled(
+            project is not None
+            and self.memory_service is not None
+            and self.llm_client is not None
+        )
+        self._chat_panel_safe(
+            "add_system_message",
+            f"Unable to summarize this conversation: {error}",
+        )
+        self.statusBar().showMessage(
+            "Conversation summary failed",
+            self.STATUS_ERROR,
+        )
 
     # --- Temporary external references (legacy CIN implementation) ---
     def _upload_cin_file(self):

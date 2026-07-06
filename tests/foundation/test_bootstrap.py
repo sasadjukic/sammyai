@@ -42,6 +42,9 @@ def test_runtime_services_are_built_from_application_paths(tmp_path):
     assert services.chat_manager.context_engine is services.context_engine
     assert services.file_tools.project_service is services.project_service
     assert services.agent_workflows.file_tools is services.file_tools
+    assert services.memory_service.project_service is services.project_service
+    assert services.context_engine.memory_service is services.memory_service
+    assert services.conversation_summarizer is not None
     assert services.chat_manager.autosave is True
     assert services.chat_manager.get_active_session() is not None
 

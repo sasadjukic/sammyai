@@ -104,6 +104,8 @@ class ContextResult:
     sync_report: SyncReport
     referenced_files: tuple[str, ...]
     complete_referenced_files: tuple[str, ...]
+    memory_ids: tuple[str, ...] = ()
+    summary_ids: tuple[str, ...] = ()
 
 
 class ProjectFileRepository:
@@ -228,12 +230,14 @@ class ProjectContextEngine:
         file_repository: ProjectFileRepository,
         rag_system: Any | None,
         *,
+        memory_service: Any | None = None,
         document_service: DocumentService | None = None,
         max_context_tokens: int = 4_000,
     ):
         self.project_service = project_service
         self.file_repository = file_repository
         self.rag_system = rag_system
+        self.memory_service = memory_service
         self.document_service = document_service or DocumentService()
         self.max_context_tokens = max_context_tokens
         self._sync_lock = RLock()
@@ -481,6 +485,8 @@ class ProjectContextEngine:
         messages: list[str] = []
         referenced_files: list[str] = []
         complete_referenced_files: list[str] = []
+        memory_ids: tuple[str, ...] = ()
+        summary_ids: tuple[str, ...] = ()
 
         for reference in references:
             if reference.path is None or reference.relative_path is None:
@@ -520,6 +526,24 @@ class ProjectContextEngine:
             if fitted is not None:
                 messages.append(fitted)
 
+        if self.memory_service is not None and project is not None:
+            remaining_tokens = budget.max_tokens - budget.used_tokens
+            memory_budget = min(800, max(0, remaining_tokens - 16))
+            if memory_budget > 0:
+                memory_context = self.memory_service.build_context(
+                    query,
+                    max_tokens=memory_budget,
+                )
+                if memory_context.text:
+                    fitted = budget.add(
+                        "Approved persistent project memory:\n\n"
+                        f"{memory_context.text}"
+                    )
+                    if fitted is not None:
+                        messages.append(fitted)
+                        memory_ids = memory_context.memory_ids
+                        summary_ids = memory_context.summary_ids
+
         if self.rag_system is not None and query:
             try:
                 kwargs: dict[str, Any] = {
@@ -548,6 +572,8 @@ class ProjectContextEngine:
             sync_report=sync_report,
             referenced_files=tuple(referenced_files),
             complete_referenced_files=tuple(complete_referenced_files),
+            memory_ids=memory_ids,
+            summary_ids=summary_ids,
         )
 
     def _scan_project(

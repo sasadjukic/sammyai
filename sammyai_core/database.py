@@ -99,6 +99,72 @@ MIGRATIONS = (
             """,
         ),
     ),
+    Migration(
+        version=4,
+        name="create_persistent_memory",
+        statements=(
+            """
+            CREATE TABLE memories (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                title TEXT NOT NULL CHECK (length(trim(title)) > 0),
+                content TEXT NOT NULL CHECK (length(trim(content)) > 0),
+                content_hash TEXT NOT NULL,
+                status TEXT NOT NULL,
+                confidence REAL NOT NULL DEFAULT 1.0
+                    CHECK (confidence >= 0.0 AND confidence <= 1.0),
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                last_used_at TEXT,
+                FOREIGN KEY (project_id) REFERENCES projects(id)
+                    ON DELETE CASCADE,
+                UNIQUE (project_id, kind, content_hash)
+            )
+            """,
+            """
+            CREATE TABLE memory_provenance (
+                id TEXT PRIMARY KEY,
+                memory_id TEXT NOT NULL,
+                source_type TEXT NOT NULL,
+                source_ref TEXT,
+                source_label TEXT NOT NULL,
+                excerpt TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (memory_id) REFERENCES memories(id)
+                    ON DELETE CASCADE
+            )
+            """,
+            """
+            CREATE TABLE conversation_summaries (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL,
+                session_id TEXT NOT NULL,
+                title TEXT NOT NULL CHECK (length(trim(title)) > 0),
+                content TEXT NOT NULL CHECK (length(trim(content)) > 0),
+                content_hash TEXT NOT NULL,
+                message_count INTEGER NOT NULL CHECK (message_count >= 0),
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (project_id) REFERENCES projects(id)
+                    ON DELETE CASCADE,
+                UNIQUE (project_id, session_id, message_count)
+            )
+            """,
+            """
+            CREATE INDEX memories_project_status_idx
+            ON memories(project_id, status, kind, updated_at DESC)
+            """,
+            """
+            CREATE INDEX memory_provenance_memory_idx
+            ON memory_provenance(memory_id, created_at)
+            """,
+            """
+            CREATE INDEX conversation_summaries_project_idx
+            ON conversation_summaries(project_id, updated_at DESC)
+            """,
+        ),
+    ),
 )
 
 LATEST_SCHEMA_VERSION = MIGRATIONS[-1].version
