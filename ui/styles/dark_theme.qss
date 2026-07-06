@@ -156,98 +156,222 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 /* Chat Panel Styling */
 #chatPanel {
     background-color: transparent;
-    color: #dddddd;
+    color: #eeeeee;
 }
 
 #chatContainer {
-    background-color: #2d2d2d;
+    background-color: #2b2b2b;
 }
 
-#chatContainer #chatHeaderText {
+#chatHeader {
+    background-color: transparent;
+}
+
+#chatHeaderText {
     font-size: 13.5pt;
     font-weight: bold;
     color: #81c1d9;
 }
 
-#chatContainer #chatStatus {
-    color: #888888;
-    font-style: italic;
+#chatStatus {
+    color: #b8c1c0;
     font-size: 8.25pt;
+    padding: 0 4px;
+}
+
+#chatConversationArea,
+#chatEmptyState,
+#chatComposerHost {
+    background-color: transparent;
+    border: none;
 }
 
 #chatDisplay,
-#chatInput {
-    background-color: #2e2e2e;
-    color: #dddddd;
-    border: 2px solid #e9a5a5;
-    border-radius: 10px;
-    padding: 5px;
+#chatTranscriptContent,
+#chatDisplay > QWidget > QWidget {
+    background-color: #2b2b2b;
+    border: none;
 }
 
-/* Specific padding for the input field to avoid text overlapping the send button */
-#chatInput {
-    background-color: #2d2d2d;
-    padding-right: 40px;
+#chatEmptyTitle {
+    color: #eeeeee;
+    font-size: 16pt;
+    font-weight: bold;
 }
 
-#chatContainer QPushButton {
+#chatEmptyHint {
+    color: #b8c1c0;
+    font-size: 9.5pt;
+}
+
+#chatComposer {
+    background-color: #333333;
+    border: 1px solid #454545;
+    border-radius: 14px;
+}
+
+#chatComposer:focus-within {
+    border-color: #81c1d9;
+}
+
+#chatInput {
     background-color: transparent;
-    color: #dddddd;
-    border: 1px solid #444444;
-    border-radius: 10px;
-    padding: 6px 12px;
-    font-size: 8.25pt; /* Slightly smaller for multi-button row */
+    color: #eeeeee;
+    border: none;
+    padding: 3px 2px;
+    selection-background-color: #527b8a;
 }
 
-/* Specific styling for dropdown buttons in chat panel */
-#chatContainer QPushButton::menu-indicator {
-    subcontrol-origin: padding;
-    subcontrol-position: center right;
-    right: 4px;
+#newChatButton {
+    background-color: transparent;
+    color: #b8c1c0;
+    border: none;
+    border-radius: 7px;
+    padding: 6px 9px;
+    font-size: 9pt;
 }
 
-#chatContainer QPushButton:hover {
+#newChatButton:hover {
     background-color: #3a3a3a;
-    border-color: #666666;
+    color: #eeeeee;
+}
+
+#newChatButton:disabled {
+    color: #666666;
+}
+
+#chatCloseButton {
+    background-color: transparent;
+    color: #b8c1c0;
+    border: none;
+    border-radius: 7px;
+    padding: 0;
+    font-size: 15pt;
+}
+
+#chatCloseButton:hover {
+    background-color: #3a3a3a;
+    color: #eeeeee;
+}
+
+#attachButton {
+    background-color: transparent;
+    color: #81c1d9;
+    border: none;
+    border-radius: 7px;
+    padding: 0;
+    font-size: 16pt;
+    font-weight: bold;
+}
+
+#attachButton:hover,
+#sendButton:hover {
+    background-color: #3f3f3f;
+}
+
+#attachButton::menu-indicator {
+    subcontrol-origin: padding;
+    subcontrol-position: bottom right;
+    width: 7px;
+    height: 7px;
 }
 
 #sendButton {
     background-color: transparent;
     border: none;
+    border-radius: 7px;
     padding: 0px;
     margin: 0px;
 }
 
-#sendButton:hover {
-    background-color: #3e3e3e;
-    border-radius: 5px;
+#agentSelector,
+#modelSelector {
+    background-color: transparent;
+    color: #b8c1c0;
+    border: none;
+    border-radius: 7px;
+    padding: 5px 23px 5px 8px;
+    min-height: 20px;
 }
 
-#chatContainer QComboBox {
-    background-color: #3d3d3d;
-    color: #81c1d9;
-    border: 1px solid #444444;
-    border-radius: 10px;
-    padding: 8px;
+#agentSelector:hover,
+#modelSelector:hover,
+#agentSelector:on,
+#modelSelector:on {
+    background-color: #3f3f3f;
+    color: #eeeeee;
 }
 
-#chatContainer QComboBox:hover {
-    background-color: #444444;
+#agentSelector::drop-down,
+#modelSelector::drop-down {
+    border: none;
+    width: 20px;
 }
 
-#chatContainer QComboBox:on {
-    background-color: #444444;
-}
-
-#chatContainer QComboBox QAbstractItemView {
+#agentSelector QAbstractItemView,
+#modelSelector QAbstractItemView {
     background-color: #2d2d2d;
     color: #eeeeee;
     selection-background-color: #444444;
     border: 1px solid #444444;
 }
 
-#chatContainer QLabel {
-    color: #dddddd;
+#chatMessage {
+    background-color: #303030;
+    border: none;
+    border-radius: 10px;
+}
+
+#chatMessage[role="user"] {
+    background-color: #353232;
+}
+
+#chatMessage[role="assistant"] {
+    background-color: #303334;
+}
+
+#chatMessage[role="system"],
+#chatMessage[role="thinking"] {
+    background-color: transparent;
+}
+
+#messageRole {
+    color: #b8c1c0;
+    font-size: 8.5pt;
+    font-weight: bold;
+}
+
+#messageRole[role="user"] {
+    color: #e9a5a5;
+}
+
+#messageRole[role="assistant"] {
+    color: #81c1d9;
+}
+
+#messageRole[role="thinking"] {
+    color: #aea2db;
+}
+
+#messageText {
+    color: #eeeeee;
+    font-size: 10pt;
+}
+
+#chatMessage[role="system"] #messageText,
+#chatMessage[role="thinking"] #messageText {
+    color: #b8c1c0;
+}
+
+#messageCopyButton {
+    background-color: transparent;
+    border: none;
+    border-radius: 6px;
+    padding: 0;
+}
+
+#messageCopyButton:hover {
+    background-color: #454545;
 }
 
 #chatContainer QScrollArea {

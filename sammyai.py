@@ -1356,20 +1356,29 @@ class TextEditor(QMainWindow):
         """Create the chat panel and dock widget and wire up messaging."""
         try:
             self.chat_panel = ChatPanel(self)
-            self.chat_panel.close_button.clicked.connect(lambda: self.chat_dock.hide() if self.chat_dock else None)
+            self.chat_panel.close_requested.connect(
+                lambda: self.chat_dock.hide() if self.chat_dock else None
+            )
             # When a message is sent from the UI, handle it
             self.chat_panel.message_sent.connect(self._on_chat_message_sent)
             # When the model selection changes in the UI, attempt to switch clients
             self.chat_panel.model_selected.connect(self._on_model_selected)
             self.chat_panel.agent_selected.connect(self._on_agent_selected)
-            # When clear chat is requested, clear the session
-            self.chat_panel.clear_chat_requested.connect(self._on_clear_chat_requested)
+            self.chat_panel.new_chat_requested.connect(
+                self._on_new_chat_requested
+            )
 
             # The primary chat only exposes temporary reference attachment.
             self._setup_chat_panel_menus()
 
             self.chat_dock = QDockWidget(self)
             self.chat_dock.setAllowedAreas(Qt.RightDockWidgetArea | Qt.LeftDockWidgetArea)
+            # The chat panel supplies its own cross-platform header and collapse
+            # control. An empty title bar removes Qt's duplicate native controls.
+            chat_dock_title_bar = QWidget(self.chat_dock)
+            chat_dock_title_bar.setObjectName("chatDockTitleBar")
+            chat_dock_title_bar.setFixedHeight(0)
+            self.chat_dock.setTitleBarWidget(chat_dock_title_bar)
             self.chat_dock.setWidget(self.chat_panel)
             self.addDockWidget(Qt.RightDockWidgetArea, self.chat_dock)
             # Set the combo to the currently configured model
@@ -1433,16 +1442,22 @@ class TextEditor(QMainWindow):
             # Agent workflows own normal chat behavior.
             self._handle_normal_chat(message)
 
-    def _on_clear_chat_requested(self):
-        """Handle clear chat request: clear session history."""
+    def _on_new_chat_requested(self):
+        """Create a fresh active session while preserving prior conversations."""
         try:
             if self.chat_manager:
-                self.chat_manager.clear_session()
-                # Optionally verify/log
+                session = self.chat_manager.create_session(
+                    metadata={"agent_type": self.active_agent_type.value}
+                )
+                self.chat_manager.set_active_session(session.session_id)
                 if self.chat_panel:
-                    self.chat_panel.set_status("Chat session reset (context cleared)")
-        except Exception as e:
-            logger.exception("Error clearing chat session")
+                    self.chat_panel.set_status("New chat ready")
+        except Exception:
+            logger.exception("Error creating a new chat session")
+            self._chat_panel_safe(
+                "add_system_message",
+                "SammyAI could not create a new chat session.",
+            )
     
     def _handle_normal_chat(self, message: str):
         """Run the selected agent workflow outside the UI thread."""
@@ -1790,10 +1805,6 @@ class TextEditor(QMainWindow):
             "agent_type",
             self.active_agent_type.value,
         )
-        self._chat_panel_safe(
-            "set_status",
-            f"Using agent: {self.active_agent_type.display_name}",
-        )
 
     def _current_document_conflicts_with(self, change_set) -> bool:
         if not self.current_file or not self.editor.document().isModified():
@@ -1881,7 +1892,6 @@ class TextEditor(QMainWindow):
                 and self.project_service is not None
                 and self.project_service.active_project is not None
             )
-            self._chat_panel_safe("set_status", f"Using model: {model_key}")
             # Also show a short statusbar message
             self.statusBar().showMessage(f"Using model: {model_key}", self.STATUS_NORMAL)
         except Exception as e:

@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 from PySide6.QtWidgets import QApplication
 
-from llm.chat_manager import ChatManager
+from llm.chat_manager import ChatManager, MessageRole
 from sammyai import TextEditor
 from sammyai_core.paths import AppPaths
 
@@ -71,7 +71,8 @@ def test_editor_accepts_injected_runtime_services(tmp_path):
     assert not editor.summarize_chat_action.isEnabled()
 
     editor._create_chat_panel()
-    assert editor.chat_panel.attach_button.text() == "Attach Reference"
+    assert editor.chat_panel.attach_button.text() == "+"
+    assert editor.chat_panel.attach_button.accessibleName() == "Attach reference"
     assert [action.text() for action in editor.chat_panel.attach_button.menu().actions()] == [
         "Attach Reference...",
         "Remove Attached Reference",
@@ -82,6 +83,28 @@ def test_editor_accepts_injected_runtime_services(tmp_path):
         editor.chat_panel.agent_combo.itemText(index)
         for index in range(editor.chat_panel.agent_combo.count())
     ] == ["Assistant", "Brainstormer", "Writer", "Editor", "Critic"]
+    assert editor.chat_panel.new_chat_button.text() == "+  New Chat"
+    assert not hasattr(editor.chat_panel, "copy_button")
+    assert editor.chat_dock.titleBarWidget().height() == 0
+
+    editor.chat_panel.set_status("")
+    writer_index = editor.chat_panel.agent_combo.findData("writer")
+    editor.chat_panel.agent_combo.setCurrentIndex(writer_index)
+    assert editor.chat_panel.status_label.text() == ""
+
+    editor.llm_config = SimpleNamespace(
+        model_key="test-model",
+        create_client=lambda: object(),
+    )
+    editor._on_model_selected("replacement-model")
+    assert editor.chat_panel.status_label.text() == ""
+
+    previous_session = editor.chat_manager.get_active_session()
+    editor.chat_manager.add_message(MessageRole.USER, "Preserve this conversation")
+    editor.chat_panel.new_chat_button.click()
+    active_session = editor.chat_manager.get_active_session()
+    assert active_session.session_id != previous_session.session_id
+    assert previous_session.messages[0].content == "Preserve this conversation"
 
     editor.close()
     app.processEvents()
