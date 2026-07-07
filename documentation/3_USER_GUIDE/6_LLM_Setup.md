@@ -1,47 +1,43 @@
-# ⚙️ LLM Setup & Configuration
+# LLM Setup and Configuration
 
-In Alpha 0.3.1, SammyAI has transitioned from a fixed model list to a **Dynamic LLM Setup**. This allows you to build a custom library of AI models tailored to your specific writing needs.
-
-![LLM Setup Panel](pictures/sammyai_llm_setup_panel.png)
+The LLM Setup panel lets you configure the models that appear in SammyAI chat. You can mix local Ollama models with supported cloud provider models.
 
 ---
 
 ## 1. Dynamic Model Management
 
-The new **LLM Setup Panel** (formerly API Key Configuration) gives you full control over which models are available in your chat interface.
+The LLM Setup panel gives you control over which models are available.
 
-*   **15 Total Slots**: You can configure and save up to 15 different models simultaneously.
-*   **Provider Diversity**:
-    *   **Local (Ollama)**: Connect up to 3 local models running on your own hardware.
-    *   **Cloud Providers**: Add up to 3 models each for **Google**, **OpenAI**, **Anthropic**, and **Ollama (Cloud)**.
-*   **On-the-Fly Updates**: You can add, edit, or delete models at any time without restarting the application.
+* **Model slots:** Configure up to 15 model entries.
+* **Local models:** Add Ollama models running on your machine.
+* **Cloud providers:** Add supported cloud provider models with your own API keys.
+* **On-the-fly updates:** Add, edit, or delete entries without changing application code.
 
-## 2. Setting Up Your Models
+## 2. Add a Model
 
-To access the configuration, click the **LLM Setup** icon in the vertical sidebar.
+1. Open the **LLM Setup** panel from the sidebar.
+2. Select the provider.
+3. Enter the exact model name or provider model ID.
+4. Enter an API key if the provider requires one.
+5. Save the entry.
 
-### Adding a Model
-1.  **Select Provider**: Choose between Local (Ollama) or one of the Cloud providers.
-2.  **Enter Model Name**: For local models, use the exact name from your Ollama library (e.g., `llama3`). For cloud models, use the provider's model ID (e.g., `gpt-4o`).
-3.  **Provide API Key**: If using a cloud provider, enter your valid API key. Characters are masked for security.
-4.  **Save**: Click **Add/Update Model**. The model will now appear in your Chat Panel dropdown menu.
+The model appears in the chat panel model selector.
 
-### Deleting a Model
-If you no longer need a specific model, simply select it from the list in the Setup Panel and click the **Delete** button. This keeps your Chat Panel clean and focused.
+## 3. Delete a Model
 
-## 3. Why Mix Local and Cloud?
+Select a configured model entry and delete it from the setup panel. This removes it from the chat selector but does not delete local Ollama model weights from your machine.
 
-SammyAI is built to leverage the strengths of different architectures:
-*   **Local Models**: Ideal for privacy, quick brainstorming, and zero-cost drafting.
-*   **Cloud Models**: Perfect for complex reasoning, long-form creative writing, and high-fidelity prose.
+## 4. Why Mix Local and Cloud?
 
-## 4. Security & Privacy
+* **Local models:** Best for privacy, fast rough drafting, and no per-request cloud cost.
+* **Cloud models:** Best for complex reasoning, critique, longer context, and final polish.
 
-*   **Local Storage**: Your API keys and model configurations are stored securely on your local machine.
-*   **Privacy First**: Keys are sent only to the model provider during active requests and are never shared with or stored by SammyAI developers.
+## 5. Security and Privacy
 
----
+* API keys are stored locally.
+* Keys are sent only to the provider needed for an active request.
+* Prompt content is sent to cloud providers only when you choose a cloud model.
+* Local models are the best option for sensitive project material.
 
 > [!TIP]
-> **Keep your local list lean.**
-> While you can have 15 models, we recommend keeping your active list to 5-7 of your favorites to ensure quick switching during creative sessions.
+> Keep the configured model list focused. A small set of trusted models is easier to choose from during active writing.

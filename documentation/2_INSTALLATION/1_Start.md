@@ -1,20 +1,19 @@
 # Getting Started with SammyAI
 
-To start using SammyAI, you can choose between two main installation methods depending on your preferences and technical setup.
+SammyAI can be installed from source or run through Docker. Source installation is the most useful path for alpha testing because it gives you direct access to the newest code and project files.
 
-### Installation Options
+## Installation Options
 
 > [!IMPORTANT]
-> Before you proceed, ensure you have reviewed the [Important Notice](https://github.com/sasadjukic/sammyai/blob/main/documentation/1_WHAT_IS_SAMMYAI/0_Important_Notice_Before_You_Start.md) to understand the requirements and privacy considerations.
+> Before you proceed, review the Important Notice in `documentation/1_WHAT_IS_SAMMYAI/0_Important_Notice_Before_You_Start.md` for release status and privacy considerations.
 
-1. **Download from Source (GitHub)**
-   This is the recommended method for users who want to stay up-to-date with the latest changes, customize their own experience, or perhaps contribute to the project. You can download the source code directly from the [SammyAI GitHub page](https://github.com/sasadjukic/sammyai).
+1. **Install from Source**
+   Use this method if you want to test the latest changes, inspect the code, customize the app, or contribute fixes.
 
-2. **Run via Docker**
-   For a more streamlined, containerized experience that manages dependencies for you, SammyAI is available as a Docker image. This is ideal for quick testing and ensuring a consistent environment.
+2. **Run with Docker**
+   Use this method if you want a containerized environment. GUI applications in Docker may require extra display configuration, especially on Windows and macOS.
 
----
+Detailed instructions:
 
-Detailed instructions for each method follow in the next sections:
-* [Download and Run from Source](file:///home/sasa/Desktop/Projects/sammyai/documentation/2_INSTALLATION/2_From_Source.md)
-* [Run using Docker](file:///home/sasa/Desktop/Projects/sammyai/documentation/2_INSTALLATION/3_Docker.md)
+* [Install from Source](2_From_Source.md)
+* [Run with Docker](3_Docker.md)

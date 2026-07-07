@@ -1,36 +1,52 @@
-# Diff-Based Editing (DBE) Options
+# Diff Review and Change-Set Options
 
-Diff-Based Editing (DBE) is SammyAI's specialized toolkit for visual text comparison and precision editing. It bridges the gap between AI-generated suggestions and your final creative control by presenting changes in a clear, manageable diff format.
-
----
-
-## 1. Enable DBE Mode
-This is the core toggle for AI-assisted editing.
-
-*   **How it Works**: When enabled, SammyAI will no longer simply "talk" to you in the chat panel about changes. Instead, it generates a proposed revision that appears in a specialized **Diff Viewer**.
-*   **Workflow**: You can review exactly what the AI wants to add, remove, or modify. If you like the result, click **Accept** to update your document; otherwise, click **Reject** to keep your original text.
-
-## 2. Global Comparison Tools
-SammyAI provides robust tools for manual text comparison, essential for version control and cross-referencing.
-
-*   **Compare with File... (Ctrl+D)**: Select an external file (e.g., an older draft or a research document) to compare against your current workspace.
-*   **Compare with Clipboard (Ctrl+Shift+D)**: Instantly compare your current text with whatever snippet you have copied. This is perfect for checking revisions made in external apps.
-
-## 3. Applying External Patches
-For advanced users, SammyAI supports standard developer-grade diff tools.
-
-*   **Apply Diff from File...**: Select a `.diff` or `.patch` file to apply its changes directly to your current document. SammyAI will parse the patch and present it in the visual viewer for your final approval.
-
-## 4. The Visual Diff Viewer
-When performing a comparison or receiving an AI suggestion, the **Diff Viewer** window opens to facilitate your review.
-
-![Diff Edit Window](pictures/SammyAI_v1_DiffEdit_Window.png)
-
-*   **Red Highlights**: Text that is proposed for removal.
-*   **Green Highlights**: New text proposed for addition.
-*   **Accept/Reject Controls**: Located at the bottom of the window, these allow you to commit or discard the proposed changes with a single click.
+SammyAI V0.4.1-alpha uses reviewed change sets for safer AI-assisted editing. Instead of immediately rewriting files, SammyAI can prepare a structured proposal and show the diff before you apply it.
 
 ---
+
+## 1. Reviewed Change Sets
+
+Change sets can include:
+
+* File creation.
+* File updates.
+* File deletion.
+* Character-range edits inside supported text files.
+
+Safety features include:
+
+* Project-root path confinement.
+* Supported edit targets limited to `.md` and `.txt`.
+* Hash-based stale-content conflict detection.
+* Atomic writes with staged files and backups.
+* Multi-file rollback if an apply step fails.
+* Undo and redo for applied change sets.
+
+## 2. Editor Agent Workflow
+
+Use the Editor agent when you want SammyAI to propose file changes.
+
+1. Open a project.
+2. Reference the exact file that should be changed.
+3. Ask for a specific edit.
+4. Review the proposed change set.
+5. Accept or reject the proposal.
+
+Existing files require complete explicit file context before modification. This prevents the agent from editing a file based on stale or incomplete assumptions.
+
+## 3. Edit > Compare and Review
+
+The Compare and Review menu contains manual diff tools.
+
+* **Compare with File... (Ctrl+D):** Compare the current editor text with another file.
+* **Compare with Clipboard (Ctrl+Shift+D):** Compare the editor text with clipboard content.
+* **Apply Diff from File...:** Load a `.diff` or `.patch` file and review it before applying.
+* **Undo Last Applied Change Set:** Revert the most recent applied change set when possible.
+* **Redo Last Applied Change Set:** Reapply an undone change set when possible.
+
+## 4. Legacy DBE Mode
+
+The old DBE toggle remains under **Advanced** as **Enable Legacy DBE Mode**. It is kept as a fallback while the newer agent and change-set pipeline is tested.
 
 > [!TIP]
-> Use DBE mode when you want SammyAI to focus on technical polish, like fixing and improving dialogue flow, or ensuring consistent character voice across a chapter.
+> Prefer the Editor agent and reviewed change sets for project file edits. Use manual comparison tools when you want to inspect external text or patches.

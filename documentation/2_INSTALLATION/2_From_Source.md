@@ -1,37 +1,38 @@
 # Installing from Source
 
-Installing SammyAI from source is the best way to ensure you have the latest features and can contribute to the development of the tool.
+Installing SammyAI from source is the recommended alpha workflow.
 
 ## Prerequisites
 
-Before you begin, ensure you have the following installed on your system:
+Before you begin, install:
 
-*   **Python 3.11–3.14**: SammyAI requires a supported modern Python environment.
-*   **Git**: To clone the repository and manage updates.
-*   **Ollama**: Required for running local LLMs like Gemma. Download it from [ollama.com](https://ollama.com).
+* **Python 3.11-3.14:** SammyAI requires Python `>=3.11,<3.15`.
+* **Git:** Required to clone the repository and manage updates.
+* **Ollama:** Required if you plan to run local models. Download it from [ollama.com](https://ollama.com).
+* **PDF text extraction support:** PDF context features require the project dependencies and a working text extraction path.
 
 ## Step-by-Step Installation
 
 ### 1. Clone the Repository
-
-Open your terminal or command prompt and run the following command to download the source code:
 
 ```bash
 git clone https://github.com/sasadjukic/sammyai.git
 cd sammyai
 ```
 
-### 2. Create a Virtual Environment (Recommended)
+### 2. Create a Virtual Environment
 
-It is highly recommended to use a virtual environment to keep SammyAI's dependencies separate from your system Python.
+Using a virtual environment keeps SammyAI dependencies separate from your system Python.
 
-**On Linux/macOS:**
+**On Linux or macOS:**
+
 ```bash
 python3 -m venv venv
 source venv/bin/activate
 ```
 
 **On Windows:**
+
 ```bash
 python -m venv venv
 .\venv\Scripts\activate
@@ -39,27 +40,37 @@ python -m venv venv
 
 ### 3. Install Dependencies
 
-Install SammyAI and its required packages in editable mode:
+Install SammyAI in editable mode:
 
 ```bash
 python -m pip install -e .
 ```
 
-### 4. Running SammyAI
+For development and tests:
 
-Once the dependencies are installed, you can launch the application by running the main entry point:
+```bash
+python -m pip install -e ".[test]"
+```
+
+### 4. Run SammyAI
+
+Launch the application:
 
 ```bash
 sammyai
 ```
 
-You can also launch directly from the source checkout with
-`python sammyai.py`. The previous `python text_editor.py` command remains
-available as a compatibility launcher.
+You can also run directly from the source checkout:
+
+```bash
+python sammyai.py
+```
+
+The older `python text_editor.py` command remains as a compatibility launcher.
 
 > [!TIP]
-> Make sure Ollama is running in the background if you plan to use local models during your session.
+> Start Ollama before launching SammyAI if you plan to use local models.
 
 ## Next Steps
-Now that you have SammyAI running, head over to the
-[User Guide](../3_USER_GUIDE/1_Layout.md) to explore its features.
+
+After SammyAI opens, create or open a project folder and continue with the User Guide in `documentation/3_USER_GUIDE/1_Layout.md`.

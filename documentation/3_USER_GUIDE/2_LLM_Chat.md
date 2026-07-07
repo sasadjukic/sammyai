@@ -1,42 +1,64 @@
 # SammyAI LLM Chat
 
-The LLM Chat panel is your primary interface for interacting with SammyAI. It provides a powerful, expandable environment for brainstorming, refining text, and exploring ideas with AI models.
-
-![SammyAI Chat Window](pictures/SammyAI_LLM_Chat_Window.png)
+The LLM Chat panel is the main interface for AI collaboration. It supports multiple agents, configurable models, temporary references, project context, and session-based conversations.
 
 ---
 
-## 1. Header & Model Selection
-At the top of the chat panel, you'll find the session header and the **Model Selector**.
+## 1. Header
 
-*   **Model Selector**: Choose between local models (like Gemma 3:4B) for privacy and speed, or advanced cloud models (like Gemini 2.5 Flash) for complex creative tasks. Switching models updates the current session context immediately.
-*   **Expansion & Closure**: The panel can be expanded for more reading space or closed via the **✕** button to return to a full-screen editing canvas.
+The header shows the SammyAI chat title and session controls.
 
-## 2. Chat History
-The history area displays your dialogue with Sammy in a structured, color-coded format.
+* **New Chat:** Starts a fresh chat session and clears the current session context. The previous session state is preserved by the session system.
+* **Collapse chat panel:** Hides the panel without deleting the current chat.
+* **Generation lock:** New Chat is disabled while SammyAI is generating a response.
 
-*   **You (Light Pink)**: Your messages are highlighted for clear visibility.
-*   **Sammy (Light Blue)**: The AI's responses appear with distinct branding to differentiate them from project notes or status messages.
-*   **Status Indicators**: Brief messages (in italics) appear when the session is reset or when Sammy is "thinking."
+## 2. Conversation Area
 
-## 3. Interactive Input Field
-The multi-line input field at the bottom is optimized for detailed prompts.
+Messages are displayed as structured blocks.
 
-*   **Smart Entry**: Press **Ctrl+Enter** to send your message instantly. Standard **Enter** creates a new line, allowing you to compose structured prompts without accidental submission.
-*   **Auto-Scroll**: The interface automatically scrolls to the newest response, keeping your attention on the evolving conversation.
+* **You:** Your prompts.
+* **Sammy:** Assistant responses.
+* **SammyAI:** Status messages and workflow progress.
+* **Copy per message:** Each user and assistant message can be copied individually.
 
-## 4. Session Controls
-Located just below the input field, these buttons allow you to manage your session data effectively.
+## 3. Composer
 
-*   **Delete Chat**: Purges the visible history and resets the cumulative LLM context, starting a fresh session.
-*   **Copy Chat**: Copies the entire conversation history to your clipboard—perfect for archiving brainstorms or pasting ideas into your main document.
+The composer holds the prompt field and workflow controls.
 
-## 5. Context Controls
-*   **RAG (Retrieval-Augmented Generation)**: Index files to provide the AI with a deep "memory" of your project.
-*   **CIN (Context Injection)**: Directly inject specific reference files into the current AI conversation.
-*   **DBE (Diff-Based Editing)**: Toggle the specialized mode where the AI suggests changes via visual diffs for your approval.
+* **Input field:** Auto-grows as you type.
+* **Send:** Press **Enter** to send.
+* **New line:** Press **Shift+Enter** to insert a line break.
+* **Attachment button:** Attach a temporary external reference to the conversation.
+* **Agent selector:** Choose Assistant, Brainstormer, Writer, Editor, or Critic.
+* **Model selector:** Choose one of your configured models.
 
----
+## 4. Agents
 
-> [!NOTE]
-> SammyAI chat window collapses and expands. DO NOT confuse collapse with ending chat. The current chat session ends only when you press **Delete Chat** button, or when you exit the application. Everything else just collapses the chat window, and the current chat remains active.
+Agents change how SammyAI handles the next message.
+
+* **Assistant:** General conversation and read-only help.
+* **Brainstormer:** Idea generation and creative exploration.
+* **Writer:** Drafting workflow with evaluation and revision behavior.
+* **Editor:** File-change proposals through reviewed change sets.
+* **Critic:** Read-only critique and feedback.
+
+Existing files require complete explicit file context before the Editor can modify them. If a filename is ambiguous, reference it by relative path.
+
+## 5. Project Context
+
+When a project is open, SammyAI can build context from:
+
+* Explicit file references.
+* Attached temporary references.
+* Project retrieval.
+* Approved persistent memory.
+* Approved conversation summaries.
+
+These sources share a bounded context budget, so smaller and more precise references usually produce better results.
+
+## 6. Session Notes
+
+Collapsing the chat panel does not end the current session. Use **New Chat** when you want a fresh conversation context.
+
+> [!TIP]
+> For file edits, first reference the exact file, then ask the Editor agent for a specific change. Review the proposed change set before applying it.

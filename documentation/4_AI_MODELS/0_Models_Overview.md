@@ -1,46 +1,60 @@
-# 🧠 AI Models Overview
+# AI Models Overview
 
-With the release of Alpha 0.3.1, SammyAI has moved away from a fixed list of models. Instead, we now provide a **Dynamic LLM System** that gives you the freedom to choose, test, and integrate any model from our supported providers.
-
-This flexibility ensures that as the AI landscape evolves, your creative toolkit remains state-of-the-art.
+SammyAI uses a dynamic model configuration system. Instead of relying on a fixed built-in model list, you can configure local and cloud model entries in the LLM Setup panel and choose the model that fits the task.
 
 ---
 
-## 1. Local Models (Ollama)
+## 1. Local Models
 
-Running models locally offers the ultimate in privacy and offline availability. The performance of these models is directly tied to your computer's hardware (specifically your GPU/VRAM).
+Local models run through Ollama on your own hardware.
 
-### Recommendations
-*   **For Lightweight Drafting**: `gemma4:e4b` — Fast, efficient, and perfect for quick brainstorming sessions.
-*   **For Deep Narrative**: `qwen3.6:27b` — Offers a higher degree of reasoning and prose quality for more complex scenes.
-*   **Power Tip**: The more powerful your PC or server, the larger the models you can run. High-end systems can handle `70B+` parameter models, which rival cloud performance.
+**Strengths:**
 
-## 2. Cloud Model Providers
+* Private by default because prompts stay on your machine.
+* No per-request cloud cost.
+* Useful for brainstorming, early drafting, and quick experiments.
 
-Cloud models are hosted on powerful remote servers and offer the highest levels of creative "intelligence," reasoning, and context handling.
+**Trade-offs:**
 
-| Provider | Latest Recommended Models | Strengths |
-| :--- | :--- | :--- |
-| **Google** | `gemini-3.1-pro`, `gemini-3.1-flash` | Massive context windows, deep logical reasoning, and world-building expertise. |
-| **OpenAI** | `gpt-4o`, `gpt-4o-mini` | Exceptional instruction following and consistent narrative style. |
-| **Anthropic** | `claude-3.5-sonnet`, `claude-3.5-opus` | Highly "human-like" prose and nuanced character dialogue. |
-| **Ollama Cloud** | `deepseek-v4-pro`, `kimi-k2.6` | Powerful alternatives with unique creative styles and robust reasoning. |
+* Quality and speed depend on your CPU, GPU, VRAM, and RAM.
+* Smaller local models may struggle with long context, complex reasoning, or highly polished prose.
+
+## 2. Cloud Models
+
+Cloud models are hosted by external providers and accessed with your API key.
+
+**Strengths:**
+
+* Stronger reasoning and prose quality for many complex tasks.
+* Larger context windows depending on provider and model.
+* Useful for final polish, deep critique, complex restructuring, and long-range continuity.
+
+**Trade-offs:**
+
+* Prompt content is sent to the provider.
+* Provider usage may have cost, quota, or rate limits.
+* Availability and model IDs can change outside SammyAI.
 
 ## 3. Dynamic Configuration
 
-You are no longer restricted to what we've chosen for you. In the **LLM Setup Panel**, you can:
-*   **Mix and Match**: Keep a fast local model for drafting and a powerful cloud model for final polishing.
-*   **Total Control**: Configure up to **15 different models** and switch between them instantly in the chat panel.
-*   **Future Proof**: When a new model is released (e.g., "GPT-5" or "Gemini 4"), you can add it to SammyAI the same day by simply entering its model ID.
+In the LLM Setup panel, you can:
 
-## 4. Privacy & API Access
+* Add local Ollama models.
+* Add supported cloud provider models.
+* Store up to 15 configured model entries.
+* Edit or remove model entries without changing application code.
+* Switch models from the chat workflow.
 
-To use cloud models, you simply provide your own API Key in the **LLM Setup Panel**.
-*   **Direct Access**: SammyAI connects your machine directly to the provider.
-*   **Cost Efficiency**: Many providers offer generous free tiers or "pay-as-you-go" pricing, making high-end AI highly accessible.
+## 4. Choosing a Model
 
----
+| Task | Good Starting Point |
+| :--- | :--- |
+| Private brainstorming | Local model |
+| Fast rough drafting | Local model |
+| Deep critique | Cloud model |
+| Final prose polish | Cloud model |
+| Sensitive project material | Local model where possible |
+| Long project context | Model with a larger context window |
 
 > [!TIP]
-> **Start Local, Finish Cloud**
-> Many writers find success using a local model for initial messy drafts to save on API costs, then switching to a "Pro" cloud model like `claude-3.5-sonnet` for the final character beats and dialogue refinement.
+> Keep a small set of trusted models configured. A practical setup is one fast local model, one stronger local model if your hardware can run it, and one or two cloud models for difficult work.

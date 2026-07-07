@@ -1,55 +1,52 @@
 # Supported Text Formats
 
-SammyAI is designed to handle various text-based formats for creative writing and research. This document outlines the supported file formats across different features of the application.
+SammyAI focuses on text-first creative writing formats that work well with LLMs, retrieval, and safe project editing.
 
-## 1. Text Editor (Editing & Viewing)
+## 1. Text Editor
 
-The primary interface of SammyAI is a plain-text editor tailored for writing and basic formatting.
+The primary editor is a plain-text writing surface.
 
-- **Supported Formats:** `.txt` (Plain Text), `.md` (Markdown)
-- **Capabilities:**
-    - Full support for opening, editing, and saving `.txt` and `.md` files.
-    - Uses UTF-8 encoding by default (with fallback support for Latin-1).
-- **Other Formats:** 
-    - While the "All Files" option allows selecting other extensions, the editor treats all inputs as plain text or Markdown. Binary files (like `.docx` or `.rtf`) will not render correctly in the editor and should be converted to `.txt` or `.md` first.
+* **Supported formats:** `.txt`, `.md`
+* **Capabilities:**
+  * Open, edit, and save plain text and Markdown files.
+  * Use UTF-8 by default, with fallback support for Latin-1.
+  * Preserve normal text files inside your project folder.
+* **Other formats:**
+  * The editor may allow selecting other files, but binary formats such as `.docx`, `.odt`, and `.rtf` will not render as rich documents. Convert them to `.txt` or `.md` first.
 
-## 2. Context Injection (CIN)
+## 2. Automatic Project Context
 
-Context Injection is a lightweight way to provide the LLM with immediate context from external files without the need for indexing.
+Project context synchronization scans supported files in the active project so SammyAI can retrieve relevant material during chat and agent workflows.
 
-- **Supported Formats:**
-    - `.txt` (Plain Text)
-    - `.md` (Markdown)
-    - `.pdf` (Portable Document Format)
-- **Size Limit:** **50 KB**
-    - CIN is optimized for smaller files (e.g., character sheets, plot outlines, or short articles).
-- **Processing:**
-    - For PDF files, SammyAI uses the `pdftotext` utility to extract text content before sending it to the assistant.
-    - Content is injected directly into the conversation's context window.
+* **Supported formats:** `.txt`, `.md`, `.pdf`
+* **Synchronization:** Changed, new, and deleted files update the project file manifest.
+* **Isolation:** Retrieval is scoped to the active project.
+* **PDF extraction:** PDF content is converted to text before indexing.
 
-## 3. Retrieval-Augmented Generation (RAG)
+## 3. Context Injection (CIN)
 
-The RAG system is used for managing large volumes of information across many documents or very large files.
+CIN is a lightweight way to provide immediate high-priority context.
 
-- **Supported Formats:**
-    - `.txt` (Plain Text)
-    - `.md` (Markdown)
-    - `.pdf` (Portable Document Format)
-- **Size Limits:**
-    - **Soft Limit:** Files larger than **500 KB** will trigger a warning. Indexing very large files can temporarily impact UI responsiveness.
-    - **Hard Limit:** The indexer supports files up to **50 MB**.
-- **Processing:**
-    - **Chunking:** Documents are split into overlapping blocks (approx. 300 characters) to ensure the AI can retrieve specific, relevant sections without losing context.
-    - **PDF Extraction:** Like CIN, RAG uses `pdftotext` for reliable text extraction from PDF documents.
-- **Capacity:**
-    - The RAG system is configured to handle up to **1,000,000 document chunks**, allowing for a vast library of research materials and stories.
+* **Supported formats:** `.txt`, `.md`, `.pdf`
+* **Recommended size:** Keep CIN files small and focused.
+* **Best for:** Character sheets, plot outlines, style guides, and short summaries.
 
----
+## 4. Retrieval-Augmented Generation (RAG)
+
+RAG is used for larger bodies of project knowledge.
+
+* **Supported formats:** `.txt`, `.md`, `.pdf`
+* **Soft limit:** Files larger than 500 KB may trigger a warning.
+* **Hard limit:** The indexer supports files up to 50 MB.
+* **Processing:** Documents are split into overlapping chunks for retrieval.
+
+## 5. Reviewed Change Sets
+
+AI-assisted file changes are limited to text-first project files.
+
+* **Supported edit targets:** `.txt`, `.md`
+* **Path rules:** Proposed changes must stay inside the active project root.
+* **Safety:** Writes use staged files, backups, rollback, and stale-content checks.
 
 > [!NOTE]
-> **Alpha Release Notice**
-> SammyAI is currently in **Alpha**. While we focus on `.txt`, `.md`, and `.pdf` for stability and clarity, support for additional file extensions *may* be added in future updates as the platform evolves.
-
-> [!TIP]
-> **Why `.txt`, `.md`, and `.pdf`?**
-> SammyAI focuses on creative writing. Plain text and Markdown provide the highest level of compatibility with LLMs, as they are simple and structured in a way that AI models can easily parse. Markdown is particularly effective for direct context and RAG, as it allows for structured hierarchy (like headers and lists) that assistants can follow. PDF support ensures you can easily import research scripts and exported documents without manual conversion.
+> SammyAI is in alpha. The current focus is reliable support for `.txt`, `.md`, and `.pdf` context, with `.txt` and `.md` as the safest editable formats.

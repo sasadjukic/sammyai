@@ -1,35 +1,71 @@
 # Known Issues
 
-This document tracks documented issues, behavioral tendencies, and technical limitations encountered when using SammyAI. These items are under active review for future improvements.
+This document tracks known limitations, model tendencies, and workflow risks in SammyAI V0.4.1-alpha.
 
-## LLM Behavior & Stylistic Tendencies
+## LLM Behavior and Style
 
-### Model Bias in Nominative Selection
-Models such as `Gemma 3:4B` and `Gemini 2.5 Flash` exhibit a recurring preference for specific character names (e.g., Lyra, Silas, Blackwood, etc...) when generating creative content without specific guidance.
+### Repeated Names and Tropes
 
-> [!TIP]
-> To increase name diversity, use highly specific prompts. For example: *"Suggest 10 female names popular in 16th-century England"* provides a broader selection than a general request for character names.
+Some models repeatedly suggest similar character names, settings, or tropes when prompts are vague.
 
-### Stylistic Defaults
-By default, most underlying LLMs follow these conventions:
-*   **Numeric Representation:** Quantities are rendered as numerals (e.g., `0.7`) rather than words (`zero point seven`).
-*   **Symbolic Notation:** Special characters are rendered as symbols (e.g., `β`) rather than spelled out (`beta`).
-*   **Temporal Formatting:** Time is consistently rendered in numeric blocks (e.g., `07:34:24`).
+**What to try:** Provide a time period, region, genre, naming rules, or examples of names to avoid.
 
-## Language & Formatting
+### Numeric and Symbolic Formatting
 
-### Cross-Language Pollination
-In extended sessions or scenarios involving very large context windows, models may occasionally inject non-English characters (frequently Chinese) into responses. This is a known phenomenon across most current LLM architectures.
+Models may prefer numerals or symbols when prose would read better with words.
 
-### Model-Specific Variations
-*   **Kimi K2-1T (Regional Spelling):** This model may utilize UK English conventions (e.g., "colour", "optimise") despite the system's US English default.
-*   **Kimi K2-1T (Structural Anomalies):** Occasionally, this model may produce irregular text structures, such as rendering single-sentence paragraphs in a vertical stack.
+**What to try:** Add style instructions such as "spell out small numbers" or "write symbols as words unless technical notation is required."
 
-## System & Infrastructure Errors
+### Cross-Language Artifacts
 
-The following issues typically relate to external service providers or local environment configurations:
+In long sessions or large-context prompts, models may occasionally include non-English text or unexpected characters.
 
-*   **Authentication Errors:** Occur when API keys for cloud providers (e.g., Gemini, DeepSeek) are missing or incorrectly configured.
-*   **Connectivity & Load:** Service interruptions may occur if provider servers are overwhelmed or temporarily unavailable.
-*   **Rate Limiting:** Quota exhaustion errors are common when using free tiers or reaching daily usage limits.
+**What to try:** Start a New Chat, narrow the context, and restate the language requirement.
 
+## Context and Memory
+
+### Context Budget Pressure
+
+Explicit files, attached references, project retrieval, memories, summaries, and conversation history share a bounded prompt budget.
+
+**What to try:** Reference fewer files, attach shorter summaries, or save stable facts as persistent memory.
+
+### Stale Retrieval
+
+Project context should update automatically, but external file changes or failed background tasks can leave retrieval stale.
+
+**What to try:** Use **Advanced > Project Context > Rebuild Active Project Index...**.
+
+### Memory Quality
+
+Persistent memory is only useful when saved facts are concise and durable.
+
+**What to try:** Review suggested memories carefully, archive outdated facts, and avoid storing temporary brainstorming as durable memory.
+
+## Editing and Change Sets
+
+### Edit Conflicts
+
+If a file changes after a change set is prepared, SammyAI may reject the apply step to prevent overwriting newer content.
+
+**What to try:** Reopen or refresh the file context, then ask the Editor agent to prepare a new change set.
+
+### Unsupported Edit Targets
+
+Safe AI file edits are focused on `.txt` and `.md`.
+
+**What to try:** Convert rich documents to Markdown or plain text before asking SammyAI to edit them.
+
+## External Services
+
+### Authentication Errors
+
+Cloud providers return authentication errors when API keys are missing, expired, invalid, or not permitted to use the selected model.
+
+### Connectivity and Load
+
+Provider outages, local network problems, or high provider load can interrupt requests.
+
+### Rate Limits
+
+Free or low-tier accounts can hit quota limits quickly. Switch models, wait for reset, or adjust provider plan if needed.

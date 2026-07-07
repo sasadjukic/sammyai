@@ -1,4 +1,4 @@
-# 📺 TV Pilots Archive
+# TV Pilots Archive
 
 This section highlights SammyAI's capacity to help you create TV pilots across different genres. As is the case with other works, the TV pilots displayed here involve an iterative process, utilizing multiple AI models to show that SammyAI can seamlessly continue your story started by a different model.
 
@@ -8,7 +8,7 @@ It is also important to note that not EVERY SINGLE word in these pilots had been
 
 ---
 
-##  👮 Bad Angel
+##  Bad Angel
 
 > [!NOTE]
 > **Story Summary**
@@ -22,15 +22,15 @@ It is also important to note that not EVERY SINGLE word in these pilots had been
 | **Genre** | Cop Drama |
 | **Inspiration** | Lethal Weapon, Miami Vice, Die Hard |
 
-[📖 Bad Angel](https://drive.google.com/file/d/15w9BBC731No6eYkBZFyHeWb_fRxZDlrx/view?usp=sharing)
+[Bad Angel](https://drive.google.com/file/d/15w9BBC731No6eYkBZFyHeWb_fRxZDlrx/view?usp=sharing)
 
 ---
 
-##  🚌 Transit Central
+##  Transit Central
 
 > [!NOTE]
 > **Story Summary**
-> A ragtag crew staffing the night shift at a Los Angeles city transit control center must keep public transportation running while dealing with eccentric passengers, weird system glitches, and each other's bizarre personal projects — a show about holding a city together when everyone else sleeps.
+> A ragtag crew staffing the night shift at a Los Angeles city transit control center must keep public transportation running while dealing with eccentric passengers, weird system glitches, and each other's bizarre personal projects - a show about holding a city together when everyone else sleeps.
 
 | Metadata | Details |
 | :--- | :--- |
@@ -40,11 +40,11 @@ It is also important to note that not EVERY SINGLE word in these pilots had been
 | **Genre** | Workplace comedy |
 | **Inspiration** | The Office, Parks and Recreation |
 
-[📖 Transit Central](https://drive.google.com/file/d/1SLGUa9OQHH60xtVGdQCQMyM_go3m75_u/view?usp=sharing)
+[Transit Central](https://drive.google.com/file/d/1SLGUa9OQHH60xtVGdQCQMyM_go3m75_u/view?usp=sharing)
 
 ---
 
-##  ⛈ Ten Degrees of Sky
+##   Ten Degrees of Sky
 
 > [!NOTE]
 > **Story Summary**
@@ -58,8 +58,8 @@ It is also important to note that not EVERY SINGLE word in these pilots had been
 | **Genre** | Sci-Fi Drama, Neo-Western |
 | **Inspiration** | Mad Max 2 (The Road Warrior), Spaghetti Westerns, Arc Raiders |
  
-[📖 Ten Degrees of Sky](https://drive.google.com/file/d/19VKaJBBaQxAjxXBP_5xKTGlnfcfRjFPh/view?usp=sharing)
+[Ten Degrees of Sky](https://drive.google.com/file/d/19VKaJBBaQxAjxXBP_5xKTGlnfcfRjFPh/view?usp=sharing)
 
 ---
 
-[⬅️ Back to Story Archive](file:///home/sasa/Desktop/Projects/sammyai_v1/documentation/6_STORIES/1_Stories_Introduction.md)
+[<- Back to Story Archive](file:///home/sasa/Desktop/Projects/sammyai_v1/documentation/6_STORIES/1_Stories_Introduction.md)

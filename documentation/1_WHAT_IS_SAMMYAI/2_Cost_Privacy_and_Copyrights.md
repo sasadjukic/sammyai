@@ -1,52 +1,55 @@
-# Cost, Privacy and Copyrights
+# Cost, Privacy, and Copyrights
 
 ## Cost
 
-* SammyAI is free to use. This is achieved through a strategic combination of local and cloud-based Large Language Models (LLMs). SammyAI leverages the generous free daily usage limits offered by some cloud LLM providers. Crucially, it uses local model(s) – meaning the heavy lifting happens directly on your computer – significantly reducing the resource demands and associated costs. This approach, combined with our focus on best practices, allows SammyAI to be accessible to literally anyone, regardless of their budget.
+SammyAI is free to use. You can run local models through Ollama for no per-request model cost, or connect your own cloud provider API keys when you need stronger reasoning, larger context windows, or faster hosted models.
 
 **Free Usage:**
 
-*   SammyAI utilizes the generous free daily usage limits offered by cloud LLM providers. This means you can enjoy the core AI writing assistance without any cost. To get the most out of the free usage refer to our best practices guide [Best Practices](https://github.com/sasadjukic/sammyai/tree/main/documentation/5_BEST_PRACTICES)
+* SammyAI itself does not charge a fee.
+* Local models run on your own hardware.
+* Some cloud providers offer free tiers or credits, but those limits are controlled by the provider, not SammyAI.
 
 **Exceeding Free Limits For Cloud Providers:**
 
-*   **Daily Reset:**  Free limits for cloud providers are reset daily. If you exceed your daily allowance, you will need to wait until the next day for your usage to reset and continue using the cloud-based AI features for free. But remember, you have two different cloud providers and the local model that is always free, all integrated into a multi-model chat. If you use the best practices, this will get you plenty of daily usage. 
+* Free cloud limits can reset daily, monthly, or by provider-specific policy.
+* If a provider returns quota or rate-limit errors, switch to another configured model, wait for the quota to reset, or use a paid provider tier.
 
 **Existing Paid Subscriptions for Cloud Providers:**
 
-*   **Seamless Integration:** If you already have a paid subscription with a cloud LLM provider (e.g., Google, Ollama), SammyAI will automatically utilize the benefits of your existing subscription when you use the cloud features. You don’t need to change anything!
+* If you already have a provider account or paid API plan, SammyAI can use your API key directly from the LLM Setup panel.
+* Provider billing, retention, and rate limits are governed by that provider's terms.
 
 ## Privacy
 
-* Your creative work is deeply personal. That’s why privacy is absolutely at the core of our design – SammyAI does not collect or store any user information. SammyAI operates directly on your PC and gives you a chance to have no data trail, no user accounts, and no tracking of your writing process.
+Your creative work is personal. SammyAI is designed to run locally, store project metadata on your machine, and avoid sending your writing to SammyAI developers.
 
->[!Note]
->The better your server (PC) is, less reliant you are on cloud LLM models. Less reliance on cloud models means more privacy.
+SammyAI offers:
 
-SammyAI offers you a chance for:
-* **Complete Anonymity:** Your creative work remains entirely private and confidential.
-* **No Data Collection:** SammyAI does not collect, store, or transmit your writing, prompts, or ideas.
-* **Local Operation:** SammyAI runs directly on your computer, ensuring maximum privacy and security.
+* **Local project files:** Your drafts and notes remain in normal folders you control.
+* **OS-managed app data:** Project registration, settings, application state, project runtime data, and caches are stored outside your project folder.
+* **No hidden project files:** SammyAI does not add hidden metadata files to your writing folders.
+* **Approval-based memory:** Persistent memories and conversation summaries require user review before they are saved.
+* **Local model option:** The more capable your computer is, the more you can rely on local models instead of cloud models.
 
-**Important Considerations & Trade-offs:**
+**Important Considerations and Trade-offs:**
 
-*   **Manual Session Saving:** 
-    - Due to the nature of local operations with no data tracking within SammyAI, we strongly recommend that you **manually save your chat sessions** if you wish to retain a record of your interactions with the AI. SammyAI does have a "Copy Chat" button for your convenience.
+* **Cloud model requests:** When you use a cloud model, the prompt content required for that request is sent to the provider whose API key you configured. Do not send private material to a provider unless you accept that provider's policy.
+* **Project context:** Automatic synchronization indexes supported project files for local retrieval. Retrieved context may be included in prompts when you ask SammyAI questions that need project knowledge.
+* **Persistent memory:** SammyAI can store approved project memories such as characters, plot facts, world details, style choices, decisions, preferences, and general notes.
+* **Conversation summaries:** Suggested summaries and memory extraction are reviewed by the user. They should not be saved silently.
 
-*   **AI Model Reliance:** 
-    - When it comes to using cloud models, there is an important rule you should always follow: **NEVER EVER** share what you don't want cloud models to know. 
-    - SammyAI utilizes Ollama for a few powerful cloud-based models. Ollama’s policy is to **NOT** retain data sent to their cloud models, as clearly stated on their own website [https://ollama.com/cloud]. The one thing you should know is that Ollama may not host a cloud model of your choice on their own servers. If they don't, then they pass your API call to the maker of the LLM.
-    -  As for Google's cloud model embedded within SammyAI, everything is clear: your chats will not show up in your Google AI Studio chat history, but access logs and metrics for API calls associated with your account **will** show activity for the API key assigned with SammyAI. For more info on this you can visit Google's cloud API page at [https://docs.cloud.google.com/apis/docs/overview]
-    
->[!SUMMARY]
-> While your chats with cloud models are NOT visible on the web, all API calls are tracked.
+> [!SUMMARY]
+> SammyAI does not collect your writing for SammyAI developers. Cloud providers may receive prompt content when you use cloud models.
 
 ## Copyrights
-* You **RETAIN** all rights to any stories, screenplays, or other creative works you generate with SammyAI.
 
-* Your creativity and ideas are your own. That’s why SammyAI is designed to empower you, not to claim ownership of your work. SammyAI is a powerful assistant – a tool to help you achieve your creative goals.
+You retain rights to stories, screenplays, essays, notes, and other creative works you create with SammyAI.
 
-Here’s a brief summary that pertains to copyrights when using SammyAI:
-* **You own the copyright:** As the user, you are the rightful owner of your creative output.
-* **No Claim to Ownership from SammyAI:** SammyAI is a tool, not an author. It assists you in the process of creating. SammyAI does not assert any claims to the copyright of the works you produce.
-* **Your Vision, Your Rights:** You have complete control over how your creations are used, shared, or developed.
+SammyAI is a writing tool. It assists you in the process of creating, revising, and organizing your work, but it does not claim ownership of your output.
+
+Summary:
+
+* **You own your creative output:** As the user, you control your writing.
+* **No ownership claim from SammyAI:** SammyAI does not assert copyright over works produced with the application.
+* **Your responsibility:** You are responsible for reviewing AI output, checking originality, and complying with any laws or provider terms that apply to your work.

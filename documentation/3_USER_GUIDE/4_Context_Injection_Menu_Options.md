@@ -1,31 +1,35 @@
-# Context Injection Menu (CIN) Options
+# Context Injection and Attached References
 
-Context Injection (CIN) is a specialized feature designed for providing SammyAI with high-priority, immediate reference material. unlike project-wide indexing, CIN places your selected content directly into the conversation "spotlight" for the most accurate and attentive AI interaction.
-
----
-
-## 1. CIN vs. RAG: Choosing the Right Tool
-While both features provide context, they serve different purposes in your creative workflow:
-
-| Feature | Best For | Typical Size | Retrieval Method |
-| :--- | :--- | :--- | :--- |
-| **CIN** | High-priority references (Style guides, profiles) | < 50kB | Direct Injection (High Focus) |
-| **RAG** | Project-wide knowledge (Lore, full drafts) | > 50kB | Semantic Search (Deep Memory) |
-
-## 2. Upload File for CIN
-This option allows you to select a specific document to be treated as a "primary reference" for the current dialogue.
-
-*   **Supported Formats**: SammyAI supports native text extraction for `.txt`, `.md`, and `.pdf` files.
-*   **50kB Limit**: To maintain optimal AI reasoning speed and focus, CIN is strictly limited to files smaller than **50kB**. For larger documents, please use the **RAG Menu** for indexing.
-*   **Direct Injection**: Once uploaded, the content is "injected" into the prompt context for the very next message you send. This ensures the AI has the reference material "fresh in mind."
-
-## 3. Clear CIN Context
-This command resets the temporary context provided via CIN.
-
-*   **When to Use**: Essential when you've finished working with a specific reference file and want the assistant to return to its standard operational context.
-*   **Immediate Effect**: Clearing the context removes the injected data from the next conversation cycle, preventing old references from cluttering new creative directions.
+Context Injection (CIN) is used for high-priority reference material that should guide the current conversation. In the V0.4.1-alpha UI, the chat composer exposes this as an attachment control, and the Advanced menu exposes commands to attach or remove a reference.
 
 ---
+
+## 1. CIN vs. Project Context
+
+| Feature | Best For | Retrieval Method |
+| :--- | :--- | :--- |
+| **Attached Reference or CIN** | Short, high-priority files | Direct prompt context |
+| **Project Context or RAG** | Larger project knowledge | Semantic retrieval |
+| **Persistent Memory** | Durable project facts | Approved memory injection |
+
+## 2. Attach Reference
+
+Use **Attach Reference...** when a specific external file should guide the next prompt.
+
+* **Supported formats:** `.txt`, `.md`, and `.pdf`.
+* **Best size:** Small and focused files work best.
+* **Best examples:** Character profile, style note, chapter summary, rules sheet, or outline.
+* **Prompt budget:** Attached references share the same budget as explicit files, memory, and RAG results.
+
+## 3. Remove Attached Reference
+
+Use **Remove Attached Reference** when the current temporary reference is no longer relevant.
+
+Removing the reference prevents old material from influencing later messages and frees more context budget for the next task.
+
+## 4. When to Use Persistent Memory Instead
+
+If a fact should remain useful across sessions, store it as project memory instead of repeatedly attaching the same note. Use **Advanced > Persistent Memory** to manage durable memories and conversation summaries.
 
 > [!TIP]
-> Use CIN during world-building to keep a "Character Profile" or "World Fact Sheet" constantly active in the AI's mind while you brainstorm new chapters.
+> Use attached references for short-term focus. Use persistent memory for facts that should keep mattering later.

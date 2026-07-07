@@ -1,50 +1,35 @@
- 
 # What is SammyAI?
 
 ## Overview
- 
-* SammyAI is a free, open-source lightweight text editor designed to unlock your storytelling potential. Built around a suite of Large Language Models (LLMs), SammyAI seamlessly transforms even the smallest idea – a single sentence, a fleeting thought – into fully realized stories.
 
-* SammyAI is designed to mimic the flow of human conversation. It will actively engage with you, asking questions, offering suggestions, and guiding you through the process of brainstorming and developing rich, natural narratives. Whether you're crafting school essays, experimenting with flash fiction, writing a novel, or outlining a screenplay, SammyAI provides the support you need.
+* SammyAI is a free, open-source, lightweight writing environment for creative work. It combines a plain-text editor, project explorer, AI chat, retrieval, persistent memory, and reviewed editing tools so writers can develop stories with more continuity and control.
 
-## Use Case
+* SammyAI is designed to support the flow of human creative collaboration. It can brainstorm, ask questions, draft, critique, revise, and help manage complex project context while leaving final creative authority with the writer.
 
-* **Brainstorming & Idea Generation:**  Stuck on a plot point or struggling to find your starting idea? SammyAI can generate fresh concepts, character ideas, and plot twists to jumpstart your project.
+* In V0.4.1-alpha, SammyAI is organized around writing projects. A project is a normal folder on your computer. SammyAI registers that folder, watches supported files, stores runtime metadata in OS-managed application data, and avoids adding hidden files to your project folder.
 
-* **Drafting Assistance:**  SammyAI can generate initial drafts for:
-    * **Essays:**  Craft compelling arguments and structured essays with ease.
-    * **Flash Fiction:**  Quickly develop concise and impactful stories.
-    * **Short Stories:**  Build engaging narratives with assistance in character development and plot progression.
-    * **Novels:** Build rich characters and story settings for appealing stories.
-    * **TV Series Scripts:**  Outline full seasons, episodes, and flesh out characters for your TV series.
-    * **Movie Screenplays:**  From concept to first draft, SammyAI helps you bring your cinematic vision to life.
-    * **Video Games:**  Generate dialogue, create lore, and even develop initial level designs.
+## Use Cases
 
-* **Refinement & Revision:**  Once you have a draft, SammyAI can help you with applying minor changes or polishing your work.
+* **Brainstorming and idea generation:** Generate concepts, characters, plot turns, settings, and alternative scene directions.
+* **Drafting assistance:** Work on essays, flash fiction, short stories, novels, screenplays, TV series outlines, game lore, dialogue, and scene treatments.
+* **Project continuity:** Use automatic project context, explicit file references, CIN, RAG, and persistent memory to keep long-running projects consistent.
+* **Revision and critique:** Use Editor, Critic, and reviewed change-set workflows to inspect proposed changes before accepting them.
+* **Research and organization:** Keep story bibles, notes, and drafts inside one project folder and browse them through the Project Explorer.
 
-## Why Should You Use SammyAI?
+## Why Use SammyAI?
 
-*   **Free to Use:**  Start writing without any financial commitment.
-*   **Privacy Focused:** We respect your privacy – SammyAI *DOES NOT* share your user data.
-*   **AI-Powered Creativity:** Get instant help with brainstorming, outlining, generating ideas, and refining your prose with integrated AI features.
-*   **Multi-Model Chat:** Seamlessly switch between different AI models during a single chat session to tailor your assistance to your specific needs.
+* **Free to use:** Start writing without a subscription to SammyAI.
+* **Privacy focused:** SammyAI runs on your computer and does not send your writing to SammyAI developers.
+* **Project aware:** Work with real folders and files instead of disconnected chat sessions.
+* **AI-assisted but reviewed:** Editing proposals go through diff review and approval before project files are changed.
+* **Multi-model chat:** Configure local and cloud models and switch between them during a session.
+* **Persistent project memory:** Store approved facts, preferences, and summaries for future context.
 
-## Who Can Benefit From Using SammyAI?
+## Who Can Benefit From SammyAI?
 
-*   **Writing Enthusiasts:**  If you love to write but struggle with getting started or overcoming writer's block, SammyAI’s prompts and brainstorming tools are perfect for sparking your imagination.
-
-*   **Professional Authors:**  Use SammyAI for outlining, drafting, research, and exploring different narrative directions – all within a distraction-free environment.
-
-*   **Game Developers:** Generate compelling worlds and character backstories quickly and efficiently.  SammyAI can be a powerful tool for all your writing needs within a game development project.
-
-*   **Writers Seeking a Writing Partner:**  Engage in collaborative brainstorming sessions, receive feedback on your work (with optional AI assistance), and explore diverse perspectives – all within the secure environment of SammyAI.
-
-*   **Students:**  Perfect for essays and creative writing assignments. Utilize SammyAI’s features to refine your writing skills and meet deadlines effectively.
-
-*   **Writers Seeking Privacy:**  SammyAI allows you to control your data, providing a secure space for sensitive writing projects.
-
-
-
-
-
-
+* **Writing enthusiasts:** Explore story ideas, overcome writer's block, and experiment with new directions.
+* **Professional authors:** Manage outlines, drafts, notes, research, and revision workflows in one environment.
+* **Game developers:** Generate lore, dialogue, quest text, character backstories, and world details.
+* **Screenwriters and series writers:** Track characters, episodes, scene beats, and long-form continuity.
+* **Students:** Draft essays and creative assignments while learning to revise and structure writing.
+* **Privacy-conscious writers:** Use local files, local models where possible, and explicit control over what context is sent to cloud providers.

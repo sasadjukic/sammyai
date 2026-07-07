@@ -1,44 +1,92 @@
-# Frequently Asked Questions (FAQ)
+# Frequently Asked Questions
 
-Everything you need to know about SammyAI—from technical requirements to creative capabilities.
+## 1. Technical Prerequisites and Setup
 
-## 1. Technical Prerequisites & Setup
+### What are the system requirements for running SammyAI?
 
-### **What are the system requirements for running SammyAI?**
-To ensure a smooth experience with local LLM execution and memory-intensive features like RAG, we recommend the following:
+Requirements depend heavily on whether you use local or cloud models.
 
-- **Memory (RAM)**: 16GB (Minimum required for reliable RAG processing and multi-tasking).
-- **GPU**: NVIDIA GeForce RTX 3060 (or equivalent) with at least 8GB VRAM is highly recommended.
-- **CPU**: Modern multi-core processor (Intel i5/AMD Ryzen 5 or better).
+* **RAM:** 16 GB is recommended for comfortable use with retrieval and background tasks.
+* **GPU:** A modern GPU with enough VRAM is recommended for local models.
+* **CPU:** A modern multi-core CPU is recommended.
+* **Python:** Source installs require Python 3.11-3.14.
 
-> [!IMPORTANT]
-> These specifications align with the requirements for **Gemma 3:4B**. While the model may function on lower-end hardware, performance stability and response speeds may be significantly impacted. If you run even smaller local models than Gemma 3:4B your system requirements will also be smaller. 
+Cloud models reduce local model requirements, but the desktop app and retrieval features still need enough memory and disk space.
 
-## 2. Creative Capabilities & Content
+### Do I need Ollama?
 
-### **What is the default language for SammyAI?**
-SammyAI is currently optimized for **US English** for both conversational interaction and narrative output.
+You need Ollama only if you want to run local models. Cloud-only workflows can use configured provider API keys instead.
 
-### **Will SammyAI support languages other than US English?**
-Expanding language support is a long-term goal. To maintain our standard of quality, this would require collaboration with native speakers for extensive testing across different linguistic nuances.
+### Where does SammyAI store project data?
 
-### **Does SammyAI permit writing crime, violence, or adult content?**
-Yes. SammyAI is designed to support the full spectrum of creative storytelling, including fictional crime, violence, and mature themes. 
+Your writing files stay in your project folder. SammyAI stores project registration, settings, application state, runtime data, and caches in OS-managed application data directories. It does not add hidden metadata files to your project folder.
 
-> [!NOTE]
-> We recommend an iterative approach when exploring complex or extreme themes. We are actively monitoring model performance in these areas to ensure consistent quality and creative freedom.
+## 2. Projects and Context
 
-### **Can SammyAI be used for non-fiction or professional content?**
-- **Journalism**: While SammyAI's creative tools are robust, it has not been specifically benchmarked for news reportage. 
-- **Social Media/Content Creation**: Initial results indicate that SammyAI is highly effective for drafting scripts, social posts, and content outlines when provided with the correct context and tone.
+### What is a SammyAI project?
 
-### **Can SammyAI write poetry or songs?**
-While SammyAI can generate rhythmic text, it is not currently specialized for the highly specific structures required for professional-grade poetry and songwriting.
+A project is a normal folder that contains your writing files. SammyAI registers the folder, shows it in the Project Explorer, and can synchronize supported files for project context.
 
-## 3. Editor Features & Development
+### Which files can SammyAI use for context?
 
-### **Why does the editor lack advanced formatting (fonts, bolding, etc.)?**
-SammyAI is designed as a **distraction-free writing environment**. Our priority is deep LLM integration to help you overcome writer’s block and focus on the narrative. We view the editor as a "strategic scratchpad" for generative drafting and high-level revision.
+Project context supports `.txt`, `.md`, and `.pdf`. Safe AI file edits target `.txt` and `.md`.
 
-### **Will SammyAI support formats like .odt or .docx?**
-We initially launched with `.txt` and `.md` due to their near-universal compatibility. We are evaluating support for `.odt` and `.docx` to better integrate with traditional publishing and word processing workflows.
+### Do I still need to manually index files?
+
+Usually, no. V0.4.1-alpha adds automatic project synchronization for supported files. Legacy manual indexing remains under **Advanced > Legacy Manual Indexing** for fallback use.
+
+### What is the difference between project context, CIN, and memory?
+
+* **Project Context or RAG:** Retrieves relevant chunks from project files.
+* **Attached Reference or CIN:** Adds a short high-priority reference to the current conversation.
+* **Persistent Memory:** Stores approved project facts and summaries for future sessions.
+
+## 3. Chat and Agents
+
+### What does New Chat do?
+
+New Chat starts a fresh session context. Use it when changing tasks, moving to a new writing stage, or cleaning up a long conversation.
+
+### Which agent should I choose?
+
+* **Assistant:** General help and read-only discussion.
+* **Brainstormer:** Ideas and alternatives.
+* **Writer:** Drafting and revision workflow.
+* **Editor:** Reviewed file-change proposals.
+* **Critic:** Read-only feedback.
+
+### Can SammyAI edit my files automatically?
+
+The Editor agent can propose file changes, but changes are reviewed as change sets before they are applied. Existing files require explicit file context before modification.
+
+## 4. Creative Capabilities and Content
+
+### What is the default language for SammyAI?
+
+SammyAI is currently optimized for US English for both conversation and narrative output.
+
+### Will SammyAI support languages other than US English?
+
+Expanded language support is a long-term goal. It requires testing with native speakers and different model families.
+
+### Does SammyAI permit fictional crime, violence, or mature themes?
+
+SammyAI is designed for creative writing across many genres, including mature fictional themes. You remain responsible for how you use model output and for provider policy compliance.
+
+### Can SammyAI be used for non-fiction or professional content?
+
+Yes, but it is primarily designed for creative writing. For factual or professional material, verify claims independently.
+
+### Can SammyAI write poetry or songs?
+
+SammyAI can help with rhythmic or poetic text, but it is not currently specialized for professional songwriting or poetry workflows.
+
+## 5. Editor Features
+
+### Why does the editor avoid rich formatting?
+
+SammyAI focuses on text-first writing and LLM workflows. Plain text and Markdown are easier to retrieve, diff, review, and edit safely.
+
+### Will SammyAI support formats like `.odt` or `.docx`?
+
+Additional import or export support may be evaluated later. For now, `.txt` and `.md` are the safest editable formats, and `.pdf` is supported for context extraction.

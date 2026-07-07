@@ -22,7 +22,7 @@ This extended version of the story bible for *Ten Degrees of Sky* was split into
 
 **Series Summary:** When a collapsed climate tech firm Atmos-Tech Solutions (A.T.S) decommissioned land turns into a lawless Wild West frontier, Alex Norvell, an ex-engineer turned scavenger navigates corporate mercenaries, local militias, and emergent technology to protect an unlikely community of workers and refugees.
 
-**End goal:** Hijack the firm’s abandoned climate-tech core, boot it back up, and reprogram it to seed clouds for everyone: workers, refugees, even the mercenaries, thereby collapsing the scarcity economy the corporation profits from.
+**End goal:** Hijack the firm's abandoned climate-tech core, boot it back up, and reprogram it to seed clouds for everyone: workers, refugees, even the mercenaries, thereby collapsing the scarcity economy the corporation profits from.
 
 **Series close:** A fragile new hydrological commons is born; our engineer becomes a legend.
 
@@ -32,15 +32,15 @@ This extended version of the story bible for *Ten Degrees of Sky* was split into
 
 **Alex Norvell Backstory and Personality:**
 
-1. * **Backstory:** Alex lost his wife Jessie and daughter Lia during the catastrophic flood caused by the firm’s weather manipulation technology. He witnessed *them* – his family, the people he’d worked alongside, the community he’d invested in – vanish in a terrifying, unnatural storm. 
+1. * **Backstory:** Alex lost his wife Jessie and daughter Lia during the catastrophic flood caused by the firm's weather manipulation technology. He witnessed *them* - his family, the people he'd worked alongside, the community he'd invested in - vanish in a terrifying, unnatural storm. 
 2. * **Personality:** Stoic, haunted, intensely practical, and capable of brutal efficiency when provoked. Makes occasional self-depreciating, dry-humor jokes.
-3. * **Skills and Abilities:** Alex is a brilliant engineer, not just fixing things, but *understanding* how things work at a fundamental level. This extends to the climate core itself – he can diagnose problems, adapt systems, and jury-rig solutions with scavenged parts and salvaged tech. Alex is ours **post-apocalyptic cyber-cowboy.**
-4. * **Drive:** It's not just about revenge; it’s about honoring memory and fulfilling the promise he made to his family – a promise to use his knowledge to build a sustainable future. It’s also a visceral, consuming need to *control* the forces that took them. He's driven by a grief so profound it’s almost a weapon, a constant reminder of what was lost and what he intends to reclaim. The core is a twisted reflection of their lost paradise. He sees it as his *duty* to fix what the corporation broke.
-5. * **Appearance:** Weathered, scarred, practical clothing – layers for protection, reinforced with salvaged materials. A perpetually grim expression.
-6. * **Weapon of Choice:** A heavily modified, almost brutal-looking handgun – a reflection of his skills and his personal history.
-7. * **Haunted Regret:** Alex isn't a purely vengeful figure. He carries a deep-seated regret – a constant questioning of whether he could have done more to prevent the disaster. This internal conflict adds vulnerability and makes him more sympathetic.
-8. * **A Flicker of Humanity:** Despite his hardened exterior, Alex retains a core of empathy – particularly for the vulnerable and oppressed. This is where his actions become truly heroic, not just driven by revenge. Perhaps he has a small, carefully guarded connection to a child survivor, mirroring the loss of his own.
-9. * **A Personal Ritual:** Alex develops a small, almost superstitious ritual – perhaps a particular song he remembers from his wife, a toy that was dear to his daughter, or a small memento of his family – to ground himself and maintain his focus in the face of overwhelming despair.
+3. * **Skills and Abilities:** Alex is a brilliant engineer, not just fixing things, but *understanding* how things work at a fundamental level. This extends to the climate core itself - he can diagnose problems, adapt systems, and jury-rig solutions with scavenged parts and salvaged tech. Alex is ours **post-apocalyptic cyber-cowboy.**
+4. * **Drive:** It's not just about revenge; it's about honoring memory and fulfilling the promise he made to his family - a promise to use his knowledge to build a sustainable future. It's also a visceral, consuming need to *control* the forces that took them. He's driven by a grief so profound it's almost a weapon, a constant reminder of what was lost and what he intends to reclaim. The core is a twisted reflection of their lost paradise. He sees it as his *duty* to fix what the corporation broke.
+5. * **Appearance:** Weathered, scarred, practical clothing - layers for protection, reinforced with salvaged materials. A perpetually grim expression.
+6. * **Weapon of Choice:** A heavily modified, almost brutal-looking handgun - a reflection of his skills and his personal history.
+7. * **Haunted Regret:** Alex isn't a purely vengeful figure. He carries a deep-seated regret - a constant questioning of whether he could have done more to prevent the disaster. This internal conflict adds vulnerability and makes him more sympathetic.
+8. * **A Flicker of Humanity:** Despite his hardened exterior, Alex retains a core of empathy - particularly for the vulnerable and oppressed. This is where his actions become truly heroic, not just driven by revenge. Perhaps he has a small, carefully guarded connection to a child survivor, mirroring the loss of his own.
+9. * **A Personal Ritual:** Alex develops a small, almost superstitious ritual - perhaps a particular song he remembers from his wife, a toy that was dear to his daughter, or a small memento of his family - to ground himself and maintain his focus in the face of overwhelming despair.
 10. * **Personal Vehicle:** Alex rides a heavily modified dirt bike called Frankie, named after Mary Shelley's character Frankenstein. Frankie is a marvel of this post-apocalyptic world. It is a triple-powered hybrid with custom, airless tires. Alex's relationship to his bike is the same as a cowboy's relationship to his horse. To him, Frankie means freedom of movement and freedom of choice. Alex will under no circumstance leave his bike behind. 
 
 ---
@@ -53,15 +53,15 @@ While our story is inspired by Mad Max and Clint Eastwood's Spaghetti Westerns, 
 
     * 1. *Retro-futurist realism:* The world blends grounded, almost rural landscapes with advanced, alien machine tech. Think: forests, abandoned structures, worn industrial spaces... interrupted by sleek, geometric, hovering threats. The contrast is key: nature vs. artificial precision.
 
-    * 2. *Soft, natural lighting:* Lighting is often diffuse—sunlight through trees, hazy skies, muted tones. It avoids the neon overload common in sci-fi and instead leans toward photographic realism with subtle stylization.
+    * 2. *Soft, natural lighting:* Lighting is often diffuse-sunlight through trees, hazy skies, muted tones. It avoids the neon overload common in sci-fi and instead leans toward photographic realism with subtle stylization.
 
     * 3. *Motion clarity over chaos:* Even during combat, visuals prioritize readability. Enemy silhouettes are distinct, almost iconic, making them instantly recognizable.
 
 2. **Sound Design & Audio Identity:**
 
-    * 1. *Mechanical presence as “character”:* The machines aren’t just enemies—they’re heard before they’re seen. Metallic hums, distant drones, servo movements—very tactile, very physical.
+    * 1. *Mechanical presence as "character":* The machines aren't just enemies-they're heard before they're seen. Metallic hums, distant drones, servo movements-very tactile, very physical.
 
-    * 2. *Dynamic range (quiet → explosive):* Long stretches of near-silence or ambient sound:
+    * 2. *Dynamic range (quiet -> explosive):* Long stretches of near-silence or ambient sound:
         * wind
         * footsteps
         * distant machinery
@@ -74,21 +74,21 @@ While our story is inspired by Mad Max and Clint Eastwood's Spaghetti Westerns, 
 
     * 3. *Spatial awareness is everything:* Sound is directional and layered. You can locate threats based on subtle cues.
 
-    * 4. *Music as emotional glue, not dominance:* The score tends to be atmospheric rather than melodic-forward. It supports mood instead of driving it—often blending into ambient sound.
+    * 4. *Music as emotional glue, not dominance:* The score tends to be atmospheric rather than melodic-forward. It supports mood instead of driving it-often blending into ambient sound.
 
 3. **Tone & Emotional Feel:**
 
-    * 1. *Quiet tension, not constant adrenaline:* It’s not a nonstop action frenzy. The series should build unease through anticipation instead of constant chaos.
+    * 1. *Quiet tension, not constant adrenaline:* It's not a nonstop action frenzy. The series should build unease through anticipation instead of constant chaos.
 
-    * 2. *Melancholic but not hopeless:* There’s a sense of a world that’s been disrupted—but not completely lost. Nature still exists, people still survive.
+    * 2. *Melancholic but not hopeless:* There's a sense of a world that's been disrupted-but not completely lost. Nature still exists, people still survive.
 
     * 3. *Human vulnerability vs. machine dominance:* People feel small compared to the machines. Encounters feel like survival situations, not power fantasies.
 
 4. **Pacing:**
 
-    * 1. *Slow-burn exploration → sudden spikes:* Movement through the world is often calm and methodical. Combat encounters break that calm abruptly.
+    * 1. *Slow-burn exploration -> sudden spikes:* Movement through the world is often calm and methodical. Combat encounters break that calm abruptly.
 
-    * 2. *Rhythm of “observe → prepare → engage → recover”:* People are encouraged to read the environment before acting. Downtime matters as much as action.
+    * 2. *Rhythm of "observe -> prepare -> engage -> recover":* People are encouraged to read the environment before acting. Downtime matters as much as action.
 
     * 3. *Breathing room is intentional:* The series wants you to feel the quiet. That quiet is what makes the action hit harder.
 
@@ -101,8 +101,8 @@ While our story is inspired by Mad Max and Clint Eastwood's Spaghetti Westerns, 
 * **Core Mission:** "To achieve atmospheric recalibration and terraformative stewardship for a sustainable human future." At its peak, A.T.S. managed vast "Sky-Farms" and climate stations across approximately 10 percent of the Earth's landmass and 10 degrees of Sky.
 
 ### **2. THE GOLDEN AGE (The Savior Narrative)**
-* **Public Face:** A.T.S. was hailed as a global savior. They built the **"Atmos-Cores"**—enormous, beautiful fusion-powered facilities that acted as climate stabilizers, water purifiers, and energy hubs. Communities thrived in their shadow. Their propaganda featured smiling, diverse teams of engineers and ecologists.
-* **Internal Culture:** Early employees were true believers. They spoke in terms of "ecological debt" and "generational stewardship." The company logo—a stylized leaf encircling a gear—was worn as a badge of honor.
+* **Public Face:** A.T.S. was hailed as a global savior. They built the **"Atmos-Cores"**-enormous, beautiful fusion-powered facilities that acted as climate stabilizers, water purifiers, and energy hubs. Communities thrived in their shadow. Their propaganda featured smiling, diverse teams of engineers and ecologists.
+* **Internal Culture:** Early employees were true believers. They spoke in terms of "ecological debt" and "generational stewardship." The company logo-a stylized leaf encircling a gear-was worn as a badge of honor.
 
 ### **3. THE ROT WITHIN (The Corruption)**
 * **The Pivot:** Following Dr. Berry's mysterious death (officially a lab accident, whispers of dissent) and Huang's forced retirement, the Board of Directors, led by CEO **Logan Nelson**, pivoted. The mission shifted from *stewardship* to *control*, from *sustainability* to *asset management*.
@@ -110,9 +110,9 @@ While our story is inspired by Mad Max and Clint Eastwood's Spaghetti Westerns, 
 * **The Militarization:** To protect its assets (now reframed as "profit-generating territories"), A.T.S. founded the **Internal Security Division (ISD)**. What began as drone-assisted conservation patrols evolved into a private army of automated "Sentinel" drones and mechanized "Warden" units. Engineers who joined to heal the planet found themselves designing suppression systems.
 
 ### **4. THE COLLAPSE (The Silent Crash)**
-* **The Trigger:** The complex, profit-optimized algorithms managing the Atmos-Cores began to fail. Cascading failures in one Core would create feedback loops, causing erratic, hyper-localized weather disasters—"Algorithmic Storms." Public trust evaporated.
-* **The Fall:** Governments, finally recognizing the threat of a single corporate entity controlling vital climate functions, moved to nationalize A.T.S. assets. Nelson and the board liquidated what they could and vanished into off-world havens. The company imploded legally and functionally within a matter of months, leaving its vast infrastructure—and the destabilized climates it created—behind.
-* **The Legacy State:** The decommissioned A.T.S. territories became the "Ten Degrees of Sky"—a lawless, environmentally volatile frontier. The Atmos-Cores still stand, mostly dormant, some dangerously unstable, all impossibly valuable.
+* **The Trigger:** The complex, profit-optimized algorithms managing the Atmos-Cores began to fail. Cascading failures in one Core would create feedback loops, causing erratic, hyper-localized weather disasters-"Algorithmic Storms." Public trust evaporated.
+* **The Fall:** Governments, finally recognizing the threat of a single corporate entity controlling vital climate functions, moved to nationalize A.T.S. assets. Nelson and the board liquidated what they could and vanished into off-world havens. The company imploded legally and functionally within a matter of months, leaving its vast infrastructure-and the destabilized climates it created-behind.
+* **The Legacy State:** The decommissioned A.T.S. territories became the "Ten Degrees of Sky"-a lawless, environmentally volatile frontier. The Atmos-Cores still stand, mostly dormant, some dangerously unstable, all impossibly valuable.
 
 ### **5. VISUAL & AUDITORY LEGACY (Clues in the Decay)**
 * **Propaganda Loops:** In abandoned facilities, wall-mounted screens still flicker with corporate reels: "A.T.S.: Building Your Tomorrow!" featuring now-ghost towns. The cheerful, synthetic voiceover now crackles with irony.
@@ -130,7 +130,7 @@ The Internal Security Division (shortly **ISD**) is the remnants of the once pow
 
 * **Leader:** Julian Kross. Kross is old-school military type who believes in hierarchy and rules, as long as he's on the top of the hierarchy and he sets the rules. Kross is the man who always wants to be in control. 
 
-* **Visual Aesthetic:** ISD wear the standardized, militarized uniforms of the old A.T.S. ISD: dark grey or urban-camouflage fatigues with the modified A.T.S. logo starkly painted or patched on the shoulder. Higher ranks might have pieces of pre-collapse corporate attire—a faded blazer over tactical gear, a silk tie tucked into body armor—signifying their executive status.
+* **Visual Aesthetic:** ISD wear the standardized, militarized uniforms of the old A.T.S. ISD: dark grey or urban-camouflage fatigues with the modified A.T.S. logo starkly painted or patched on the shoulder. Higher ranks might have pieces of pre-collapse corporate attire-a faded blazer over tactical gear, a silk tie tucked into body armor-signifying their executive status.
 
 * **Hook for Alex:** Alex considers ISD to be **the direct instrument of his loss.** The catastrophic "Algorithmic Storm" that killed Alex's family and colleagues wasn't a natural disaster or an act of God. It was the direct result of a **Internal Security Division's systems protocol.**
 
@@ -158,7 +158,7 @@ A religious group who believe the climate tech core is inherently corrupting and
 
 * **Visual Aesthetic:** Part druid, part scarecrow. Garments made of woven moss, cured bark, and storm-tattered plastics. Body paint from clay and ash. Weapons are wood, bone, and salvaged metal shaped into primitive spears and axes.
 
-* **Hook for Alex:** They would see Alex, the brilliant engineer, as the ultimate heresy—a "False Tinker" poisoning the Spirit. They might be protecting a geothermal vent or a stable weather node that Alex needs to access for a repair. Conflict is inevitable: his solution (technology) is their sin.
+* **Hook for Alex:** They would see Alex, the brilliant engineer, as the ultimate heresy-a "False Tinker" poisoning the Spirit. They might be protecting a geothermal vent or a stable weather node that Alex needs to access for a repair. Conflict is inevitable: his solution (technology) is their sin.
 
 * **Series Potential:** Could they be *right* in a way? Is there a chaotic, emergent intelligence in the malfunctioning Core? They provide a mystical, anti-tech counterpoint.
 

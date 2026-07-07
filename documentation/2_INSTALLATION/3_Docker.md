@@ -1,26 +1,21 @@
 # Running with Docker
 
-Docker provides a seamless way to run SammyAI without worrying about installing Python, PySide6, or other dependencies on your local system.
+Docker can run SammyAI in an isolated environment. Because SammyAI is a desktop GUI application, Docker setup depends heavily on your operating system and display server.
 
 ## Prerequisites
 
-*   [Docker](https://www.docker.com/products/docker-desktop/) installed and running on your system.
+* [Docker](https://www.docker.com/products/docker-desktop/) installed and running.
+* A working display passthrough setup for GUI applications.
+* Ollama reachable from the container if you plan to use local models.
 
-## How to Run
-
-### 1. Pull the Image
-
-You can download the latest SammyAI image from [Docker Hub](https://hub.docker.com/r/sammycwa/sammyai) using:
+## Pull the Image
 
 ```bash
 docker pull sammycwa/sammyai:latest
 ```
 
-### 2. Launch the Container
+## Launch on Linux with X11
 
-Since SammyAI is a GUI application, running it via Docker requires passing through your display settings:
-
-**On Linux (X11):**
 ```bash
 xhost +local:docker
 docker run -it \
@@ -30,10 +25,10 @@ docker run -it \
 ```
 
 > [!IMPORTANT]
-> If you are using local LLMs, ensure that your Docker container can communicate with the Ollama service running on your host machine (usually via `host.docker.internal`).
+> If local models run on the host, configure the container so it can reach the host Ollama service. The correct hostname can vary by operating system and Docker setup.
 
-## Benefits of using Docker
+## Benefits
 
-*   **Isolated Environment**: No conflict with your existing Python projects.
-*   **Easy Updates**: Simply pull the latest image to get new features.
-*   **Portable**: Run the exact same environment on any OS that supports Docker.
+* **Isolated environment:** Avoid conflicts with other Python projects.
+* **Repeatable setup:** Use the same image across compatible machines.
+* **Simple refresh:** Pull a newer image when one is published.
