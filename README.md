@@ -25,7 +25,7 @@
 
 </div>
 
-## 🔑 Key Features
+## Key Features
 
 - **Set up Your Own LLM's**: Install and run your own LLM's locally using Ollama or choose your favorite cloud LLM provider and their latest releases.
 - **Change LLM Settings**: Change LLM settings such as temperature, top-p and seed to tailor assistance to your specific needs.
@@ -35,7 +35,7 @@
 - **Retrieval-Augmented Generation (RAG)**: Index your project files to provide the AI with a deep "memory" of your world and characters.
 - **Diff-Based Editing (DBE)**: Review AI suggestions via visual diffs and surgically apply changes to your drafts.
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - Python 3.11–3.14
@@ -58,7 +58,7 @@
 
 For detailed installation options including Docker support, see the [Installation Guide](https://github.com/sasadjukic/sammyai/blob/main/documentation/2_INSTALLATION/1_Start.md).
 
-## 📖 Stories
+## Stories
 
 SammyAI is a valuable collaborative partner for:
 - **Essays & Short Stories**: From flash fiction to complex narratives.
@@ -68,7 +68,7 @@ SammyAI is a valuable collaborative partner for:
 
 Check out our [Story Archive](https://github.com/sasadjukic/sammyai/blob/main/documentation/6_STORIES/1_Stories_Introduction.md) to see examples of what SammyAI can help you create.
 
-## 🔒 Privacy & Copyrights
+## Privacy & Copyrights
 
 - **100% Free**: Leverage local models and free cloud tiers.
 - **Privacy First**: SammyAI does not collect or store your data. Everything runs locally on your PC.
@@ -76,7 +76,7 @@ Check out our [Story Archive](https://github.com/sasadjukic/sammyai/blob/main/do
 
 Read more in our [Cost, Privacy and Copyrights document](https://github.com/sasadjukic/sammyai/blob/main/documentation/1_WHAT_IS_SAMMYAI/2_Cost_Privacy_and_Copyrights.md).
 
-## 🗺️ Roadmap
+## Roadmap
 
 Planned updates include:
 - **Long-Form Stress Testing**: Ensuring stability and output quality.
@@ -85,7 +85,7 @@ Planned updates include:
 
 See [Planned Updates](https://github.com/sasadjukic/sammyai/blob/main/documentation/7_NEXT_STEPS/1_Planned_Updates.md) for more details.
 
-## ⚖️ License
+## License
 
 This project is licensed under the MIT License.
 
