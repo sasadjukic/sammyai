@@ -289,7 +289,10 @@ class AgentWorkflowService:
         if not visible_response and change_set is not None:
             visible_response = "I prepared the requested file changes for review."
         elif not visible_response:
-            visible_response = "The agent returned no user-facing response."
+            visible_response = (
+                "SammyAI completed the workflow, but the model did not return "
+                "displayable text. Please try again or switch models."
+            )
 
         return AgentRunResult(
             run_id=run_id,
@@ -346,6 +349,14 @@ class AgentWorkflowService:
                 run_instruction=REVISION_PROMPT,
             ),
         )
+        if not final_response.strip() and draft.strip():
+            record(
+                "revision",
+                "Writer revision returned no text; showing the first draft",
+            )
+            record("completed", "Writer workflow completed")
+            return draft, 3
+
         record("revision", "Writer revised the draft")
         record("completed", "Writer workflow completed")
         return final_response, 3

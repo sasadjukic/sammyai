@@ -119,6 +119,33 @@ def test_writer_runs_draft_evaluation_and_revision(workflow_service):
     assert "Current Run Instruction" in calls[2][1]
 
 
+def test_writer_returns_first_draft_when_revision_is_empty(workflow_service):
+    _root, service = workflow_service
+    responses = iter(
+        (
+            "First draft with the teaser scenes.",
+            "The draft satisfies the request.",
+            "   ",
+        )
+    )
+
+    def complete(_messages, _system_prompt):
+        return next(responses)
+
+    result = service.run(
+        AgentType.WRITER,
+        user_request="Write a teaser opening.",
+        messages=[{"role": "user", "content": "Write a teaser opening."}],
+        complete=complete,
+    )
+
+    assert result.response == "First draft with the teaser scenes."
+    assert result.model_calls == 3
+    assert result.events[-2].message == (
+        "Writer revision returned no text; showing the first draft"
+    )
+
+
 def test_brainstormer_prepares_but_does_not_apply_file_change(
     workflow_service,
 ):
