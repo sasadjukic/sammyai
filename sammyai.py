@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QPlainTextEdit, QFileDialog, QMessageBox, QToolBar,
     QMenu, QWidget, QLabel, QDockWidget, QLineEdit, QTextEdit,
     QHBoxLayout, QPushButton, QVBoxLayout, QSizePolicy, QStyle, QDialog,
-    QInputDialog
+    QInputDialog, QToolButton
 )
 from PySide6.QtGui import QAction, QKeySequence, QIcon, QPainter, QColor, QFont, QPalette, QTextCursor, QPixmap
 from PySide6.QtSvg import QSvgRenderer
@@ -929,6 +929,37 @@ class TextEditor(QMainWindow):
             return QApplication.style().standardIcon(fallback)
         return icon
 
+    def _tint_icon(self, icon, color, size=32):
+        if not icon or icon.isNull():
+            return icon
+
+        pix = icon.pixmap(QSize(size, size), QIcon.Normal, QIcon.Off)
+        if pix.isNull():
+            return icon
+
+        tinted = QPixmap(pix.size())
+        tinted.fill(Qt.transparent)
+
+        painter = QPainter(tinted)
+        painter.drawPixmap(0, 0, pix)
+        painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
+        painter.fillRect(tinted.rect(), QColor(color))
+        painter.end()
+
+        tinted_icon = QIcon()
+        for mode in (QIcon.Normal, QIcon.Disabled, QIcon.Active, QIcon.Selected):
+            tinted_icon.addPixmap(tinted, mode, QIcon.Off)
+        return tinted_icon
+
+    def _load_tinted_icon(self, theme_name, fallback, color, size=32):
+        return self._tint_icon(self._load_icon(theme_name, fallback), color, size)
+
+    def _load_menu_icon(self, theme_name, fallback):
+        return self._load_tinted_icon(theme_name, fallback, "#ffffff", 20)
+
+    def _load_menu_svg_icon(self, base_name):
+        return self._load_colored_svg_icon(base_name, "#ffffff", 20)
+
     def _load_colored_svg_icon(self, base_name, color=None, size=32):
         """Load an SVG from the local `icons/` folder and tint it to `color`.
 
@@ -970,6 +1001,23 @@ class TextEditor(QMainWindow):
         # Fallback to theme/fallback icon if something goes wrong
         return self._load_icon(base_name, QStyle.SP_FileIcon)
 
+    def _add_toolbar_action(self, toolbar, action, icon_name):
+        icon_color = _extract_color_from_stylesheet("QToolButton", "color") or "#e9a5a5"
+        button = QToolButton(toolbar)
+        button.setIcon(self._load_colored_svg_icon(icon_name, icon_color))
+        button.setIconSize(toolbar.iconSize())
+        button.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        button.setText(action.text())
+        button.setToolTip(action.toolTip() or action.statusTip() or action.text())
+        button.setStatusTip(action.statusTip())
+        button.setEnabled(action.isEnabled())
+        button.clicked.connect(lambda _checked=False, action=action: action.trigger())
+        action.changed.connect(
+            lambda button=button, action=action: button.setEnabled(action.isEnabled())
+        )
+        toolbar.addWidget(button)
+        return button
+
     def create_toolbar(self):
         toolbar = QToolBar()
         toolbar.setMovable(False)
@@ -978,21 +1026,13 @@ class TextEditor(QMainWindow):
         toolbar.setToolButtonStyle(Qt.ToolButtonIconOnly)
         toolbar.setIconSize(QSize(32, 32))
         self.addToolBar(Qt.LeftToolBarArea, toolbar)
-        # Add quick toolbar actions: New, Open, Save, Close in this order
-        # Set icons if available
-        # Prefer local SVG icons (tinted to match the editor text color) if available
-        self.new_action.setIcon(self._load_colored_svg_icon("new"))
-        self.open_action.setIcon(self._load_colored_svg_icon("open"))
-        self.save_action.setIcon(self._load_colored_svg_icon("save"))
-        self.close_action.setIcon(self._load_colored_svg_icon("close"))
-
-        toolbar.addAction(self.new_action)
-        toolbar.addAction(self.open_action)
-        toolbar.addAction(self.save_action)
-        toolbar.addAction(self.close_action)
-        # Add Search icon below Close (use local svg if present)
-        self.search_action.setIcon(self._load_colored_svg_icon("search"))
-        toolbar.addAction(self.search_action)
+        # Keep toolbar icons independent from shared menu actions so menus can use
+        # white icons while the vertical toolbar keeps the accent color.
+        self.new_toolbar_button = self._add_toolbar_action(toolbar, self.new_action, "new")
+        self.open_toolbar_button = self._add_toolbar_action(toolbar, self.open_action, "open")
+        self.save_toolbar_button = self._add_toolbar_action(toolbar, self.save_action, "save")
+        self.close_toolbar_button = self._add_toolbar_action(toolbar, self.close_action, "close")
+        self.search_toolbar_button = self._add_toolbar_action(toolbar, self.search_action, "search")
 
         # Add a stretch spacer to push the next items to the bottom of the vertical toolbar
         spacer = QWidget()
@@ -1000,13 +1040,17 @@ class TextEditor(QMainWindow):
         toolbar.addWidget(spacer)
 
         # Bottom-only icons
-        self.agent_action.setIcon(self._load_colored_svg_icon("chat"))
-        self.llm_setup_action.setIcon(self._load_colored_svg_icon("llm_setup"))
-        self.settings_action.setIcon(self._load_colored_svg_icon("settings"))
-
-        toolbar.addAction(self.agent_action)
-        toolbar.addAction(self.llm_setup_action)
-        toolbar.addAction(self.settings_action)
+        self.agent_toolbar_button = self._add_toolbar_action(toolbar, self.agent_action, "chat")
+        self.llm_setup_toolbar_button = self._add_toolbar_action(
+            toolbar,
+            self.llm_setup_action,
+            "llm_setup",
+        )
+        self.settings_toolbar_button = self._add_toolbar_action(
+            toolbar,
+            self.settings_action,
+            "settings",
+        )
 
 
         # Connect editor signals to enable/disable actions based on context
@@ -1042,11 +1086,15 @@ class TextEditor(QMainWindow):
         )
         file_menu.addAction(self.close_project_action)
         file_menu.addSeparator()
+        self.new_action.setIcon(self._load_menu_svg_icon("new"))
+        self.open_action.setIcon(self._load_menu_svg_icon("open"))
+        self.save_action.setIcon(self._load_menu_svg_icon("save"))
+        self.close_action.setIcon(self._load_menu_svg_icon("close"))
         file_menu.addAction(self.new_action)
         file_menu.addAction(self.open_action)
         file_menu.addAction(self.save_action)
         # add Save As with an icon if available
-        self.save_as_action.setIcon(self._load_icon("document-save-as", QStyle.SP_DialogSaveButton))
+        self.save_as_action.setIcon(self._load_menu_icon("document-save-as", QStyle.SP_DialogSaveButton))
         file_menu.addAction(self.save_as_action)
         file_menu.addSeparator()
         file_menu.addAction(self.close_action)
@@ -1054,12 +1102,12 @@ class TextEditor(QMainWindow):
         # Edit menu
         edit_menu = menubar.addMenu("Edit")
         # add icons to edit menu actions
-        self.copy_action.setIcon(self._load_icon("edit-copy", QStyle.SP_DialogOpenButton))
-        self.cut_action.setIcon(self._load_icon("edit-cut", QStyle.SP_DialogOpenButton))
-        self.paste_action.setIcon(self._load_icon("edit-paste", QStyle.SP_DialogOpenButton))
-        self.undo_action.setIcon(self._load_icon("edit-undo", QStyle.SP_ArrowBack))
-        self.redo_action.setIcon(self._load_icon("edit-redo", QStyle.SP_ArrowForward))
-        self.repeat_action.setIcon(self._load_icon("view-refresh", QStyle.SP_BrowserReload))
+        self.copy_action.setIcon(self._load_menu_icon("edit-copy", QStyle.SP_DialogOpenButton))
+        self.cut_action.setIcon(self._load_menu_icon("edit-cut", QStyle.SP_DialogOpenButton))
+        self.paste_action.setIcon(self._load_menu_icon("edit-paste", QStyle.SP_DialogOpenButton))
+        self.undo_action.setIcon(self._load_menu_icon("edit-undo", QStyle.SP_ArrowBack))
+        self.redo_action.setIcon(self._load_menu_icon("edit-redo", QStyle.SP_ArrowForward))
+        self.repeat_action.setIcon(self._load_menu_icon("view-refresh", QStyle.SP_BrowserReload))
         edit_menu.addAction(self.copy_action)
         edit_menu.addAction(self.paste_action)
         edit_menu.addAction(self.cut_action)
@@ -1070,8 +1118,8 @@ class TextEditor(QMainWindow):
         edit_menu.addAction(self.repeat_action)
         edit_menu.addSeparator()
         # Add search and replace actions
-        self.search_action.setIcon(self._load_icon("edit-find", QStyle.SP_FileDialogContentsView))
-        self.replace_action.setIcon(self._load_icon("edit-find-replace", QStyle.SP_FileDialogContentsView))
+        self.search_action.setIcon(self._load_menu_icon("edit-find", QStyle.SP_FileDialogContentsView))
+        self.replace_action.setIcon(self._load_menu_icon("edit-find-replace", QStyle.SP_FileDialogContentsView))
         edit_menu.addAction(self.search_action)
         edit_menu.addAction(self.replace_action)
         edit_menu.addSeparator()
