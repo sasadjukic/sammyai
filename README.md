@@ -21,7 +21,12 @@
 
 ---
 
+![SammyAI Text Editor](documentation/3_USER_GUIDE/pictures/SammyAI_Layout.png)
+
+---
+
 ![SammyAI Text Editor](documentation/3_USER_GUIDE/pictures/SammyAI_LLM_Chat_Window.png)
+
 
 </div>
 
