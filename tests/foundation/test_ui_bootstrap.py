@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 
+from PySide6.QtGui import QColor, QIcon
 from PySide6.QtWidgets import QApplication
 
 from llm.chat_manager import ChatManager, MessageRole
@@ -27,6 +28,25 @@ class FakeRuntimeServices:
 
     def shutdown(self):
         self.shutdown_called = True
+
+
+def _strongest_icon_pixel(icon, size, mode=QIcon.Normal):
+    image = icon.pixmap(size, size, mode, QIcon.Off).toImage()
+    strongest_color = QColor()
+    strongest_alpha = -1
+
+    for y in range(image.height()):
+        for x in range(image.width()):
+            color = image.pixelColor(x, y)
+            if color.alpha() > strongest_alpha:
+                strongest_color = color
+                strongest_alpha = color.alpha()
+
+    return QColor(
+        strongest_color.red(),
+        strongest_color.green(),
+        strongest_color.blue(),
+    )
 
 
 def test_editor_accepts_injected_runtime_services(tmp_path):
@@ -109,3 +129,32 @@ def test_editor_accepts_injected_runtime_services(tmp_path):
     editor.close()
     app.processEvents()
     assert services.shutdown_called is True
+
+
+def test_menu_icons_are_white_without_recoloring_toolbar_icons(tmp_path):
+    app = QApplication.instance() or QApplication([])
+    paths = AppPaths(
+        config_dir=tmp_path / "config",
+        data_dir=tmp_path / "data",
+        cache_dir=tmp_path / "cache",
+        log_dir=tmp_path / "logs",
+    ).ensure_created()
+    services = FakeRuntimeServices()
+
+    editor = TextEditor(services=services, app_paths=paths)
+
+    try:
+        assert _strongest_icon_pixel(editor.search_action.icon(), 20) == QColor("#ffffff")
+        assert _strongest_icon_pixel(
+            editor.copy_action.icon(),
+            20,
+            QIcon.Disabled,
+        ) == QColor("#ffffff")
+        assert _strongest_icon_pixel(
+            editor.search_toolbar_button.icon(),
+            32,
+        ) == QColor("#e9a5a5")
+    finally:
+        editor.close()
+        app.processEvents()
+        assert services.shutdown_called is True
