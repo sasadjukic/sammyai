@@ -32,6 +32,7 @@
 
 ## Key Features
 
+- **Agent Workflows**: SammyAI supports multiple writing agents: Assistant, Brainstormer, Writer, Editor, and Critic. 
 - **Set up Your Own LLM's**: Install and run your own LLM's locally using Ollama or choose your favorite cloud LLM provider and their latest releases.
 - **Change LLM Settings**: Change LLM settings such as temperature, top-p and seed to tailor assistance to your specific needs.
 - **Multi-model Chat**: Seamlessly switch between different AI models during a single session to tailor assistance to your specific needs.
@@ -39,6 +40,8 @@
 - **Context Injection (CIN)**: Directly inject specific reference files into the current AI conversation for informed brainstorming.
 - **Retrieval-Augmented Generation (RAG)**: Index your project files to provide the AI with a deep "memory" of your world and characters.
 - **Diff-Based Editing (DBE)**: Review AI suggestions via visual diffs and surgically apply changes to your drafts.
+
+Check out all the features [Features] (https://github.com/sasadjukic/sammyai/blob/main/documentation/1_WHAT_IS_SAMMYAI/3_Features.md).
 
 ## Getting Started
 
@@ -85,8 +88,8 @@ Read more in our [Cost, Privacy and Copyrights document](https://github.com/sasa
 
 Planned updates include:
 - **Long-Form Stress Testing**: Ensuring stability and output quality.
-- **Improved Dialogue System**: Dialogue that tailors to your character traits and speech patterns.
-- **Improving Diff-Based Editing**: Adding more features to the diff-based editing system to make it more user-friendly and powerful.
+- **Agent Workflow Quality**: Improve draft, evaluation, and revision behavior.
+- **Writing Styles:** Implementing custom writing styles
 
 See [Planned Updates](https://github.com/sasadjukic/sammyai/blob/main/documentation/7_NEXT_STEPS/1_Planned_Updates.md) for more details.
 
