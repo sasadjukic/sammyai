@@ -1,11 +1,13 @@
-# Use Python 3.12 slim as base for a balance of size and compatibility
-FROM python:3.12-slim
+# Use Python 3.12 on a stable Debian release for a balance of size and compatibility
+FROM python:3.12-slim-bookworm
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+ENV PIP_NO_CACHE_DIR=1
 ENV QT_X11_NO_MITSHM=1
-ENV QT_DEBUG_PLUGINS=1
+ENV QT_DEBUG_PLUGINS=0
 # Set paths for persistent storage
 ENV HF_HOME=/app/models
 ENV SENTENCE_TRANSFORMERS_HOME=/app/models
@@ -42,6 +44,14 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
 
 # Set working directory
 WORKDIR /app
+
+# Create mutable runtime locations used by SammyAI and model libraries
+RUN mkdir -p \
+    "$HF_HOME" \
+    "$SAMMYAI_CONFIG_DIR" \
+    "$SAMMYAI_DATA_DIR" \
+    "$SAMMYAI_CACHE_DIR" \
+    "$SAMMYAI_LOG_DIR"
 
 # Install CPU-only PyTorch first to save space (avoiding CUDA)
 RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu

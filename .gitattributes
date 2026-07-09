@@ -6,4 +6,7 @@
 *.yaml text eol=lf
 *.qss text eol=lf
 *.svg text eol=lf
+.gitattributes text eol=lf
+Dockerfile text eol=lf
+.dockerignore text eol=lf
 *.bat text eol=crlf

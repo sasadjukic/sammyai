@@ -1,7 +1,10 @@
 # Virtual Environment
+Lib/
 lib/
 lib64/
+Scripts/
 bin/
+Include/
 include/
 share/
 pyvenv.cfg
@@ -9,10 +12,23 @@ env/
 venv/
 .venv/
 ENV/
+
+# Build and packaging artifacts
+build/
+dist/
+*.egg-info/
+*.whl
+*.tar.gz
+
+# Python caches and test artifacts
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 .coverage
 htmlcov/
 __pycache__/
+*.py[cod]
+*$py.class
 
 # Models and data (these will be downloaded at runtime)
 models/
@@ -34,6 +50,8 @@ runtime/
 # Git
 .git/
 .gitignore
+.gitattributes
+.github/
 
 # IDE
 .vscode/
@@ -46,3 +64,8 @@ runtime/
 logs/
 tmp/
 temp/
+
+# Development-only project files
+documentation/
+tests/
+TESTING.md
