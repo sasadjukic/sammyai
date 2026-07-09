@@ -12,13 +12,13 @@
 
 * **Brainstorming and idea generation:** Generate concepts, characters, plot turns, settings, and alternative scene directions.
 * **Drafting assistance:** Work on essays, flash fiction, short stories, novels, screenplays, TV series outlines, game lore, dialogue, and scene treatments.
-* **Project continuity:** Use automatic project context, explicit file references, CIN, RAG, and persistent memory to keep long-running projects consistent.
+* **Project continuity:** Use automatic project context, explicit file references, context injection, RAG, and persistent memory to keep long-running projects consistent.
 * **Revision and critique:** Use Editor, Critic, and reviewed change-set workflows to inspect proposed changes before accepting them.
 * **Research and organization:** Keep story bibles, notes, and drafts inside one project folder and browse them through the Project Explorer.
 
 ## Why Use SammyAI?
 
-* **Free to use:** Start writing without a subscription to SammyAI.
+* **Free to use:** Start writing without a subscription.
 * **Privacy focused:** SammyAI runs on your computer and does not send your writing to SammyAI developers.
 * **Project aware:** Work with real folders and files instead of disconnected chat sessions.
 * **AI-assisted but reviewed:** Editing proposals go through diff review and approval before project files are changed.

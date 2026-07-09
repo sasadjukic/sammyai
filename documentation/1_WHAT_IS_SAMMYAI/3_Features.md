@@ -40,7 +40,7 @@ The context engine helps SammyAI retrieve relevant project material without past
 * **Content hashes:** Changed, new, and deleted files update the project manifest.
 * **Explicit file references:** Use file references when a specific file must be included.
 * **Ambiguity handling:** If two files share the same name, use a relative path.
-* **Context budget:** Explicit files, CIN, RAG, and memory share a bounded context budget.
+* **Context budget:** Explicit files, context injection, RAG, and memory share a bounded context budget.
 
 Legacy manual indexing remains available under **Advanced > Legacy Manual Indexing** while the new context engine is tested.
 

@@ -7,7 +7,7 @@ SammyAI V0.4.1-alpha is a major alpha update focused on project-based writing, s
 * **Version:** SammyAI V0.4.1-alpha
 * **Development Stage:** Alpha
 * **Projects:** SammyAI now works around normal project folders, a live Project Explorer, recent projects, project settings, and OS-managed application data.
-* **Context Engine:** Project files can be synchronized automatically for retrieval, while explicit file references, CIN, RAG, and memory share a bounded prompt budget.
+* **Context Engine:** Project files can be synchronized automatically for retrieval, while explicit file references, Context Injection, RAG, and memory share a bounded prompt budget.
 * **Editing Safety:** AI file changes are reviewed as structured change sets with diff review, path confinement, atomic writes, stale-content checks, rollback, and undo support.
 * **Agents:** Assistant, Brainstormer, Writer, Editor, and Critic workflows are available through provider-neutral prompt layering.
 * **Memory:** Project-scoped persistent memories and conversation summaries are available with user approval.
