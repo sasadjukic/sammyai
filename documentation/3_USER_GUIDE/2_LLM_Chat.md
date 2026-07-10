@@ -4,7 +4,7 @@ The LLM Chat panel is the main interface for AI collaboration. It supports multi
 
 ---
 
-![SammyAI Text Editor](documentation/3_USER_GUIDE/pictures/SammyAI_composer.png)
+![SammyAI Text Editor](pictures/SammyAI_composer.png)
 
 ---
 

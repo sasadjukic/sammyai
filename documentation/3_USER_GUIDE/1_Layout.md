@@ -4,7 +4,7 @@ SammyAI V0.4.1-alpha uses a project-based workspace with a writing editor, Proje
 
 ---
 
-![SammyAI Text Editor](documentation/3_USER_GUIDE/pictures/SammyAI_menubar.png)
+![SammyAI Text Editor](pictures/SammyAI_menubar.png)
 
 ---
 
@@ -28,7 +28,7 @@ The Project Explorer is a collapsible dock beside the toolbar.
 * The active project appears in the window title.
 * Project files remain in their original folder. SammyAI stores app metadata in OS-managed application data.
 
-![SammyAI Text Editor](documentation/3_USER_GUIDE/pictures/SammyAI_workspace.png)
+![SammyAI Text Editor](pictures/SammyAI_workspace.png)
 
 ## 3. Top Menu Bar
 
