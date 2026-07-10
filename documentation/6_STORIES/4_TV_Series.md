@@ -22,7 +22,7 @@ It is also important to note that not EVERY SINGLE word in these pilots had been
 | **Genre** | Cop Drama |
 | **Inspiration** | Lethal Weapon, Miami Vice, Die Hard |
 
-[Bad Angel](https://drive.google.com/file/d/15w9BBC731No6eYkBZFyHeWb_fRxZDlrx/view?usp=sharing)
+**Read:** [Bad Angel](https://drive.google.com/file/d/15w9BBC731No6eYkBZFyHeWb_fRxZDlrx/view?usp=sharing)
 
 ---
 
@@ -40,7 +40,7 @@ It is also important to note that not EVERY SINGLE word in these pilots had been
 | **Genre** | Workplace comedy |
 | **Inspiration** | The Office, Parks and Recreation |
 
-[Transit Central](https://drive.google.com/file/d/1SLGUa9OQHH60xtVGdQCQMyM_go3m75_u/view?usp=sharing)
+**Read:** [Transit Central](https://drive.google.com/file/d/1SLGUa9OQHH60xtVGdQCQMyM_go3m75_u/view?usp=sharing)
 
 ---
 
@@ -58,8 +58,8 @@ It is also important to note that not EVERY SINGLE word in these pilots had been
 | **Genre** | Sci-Fi Drama, Neo-Western |
 | **Inspiration** | Mad Max 2 (The Road Warrior), Spaghetti Westerns, Arc Raiders |
  
-[Ten Degrees of Sky](https://drive.google.com/file/d/19VKaJBBaQxAjxXBP_5xKTGlnfcfRjFPh/view?usp=sharing)
+**Read:** [Ten Degrees of Sky](https://drive.google.com/file/d/19VKaJBBaQxAjxXBP_5xKTGlnfcfRjFPh/view?usp=sharing)
 
 ---
 
-[<- Back to Story Archive](file:///home/sasa/Desktop/Projects/sammyai_v1/documentation/6_STORIES/1_Stories_Introduction.md)
+[<- Back to Story Archive](1_Stories_Introduction.md)
