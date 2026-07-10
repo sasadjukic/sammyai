@@ -4,7 +4,7 @@ The LLM Settings panel controls how the selected model responds in future messag
 
 ---
 
-![SammyAI Text Editor](pictures/SammyAI_llm_settings_panel.png)
+![SammyAI LLM Settings Panel](pictures/sammyAI_llm_settings_panel.png)
 
 ---
 
