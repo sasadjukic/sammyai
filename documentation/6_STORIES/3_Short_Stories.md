@@ -20,7 +20,7 @@ These narratives often involve an iterative process, sometimes utilizing multipl
 | **Genre** | Comedy |
 | **Inspiration** | Onslaught of zombie content in movies and video games |
 
-[Read Fred and Zed](https://drive.google.com/file/d/1LMYtp3QE6W0Ubq9QAKwOxXGuinpggOOw/view?usp=sharing)
+**Read:** [Fred and Zed](https://drive.google.com/file/d/1LMYtp3QE6W0Ubq9QAKwOxXGuinpggOOw/view?usp=sharing)
 
 ---
 
@@ -38,7 +38,7 @@ These narratives often involve an iterative process, sometimes utilizing multipl
 | **Genre** | Slapstick Comedy/Parody |
 | **Inspiration** | Superhero movies, particularly Batman |
 
-[Read RatMan](https://drive.google.com/file/d/1PKn7VzGY3TPtYnDCsvSCZt9AoXp5P3Ya/view?usp=sharing)
+**Read:** [RatMan](https://drive.google.com/file/d/1PKn7VzGY3TPtYnDCsvSCZt9AoXp5P3Ya/view?usp=sharing)
 
 ---
 
@@ -56,7 +56,7 @@ These narratives often involve an iterative process, sometimes utilizing multipl
 | **Genre** | Comedy |
 | **Inspiration** | Pirates of the Caribbean, Monty Python, myth of El Dorado |
 
-[Read Zord](https://drive.google.com/file/d/1xUoD1jpPdniOWdV9gFNFn4FqLptCUb5p/view?usp=sharing)
+**Read:** [Zord](https://drive.google.com/file/d/1xUoD1jpPdniOWdV9gFNFn4FqLptCUb5p/view?usp=sharing)
 
 ---
 
@@ -74,8 +74,8 @@ These narratives often involve an iterative process, sometimes utilizing multipl
 | **Genre** | Sci-Fi/Drama |
 | **Inspiration** | AI boom of 2025 |
 
-[Read Lyra](https://drive.google.com/file/d/1DsLBDSCy8XQcpc8UQv27t0Q13UsC98a7/view?usp=sharing)
+**Read:** [Lyra](https://drive.google.com/file/d/1DsLBDSCy8XQcpc8UQv27t0Q13UsC98a7/view?usp=sharing)
 
 ---
 
-[<- Back to Story Archive](file:///home/sasa/Desktop/Projects/sammyai_v1/documentation/6_STORIES/1_Stories_Introduction.md)
+[<- Back to Story Archive](1_Stories_Introduction.md)
