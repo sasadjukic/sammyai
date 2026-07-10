@@ -4,6 +4,10 @@ The LLM Setup panel lets you configure the models that appear in SammyAI chat. Y
 
 ---
 
+![SammyAI LLM Setup](pictures/SammyAI_llm_setup_panel.png)
+
+---
+
 ## 1. Dynamic Model Management
 
 The LLM Setup panel gives you control over which models are available.

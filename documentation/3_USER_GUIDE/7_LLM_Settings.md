@@ -4,6 +4,10 @@ The LLM Settings panel controls how the selected model responds in future messag
 
 ---
 
+![SammyAI LLM Setup](pictures/SammyAI_llm_settings_panel.png)
+
+---
+
 ## 1. Creative Presets
 
 * **Exploratory:** Higher randomness for brainstorming, world-building, and unusual story directions.
