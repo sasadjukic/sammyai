@@ -4,7 +4,7 @@ The LLM Setup panel lets you configure the models that appear in SammyAI chat. Y
 
 ---
 
-![SammyAI LLM Setup Panel](pictures/sammyAI_llm_setup_panel.png)
+![SammyAI LLM Setup Panel](pictures/sammyai_llm_setup_panel.png)
 
 ---
 
