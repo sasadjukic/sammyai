@@ -21,11 +21,11 @@
 
 ---
 
-![SammyAI Text Editor](documentation/3_USER_GUIDE/pictures/SammyAI_Layout.png)
+![SammyAI Layout](documentation/3_USER_GUIDE/pictures/SammyAI_Layout.png)
 
 ---
 
-![SammyAI Text Editor](documentation/3_USER_GUIDE/pictures/SammyAI_LLM_Chat_Window.png)
+![SammyAI Workspace](documentation/3_USER_GUIDE/pictures/SammyAI_workspace.png)
 
 
 </div>
