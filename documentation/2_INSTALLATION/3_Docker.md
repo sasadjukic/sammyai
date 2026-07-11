@@ -24,6 +24,12 @@ docker run -it \
     sammycwa/sammyai:latest
 ```
 
+## Windows users
+1. Install Docker Desktop with WSL 2 backend.
+2. Install Ubuntu from Microsoft Store or `wsl --install`.
+3. Open Ubuntu/WSL terminal.
+4. Run SammyAI from there, not from plain PowerShell: `docker pull sammycwa/sammyai:latest`
+
 > [!IMPORTANT]
 > If local models run on the host, configure the container so it can reach the host Ollama service. The correct hostname can vary by operating system and Docker setup.
 
