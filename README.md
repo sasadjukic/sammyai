@@ -11,7 +11,7 @@
 
 # SammyAI
 
-**SammyAI is a creative writing assistant that helps writers brainstorm, draft, and refine stories of all genres and types.**
+**SammyAI is a creative writing assistant that helps writers brainstorm, draft, and refine stories of all genres.**
 
 [Official Website](https://sammycwa.com)
 
