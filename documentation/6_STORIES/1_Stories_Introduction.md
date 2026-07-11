@@ -34,6 +34,8 @@ Each story is presented with detailed metadata - allowing you to understand the 
 
 **This is just a glimpse of what SammyAI can do - your imagination is the only limit!**
 
-[-> Flash Fictions](2_Flash_Fiction.md)
-[-> Short Stories](3_Short_Stories.md)
-[-> Flash Fictions](4_TV_Series.md)
+[Flash Fictions ->](2_Flash_Fiction.md)
+
+[Short Stories ->](3_Short_Stories.md)
+
+[TV Series ->](4_TV_Series.md)
