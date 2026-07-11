@@ -33,3 +33,7 @@ Within these stories - from bite-sized flash fiction to funny short stories and 
 Each story is presented with detailed metadata - allowing you to understand the creative process and explore how to harness SammyAI's capabilities for your own projects. We invite you to delve into this collection and discover the exciting new frontiers of AI-assisted storytelling.
 
 **This is just a glimpse of what SammyAI can do - your imagination is the only limit!**
+
+[-> Flash Fictions](2_Flash_Fiction.md)
+[-> Short Stories](3_Short_Stories.md)
+[-> Flash Fictions](4_TV_Series.md)
