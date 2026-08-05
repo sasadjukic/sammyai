@@ -7,7 +7,8 @@
 
 <div align="center">
 
-![Video](documentation/3_USER_GUIDE/videos/sammyai_video.mp4)
+https://github.com/user-attachments/assets/67d9f084-840f-433b-a37e-4b3e80dbc69d
+
 
 # SammyAI
 
