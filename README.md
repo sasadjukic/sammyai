@@ -7,7 +7,7 @@
 
 <div align="center">
 
-<img src="icons/sammy.svg" width="300" alt="SammyAI Logo">
+![Video](documentation/3_USER_GUIDE/videos/sammyai_video.mp4)
 
 # SammyAI
 
