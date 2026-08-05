@@ -7,10 +7,12 @@
 
 <div align="center">
 
+# SammyAI
+
+
 https://github.com/user-attachments/assets/67d9f084-840f-433b-a37e-4b3e80dbc69d
 
 
-# SammyAI
 
 **SammyAI is a creative writing assistant that helps writers brainstorm, draft, and refine stories of all genres.**
 
