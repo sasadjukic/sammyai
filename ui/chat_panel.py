@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable
 import math
 import os
+import re
 
-from PySide6.QtCore import QEvent, QRect, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QIcon, QPainter, QPen, QPixmap
+from PySide6.QtCore import QEvent, QRect, QSize, QStringListModel, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QIcon, QPainter, QPen, QPixmap, QTextCursor
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
+    QCompleter,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -25,6 +28,10 @@ from PySide6.QtWidgets import (
 from sammyai_core.resources import asset_path
 
 
+FILE_MENTION_PATTERN = re.compile(r"(?<![\w@])@([^\s,;]*)$")
+FILE_REFERENCE_EXTENSIONS = frozenset({".md", ".txt"})
+
+
 class AutoGrowingTextEdit(QTextEdit):
     """A text editor that grows with its document up to a practical limit."""
 
@@ -33,11 +40,153 @@ class AutoGrowingTextEdit(QTextEdit):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self._project_file_provider: Callable[[], Iterable[str]] | None = None
+        self._project_files: tuple[str, ...] = ()
+        self._active_mention_start: int | None = None
+        self._suppress_file_completion = False
+
+        self._file_completion_model = QStringListModel(self)
+        self.file_completer = QCompleter(self._file_completion_model, self)
+        self.file_completer.setWidget(self)
+        self.file_completer.setCaseSensitivity(Qt.CaseInsensitive)
+        self.file_completer.setCompletionMode(QCompleter.PopupCompletion)
+        self.file_completer.setMaxVisibleItems(10)
+        self.file_completer.popup().setObjectName("fileReferencePopup")
+        self.file_completer.activated[str].connect(self._insert_file_reference)
+
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.setMinimumHeight(self.MINIMUM_HEIGHT)
         self.setMaximumHeight(self.MAXIMUM_HEIGHT)
         self.document().contentsChanged.connect(self.update_editor_height)
+        self.textChanged.connect(self._update_file_completions)
         self.update_editor_height()
+
+    def set_project_file_provider(
+        self,
+        provider: Callable[[], Iterable[str]] | None,
+    ) -> None:
+        """Set the active-project file source used when a new @mention begins."""
+        self._project_file_provider = provider
+        self._project_files = ()
+        self._active_mention_start = None
+        self.file_completer.popup().hide()
+
+    def set_project_files(self, paths: Iterable[str]) -> None:
+        """Set a static project file list, primarily for embedded integrations."""
+        normalized = {
+            str(path).replace("\\", "/").strip("/")
+            for path in paths
+            if str(path).replace("\\", "/").lower().endswith(
+                tuple(FILE_REFERENCE_EXTENSIONS)
+            )
+        }
+        self._project_files = tuple(sorted(normalized, key=str.casefold))
+
+    def _refresh_project_files(self) -> None:
+        if self._project_file_provider is None:
+            return
+        try:
+            self.set_project_files(self._project_file_provider())
+        except (OSError, RuntimeError):
+            self._project_files = ()
+
+    def _mention_at_cursor(self) -> tuple[int, str] | None:
+        cursor_position = self.textCursor().position()
+        match = FILE_MENTION_PATTERN.search(
+            self.toPlainText()[:cursor_position]
+        )
+        if match is None:
+            return None
+        return match.start(), match.group(1).replace("\\", "/")
+
+    @staticmethod
+    def _completion_score(path: str, query: str) -> int | None:
+        if not query:
+            return 0
+        folded_query = query.casefold()
+        folded_path = path.casefold()
+        filename = folded_path.rsplit("/", 1)[-1]
+        if filename.startswith(folded_query):
+            return 0
+        if folded_path.startswith(folded_query):
+            return 1
+        if any(part.startswith(folded_query) for part in folded_path.split("/")):
+            return 2
+        return None
+
+    def _update_file_completions(self) -> None:
+        if self._suppress_file_completion:
+            return
+        mention = self._mention_at_cursor()
+        if mention is None:
+            self._active_mention_start = None
+            self.file_completer.popup().hide()
+            return
+
+        mention_start, query = mention
+        if mention_start != self._active_mention_start:
+            self._active_mention_start = mention_start
+            self._refresh_project_files()
+
+        ranked = []
+        for path in self._project_files:
+            score = self._completion_score(path, query)
+            if score is not None:
+                ranked.append((score, path.rsplit("/", 1)[-1].casefold(), path))
+        candidates = [path for _score, _name, path in sorted(ranked)]
+        self._file_completion_model.setStringList(candidates)
+        if not candidates:
+            self.file_completer.popup().hide()
+            return
+
+        self.file_completer.setCompletionPrefix("")
+        popup = self.file_completer.popup()
+        popup.setCurrentIndex(self._file_completion_model.index(0, 0))
+        completion_rect = self.cursorRect()
+        popup_width = (
+            popup.sizeHintForColumn(0)
+            + popup.verticalScrollBar().sizeHint().width()
+            + 16
+        )
+        completion_rect.setWidth(min(max(220, popup_width), self.width()))
+        self.file_completer.complete(completion_rect)
+
+    def has_visible_file_completions(self) -> bool:
+        return self.file_completer.popup().isVisible()
+
+    def hide_file_completions(self) -> None:
+        self.file_completer.popup().hide()
+
+    def accept_current_file_completion(self) -> bool:
+        popup = self.file_completer.popup()
+        index = popup.currentIndex()
+        if not index.isValid() and self._file_completion_model.rowCount() > 0:
+            index = self._file_completion_model.index(0, 0)
+        if not index.isValid():
+            return False
+        path = self._file_completion_model.data(index)
+        if not path:
+            return False
+        self._insert_file_reference(str(path))
+        return True
+
+    def _insert_file_reference(self, path: str) -> None:
+        mention = self._mention_at_cursor()
+        if mention is None:
+            return
+        mention_start, _query = mention
+        reference = f'@"{path}"' if any(char.isspace() for char in path) else f"@{path}"
+        cursor = self.textCursor()
+        cursor.setPosition(mention_start)
+        cursor.setPosition(self.textCursor().position(), QTextCursor.KeepAnchor)
+        self._suppress_file_completion = True
+        try:
+            cursor.insertText(reference)
+            self.setTextCursor(cursor)
+            self._active_mention_start = None
+            self.file_completer.popup().hide()
+        finally:
+            self._suppress_file_completion = False
 
     def update_editor_height(self) -> None:
         """Fit the editor to its content while retaining a maximum height."""
@@ -433,6 +582,12 @@ class ChatPanel(QWidget):
 
     def eventFilter(self, obj, event) -> bool:  # noqa: N802 - Qt API
         if obj == self.input_field and event.type() == QEvent.KeyPress:
+            if self.input_field.has_visible_file_completions():
+                if event.key() in (Qt.Key_Return, Qt.Key_Enter, Qt.Key_Tab):
+                    return self.input_field.accept_current_file_completion()
+                if event.key() == Qt.Key_Escape:
+                    self.input_field.hide_file_completions()
+                    return True
             if event.key() in (Qt.Key_Return, Qt.Key_Enter):
                 if not (event.modifiers() & Qt.ShiftModifier):
                     self._on_send_clicked()
@@ -523,6 +678,12 @@ class ChatPanel(QWidget):
         self.message_sent.emit(message)
         self.input_field.clear()
         self.input_field.update_editor_height()
+
+    def set_project_file_provider(
+        self,
+        provider: Callable[[], Iterable[str]] | None,
+    ) -> None:
+        self.input_field.set_project_file_provider(provider)
 
     def _on_model_changed(self, model_key: str) -> None:
         if not model_key:

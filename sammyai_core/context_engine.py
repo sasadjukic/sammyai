@@ -20,6 +20,7 @@ from .projects import Project, ProjectService
 logger = logging.getLogger(__name__)
 
 SUPPORTED_EXTENSIONS = frozenset({".md", ".txt", ".pdf"})
+REFERENCEABLE_EXTENSIONS = frozenset({".md", ".txt"})
 IGNORED_DIRECTORIES = frozenset(
     {
         ".git",
@@ -468,6 +469,20 @@ class ProjectContextEngine:
                     )
                 )
         return resolved
+
+    def list_referenceable_files(
+        self,
+        project: Project | None = None,
+    ) -> tuple[str, ...]:
+        """Return editable text files available for explicit @file context."""
+        selected_project = project or self.active_project
+        if selected_project is None:
+            return ()
+        return tuple(
+            relative_path
+            for relative_path, path in self._candidate_paths(selected_project)
+            if path.suffix.lower() in REFERENCEABLE_EXTENSIONS
+        )
 
     def build_context(
         self,

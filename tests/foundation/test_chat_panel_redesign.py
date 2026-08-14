@@ -1,3 +1,5 @@
+from PySide6.QtCore import Qt
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
 from sammyai_core.resources import asset_path
@@ -133,6 +135,70 @@ def test_model_selection_does_not_add_redundant_composer_status():
 
         assert selected_models == ["local-model"]
         assert panel.status_label.text() == ""
+    finally:
+        panel.close()
+        app.setStyleSheet(previous_stylesheet)
+        app.processEvents()
+
+
+def test_file_mentions_filter_active_project_text_files_and_insert_paths():
+    app, previous_stylesheet = _styled_application()
+    panel = ChatPanel()
+    provider_calls = []
+
+    def project_files():
+        provider_calls.append(True)
+        return (
+            "draft/scene_one.md",
+            "draft/scene two.md",
+            "notes.txt",
+            "source.pdf",
+        )
+
+    try:
+        panel.resize(700, 850)
+        panel.show()
+        panel.set_project_file_provider(project_files)
+        panel.input_field.setFocus()
+        QTest.keyClicks(panel.input_field, "Rewrite @s")
+        app.processEvents()
+
+        assert provider_calls == [True]
+        assert panel.input_field._file_completion_model.stringList() == [
+            "draft/scene two.md",
+            "draft/scene_one.md",
+        ]
+
+        QTest.keyClick(panel.input_field, Qt.Key_Return)
+        app.processEvents()
+
+        assert panel.input_field.toPlainText() == 'Rewrite @"draft/scene two.md"'
+    finally:
+        panel.close()
+        app.setStyleSheet(previous_stylesheet)
+        app.processEvents()
+
+
+def test_accepting_file_completion_does_not_send_the_message():
+    app, previous_stylesheet = _styled_application()
+    panel = ChatPanel()
+    sent_messages = []
+    panel.message_sent.connect(sent_messages.append)
+
+    try:
+        panel.resize(700, 850)
+        panel.show()
+        panel.set_project_file_provider(lambda: ("scene.md",))
+        panel.input_field.setFocus()
+        QTest.keyClicks(panel.input_field, "Edit @s")
+        app.processEvents()
+
+        assert panel.input_field.has_visible_file_completions()
+        QTest.keyClick(panel.input_field, Qt.Key_Return)
+        app.processEvents()
+
+        assert panel.input_field.toPlainText() == "Edit @scene.md"
+        assert sent_messages == []
     finally:
         panel.close()
         app.setStyleSheet(previous_stylesheet)

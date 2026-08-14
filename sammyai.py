@@ -436,6 +436,16 @@ class TextEditor(QMainWindow):
                 logger.exception("Error calling chat panel method %s", method_name)
         return None
 
+    def _project_reference_files(self) -> tuple[str, ...]:
+        """Return active-project Markdown and text files for @ autocomplete."""
+        if self.context_engine is None:
+            return ()
+        try:
+            return self.context_engine.list_referenceable_files()
+        except OSError:
+            logger.exception("Unable to list active project files for chat")
+            return ()
+
     # --- Project system ---
 
     def _create_project_explorer(self) -> None:
@@ -550,6 +560,10 @@ class TextEditor(QMainWindow):
     def _set_active_project(self, project: Project) -> None:
         if self.project_explorer is not None:
             self.project_explorer.set_project(project)
+        self._chat_panel_safe(
+            "set_project_file_provider",
+            self._project_reference_files,
+        )
         if self.project_dock is not None:
             self.project_dock.show()
             self.project_dock.raise_()
@@ -638,6 +652,10 @@ class TextEditor(QMainWindow):
         self.project_service.close_project()
         if self.project_explorer is not None:
             self.project_explorer.clear_project()
+        self._chat_panel_safe(
+            "set_project_file_provider",
+            self._project_reference_files,
+        )
         if self.project_dock is not None:
             self.project_dock.hide()
         self.close_project_action.setEnabled(False)
@@ -1414,6 +1432,9 @@ class TextEditor(QMainWindow):
             self.chat_panel.agent_selected.connect(self._on_agent_selected)
             self.chat_panel.new_chat_requested.connect(
                 self._on_new_chat_requested
+            )
+            self.chat_panel.set_project_file_provider(
+                self._project_reference_files
             )
 
             # The primary chat only exposes temporary reference attachment.

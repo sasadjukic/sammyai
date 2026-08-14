@@ -163,6 +163,24 @@ def test_ambiguous_basename_requires_a_relative_path(tmp_path):
         database.close()
 
 
+def test_referenceable_files_only_include_project_markdown_and_text(tmp_path):
+    database, project, _repository, _rag, engine = make_engine(tmp_path)
+    (project.root_path / "scene.md").write_text("Scene", encoding="utf-8")
+    notes = project.root_path / "notes" / "ideas.txt"
+    notes.parent.mkdir()
+    notes.write_text("Ideas", encoding="utf-8")
+    (project.root_path / "source.pdf").write_bytes(b"pdf")
+    (project.root_path / "cover.png").write_bytes(b"png")
+
+    try:
+        assert engine.list_referenceable_files() == (
+            "scene.md",
+            "notes/ideas.txt",
+        )
+    finally:
+        database.close()
+
+
 def test_explicit_file_content_is_truncated_to_context_budget(tmp_path):
     database, project, _repository, rag, engine = make_engine(
         tmp_path,
