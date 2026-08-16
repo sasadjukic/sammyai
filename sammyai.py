@@ -2995,11 +2995,13 @@ class CodeEditor(QPlainTextEdit):
         self.setViewportMargins(self.lineNumberAreaWidth(), 0, 0, 0)
 
     def _get_editor_background_color(self):
-        ss = QApplication.instance().styleSheet() or ""
-        m = re.search(r"QPlainTextEdit\s*\{[^}]*background-color\s*:\s*([^;]+);", ss)
-        if m:
+        color_str = _extract_color_from_stylesheet(
+            "QPlainTextEdit",
+            "background-color",
+        )
+        if color_str:
             try:
-                return QColor(m.group(1).strip())
+                return QColor(color_str)
             except Exception:
                 pass
         return self.palette().color(QPalette.Base)
