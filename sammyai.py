@@ -59,6 +59,10 @@ from sammyai_core.memory import (
 
 logger = logging.getLogger("sammyai")
 
+SEARCH_MATCH_BACKGROUND = "#e9a5a5"
+SEARCH_CURRENT_MATCH_BACKGROUND = "#65c0e0"
+SEARCH_HIGHLIGHT_FOREGROUND = "#1e1e1e"
+
 
 # --- Module-level helper functions ---
 
@@ -1279,11 +1283,12 @@ class TextEditor(QMainWindow):
             selection = QTextEdit.ExtraSelection()
             selection.cursor = cursor
             
-            # Current match gets a different color (orange) than other matches (yellow)
             if i == self.current_match_index:
-                selection.format.setBackground(QColor("#FF8C00"))  # Dark orange for current match
+                background = SEARCH_CURRENT_MATCH_BACKGROUND
             else:
-                selection.format.setBackground(QColor("#FFD700"))  # Gold for other matches
+                background = SEARCH_MATCH_BACKGROUND
+            selection.format.setBackground(QColor(background))
+            selection.format.setForeground(QColor(SEARCH_HIGHLIGHT_FOREGROUND))
             
             extra_selections.append(selection)
         

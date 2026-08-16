@@ -1,9 +1,12 @@
-from PySide6.QtGui import QColor
+from types import SimpleNamespace
+
+from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import (
     QApplication,
     QPlainTextEdit,
 )
 
+from sammyai import TextEditor
 from sammyai_core.resources import asset_path
 from ui.chat_panel import ChatPanel
 
@@ -39,6 +42,36 @@ def test_primary_ui_fonts_use_valid_point_sizes():
     finally:
         editor.close()
         chat_panel.close()
+        app.setStyleSheet(previous_stylesheet)
+        app.processEvents()
+
+
+def test_search_matches_use_accessible_sammyai_accent_colors():
+    app, previous_stylesheet = _application_with_dark_theme()
+    editor = QPlainTextEdit("sky above, sky below.")
+
+    try:
+        first_match = editor.document().find("sky")
+        second_match = editor.document().find("sky", first_match)
+        search_state = SimpleNamespace(
+            editor=editor,
+            current_matches=[first_match, second_match],
+            current_match_index=0,
+        )
+
+        TextEditor._highlight_all_matches(search_state)
+        current_match, other_match = editor.extraSelections()
+
+        assert current_match.format.background().color() == QColor("#65c0e0")
+        assert other_match.format.background().color() == QColor("#e9a5a5")
+        assert current_match.format.foreground().color() == QColor("#1e1e1e")
+        assert other_match.format.foreground().color() == QColor("#1e1e1e")
+
+        editor.ensurePolished()
+        assert editor.palette().color(QPalette.Highlight) == QColor("#65c0e0")
+        assert editor.palette().color(QPalette.HighlightedText) == QColor("#1e1e1e")
+    finally:
+        editor.close()
         app.setStyleSheet(previous_stylesheet)
         app.processEvents()
 
