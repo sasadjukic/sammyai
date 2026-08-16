@@ -5,6 +5,8 @@ QMainWindow {
 QPlainTextEdit {
     color: #dddddd;
     background-color: #1e1e1e;
+    selection-color: #1e1e1e;
+    selection-background-color: #65c0e0;
     border: none;
     font-family: Consolas, monospace;
     font-size: 15pt;

@@ -59,6 +59,10 @@ from sammyai_core.memory import (
 
 logger = logging.getLogger("sammyai")
 
+SEARCH_MATCH_BACKGROUND = "#e9a5a5"
+SEARCH_CURRENT_MATCH_BACKGROUND = "#65c0e0"
+SEARCH_HIGHLIGHT_FOREGROUND = "#1e1e1e"
+
 
 # --- Module-level helper functions ---
 
@@ -1279,11 +1283,12 @@ class TextEditor(QMainWindow):
             selection = QTextEdit.ExtraSelection()
             selection.cursor = cursor
             
-            # Current match gets a different color (orange) than other matches (yellow)
             if i == self.current_match_index:
-                selection.format.setBackground(QColor("#FF8C00"))  # Dark orange for current match
+                background = SEARCH_CURRENT_MATCH_BACKGROUND
             else:
-                selection.format.setBackground(QColor("#FFD700"))  # Gold for other matches
+                background = SEARCH_MATCH_BACKGROUND
+            selection.format.setBackground(QColor(background))
+            selection.format.setForeground(QColor(SEARCH_HIGHLIGHT_FOREGROUND))
             
             extra_selections.append(selection)
         
@@ -2990,11 +2995,13 @@ class CodeEditor(QPlainTextEdit):
         self.setViewportMargins(self.lineNumberAreaWidth(), 0, 0, 0)
 
     def _get_editor_background_color(self):
-        ss = QApplication.instance().styleSheet() or ""
-        m = re.search(r"QPlainTextEdit\s*\{[^}]*background-color\s*:\s*([^;]+);", ss)
-        if m:
+        color_str = _extract_color_from_stylesheet(
+            "QPlainTextEdit",
+            "background-color",
+        )
+        if color_str:
             try:
-                return QColor(m.group(1).strip())
+                return QColor(color_str)
             except Exception:
                 pass
         return self.palette().color(QPalette.Base)
