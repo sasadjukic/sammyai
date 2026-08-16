@@ -2,6 +2,7 @@ import sys
 import re
 import os
 import logging
+import shutil
 from pathlib import Path
 from threading import Lock
 from typing import Optional
@@ -49,7 +50,7 @@ from sammyai_core.agent_workflows import (
     AgentType,
     AgentWorkflowService,
 )
-from sammyai_core.file_tools import FileToolError
+from sammyai_core.file_tools import BLOCKED_PATH_PARTS, FileToolError
 from sammyai_core.memory import (
     ConversationSummarizer,
     ConversationSummaryDraft,
@@ -455,6 +456,10 @@ class TextEditor(QMainWindow):
     def _create_project_explorer(self) -> None:
         self.project_explorer = ProjectExplorer(self)
         self.project_explorer.file_activated.connect(self._open_file_path)
+        self.project_explorer.copy_requested.connect(self._copy_project_file)
+        self.project_explorer.paste_requested.connect(self._paste_project_file)
+        self.project_explorer.rename_requested.connect(self._rename_project_file)
+        self.project_explorer.delete_requested.connect(self._delete_project_file)
 
         self.project_dock = QDockWidget("Project Explorer", self)
         self.project_dock.setObjectName("projectExplorerDock")
@@ -480,6 +485,250 @@ class TextEditor(QMainWindow):
         enabled = self.project_service is not None
         for action in project_actions:
             action.setEnabled(enabled)
+
+    def _active_project_file(self, path: str | Path) -> Path:
+        project = (
+            self.project_service.active_project
+            if self.project_service is not None
+            else None
+        )
+        if project is None:
+            raise ValueError("No project is currently open")
+
+        root = project.root_path.resolve()
+        candidate = Path(path)
+        if not candidate.is_absolute():
+            candidate = root / candidate
+        lexical_path = Path(os.path.abspath(candidate))
+        try:
+            relative_path = lexical_path.relative_to(root)
+        except ValueError as error:
+            raise ValueError("The selected file is outside the active project") from error
+        if any(
+            part.casefold() in BLOCKED_PATH_PARTS
+            for part in relative_path.parts
+        ):
+            raise ValueError("Protected project metadata cannot be changed")
+
+        cursor = root
+        for part in relative_path.parts:
+            cursor = cursor / part
+            if cursor.is_symlink():
+                raise ValueError("Symbolic links cannot be changed from the explorer")
+
+        resolved = lexical_path.resolve(strict=True)
+        try:
+            resolved.relative_to(root)
+        except ValueError as error:
+            raise ValueError("The selected file is outside the active project") from error
+        if not resolved.is_file():
+            raise ValueError("The selected item is not a regular file")
+        return resolved
+
+    def _active_project_directory(self, path: str | Path) -> Path:
+        project = (
+            self.project_service.active_project
+            if self.project_service is not None
+            else None
+        )
+        if project is None:
+            raise ValueError("No project is currently open")
+
+        root = project.root_path.resolve()
+        candidate = Path(path)
+        if not candidate.is_absolute():
+            candidate = root / candidate
+        lexical_path = Path(os.path.abspath(candidate))
+        try:
+            relative_path = lexical_path.relative_to(root)
+        except ValueError as error:
+            raise ValueError("The paste destination is outside the active project") from error
+        if any(
+            part.casefold() in BLOCKED_PATH_PARTS
+            for part in relative_path.parts
+        ):
+            raise ValueError("Protected project metadata cannot be changed")
+
+        cursor = root
+        for part in relative_path.parts:
+            cursor = cursor / part
+            if cursor.is_symlink():
+                raise ValueError("Symbolic-link folders cannot be paste destinations")
+
+        resolved = lexical_path.resolve(strict=True)
+        try:
+            resolved.relative_to(root)
+        except ValueError as error:
+            raise ValueError("The paste destination is outside the active project") from error
+        if not resolved.is_dir():
+            raise ValueError("The paste destination is not a folder")
+        return resolved
+
+    def _is_current_file(self, path: Path) -> bool:
+        if not self.current_file:
+            return False
+        current = Path(self.current_file).resolve(strict=False)
+        return os.path.normcase(str(current)) == os.path.normcase(str(path))
+
+    def _ensure_file_operation_has_no_unsaved_conflict(self, path: Path) -> None:
+        if self._is_current_file(path) and self.editor.document().isModified():
+            raise ValueError(
+                "The selected file has unsaved edits. Save or discard them "
+                "before renaming or deleting it."
+            )
+
+    @staticmethod
+    def _available_copy_path(destination: Path, filename: str) -> Path:
+        target = destination / filename
+        if not target.exists() and not target.is_symlink():
+            return target
+        source_name = Path(filename)
+        stem = source_name.stem
+        suffix = source_name.suffix
+        counter = 1
+        while True:
+            copy_label = " copy" if counter == 1 else f" copy {counter}"
+            target = destination / f"{stem}{copy_label}{suffix}"
+            if not target.exists() and not target.is_symlink():
+                return target
+            counter += 1
+
+    @Slot(str)
+    def _copy_project_file(self, path: str) -> None:
+        try:
+            source = self._active_project_file(path)
+        except (OSError, ValueError) as error:
+            QMessageBox.warning(self, "Copy File", str(error))
+            return
+        self.project_explorer.set_copied_file(source)
+        self.statusBar().showMessage(
+            f"Copied {source.name}",
+            self.STATUS_QUICK,
+        )
+
+    @Slot(str, str)
+    def _paste_project_file(self, source_path: str, destination_path: str) -> None:
+        try:
+            source = self._active_project_file(source_path)
+            destination = self._active_project_directory(destination_path)
+            target = self._available_copy_path(destination, source.name)
+            shutil.copy2(source, target)
+        except (OSError, ValueError) as error:
+            QMessageBox.critical(self, "Paste File", str(error))
+            return
+        self._sync_after_file_tool_change()
+        self.statusBar().showMessage(
+            f"Pasted {target.name}",
+            self.STATUS_QUICK,
+        )
+
+    @Slot(str)
+    def _rename_project_file(self, path: str) -> None:
+        try:
+            source = self._active_project_file(path)
+            self._ensure_file_operation_has_no_unsaved_conflict(source)
+        except (OSError, ValueError) as error:
+            QMessageBox.warning(self, "Rename File", str(error))
+            return
+
+        new_name, accepted = QInputDialog.getText(
+            self,
+            "Rename File",
+            "New name:",
+            QLineEdit.Normal,
+            source.name,
+        )
+        new_name = new_name.strip()
+        if not accepted:
+            return
+        if (
+            not new_name
+            or new_name in {".", ".."}
+            or "/" in new_name
+            or "\\" in new_name
+        ):
+            QMessageBox.warning(
+                self,
+                "Rename File",
+                "Enter a file name without folder separators.",
+            )
+            return
+
+        target = source.with_name(new_name)
+        if new_name == source.name:
+            return
+        if target.exists() or target.is_symlink():
+            try:
+                same_file = source.samefile(target)
+            except OSError:
+                same_file = False
+            if not same_file:
+                QMessageBox.warning(
+                    self,
+                    "Rename File",
+                    f"A file named '{new_name}' already exists.",
+                )
+                return
+
+        was_current = self._is_current_file(source)
+        try:
+            source.rename(target)
+        except OSError as error:
+            QMessageBox.critical(self, "Rename File", str(error))
+            return
+
+        if was_current:
+            previous_file = self.current_file
+            self.current_file = str(target)
+            self.update_window_title()
+            if self.rag_system:
+                try:
+                    self.rag_system.unmark_active_file(previous_file)
+                    self.rag_system.mark_active_file(self.current_file)
+                except Exception:
+                    logger.exception("Unable to update active file after rename")
+        self.project_explorer.update_copied_file_after_rename(source, target)
+        self._sync_after_file_tool_change()
+        self.statusBar().showMessage(
+            f"Renamed {source.name} to {target.name}",
+            self.STATUS_QUICK,
+        )
+
+    @Slot(str)
+    def _delete_project_file(self, path: str) -> None:
+        try:
+            source = self._active_project_file(path)
+            self._ensure_file_operation_has_no_unsaved_conflict(source)
+        except (OSError, ValueError) as error:
+            QMessageBox.warning(self, "Delete File", str(error))
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Delete File",
+            f"Permanently delete '{source.name}'?\n\n"
+            "This action cannot be undone.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+
+        was_current = self._is_current_file(source)
+        try:
+            source.unlink()
+        except OSError as error:
+            QMessageBox.critical(self, "Delete File", str(error))
+            return
+
+        self.project_explorer.clear_copied_file_if(source)
+        if was_current:
+            self.close_file()
+        self._sync_after_file_tool_change()
+        self.statusBar().showMessage(
+            f"Deleted {source.name}",
+            self.STATUS_QUICK,
+        )
 
     def _restore_active_project(self) -> None:
         if self.project_service is None:
