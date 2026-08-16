@@ -7,6 +7,7 @@ from sammyai import TextEditor
 from sammyai_core.database import ProjectDatabase
 from sammyai_core.paths import AppPaths
 from sammyai_core.projects import ProjectRepository, ProjectService
+from ui.chat_panel import GENERIC_WELCOME_MESSAGES
 
 
 class FakeRuntimeServices:
@@ -60,6 +61,11 @@ def test_editor_restores_project_and_opens_tree_file(tmp_path):
     editor._populate_recent_projects_menu()
     assert editor.recent_projects_menu.actions()[0].text() == project.name
 
+    editor._create_chat_panel()
+    assert editor.chat_panel.empty_title.full_text == (
+        f"How can I help with {project.name}?"
+    )
+
     editor._open_file_path(chapter)
     assert editor.editor.toPlainText() == "# Chapter One\n"
     assert editor.current_file == str(chapter.resolve())
@@ -76,6 +82,7 @@ def test_editor_restores_project_and_opens_tree_file(tmp_path):
     assert service.active_project is None
     assert editor.project_explorer.project is None
     assert editor.project_dock.isHidden()
+    assert editor.chat_panel.empty_title.full_text in GENERIC_WELCOME_MESSAGES
 
     editor.close()
     app.processEvents()

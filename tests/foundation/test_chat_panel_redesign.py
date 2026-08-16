@@ -3,7 +3,11 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
 from sammyai_core.resources import asset_path
-from ui.chat_panel import AutoGrowingTextEdit, ChatPanel
+from ui.chat_panel import (
+    GENERIC_WELCOME_MESSAGES,
+    AutoGrowingTextEdit,
+    ChatPanel,
+)
 
 
 def _styled_application():
@@ -37,6 +41,58 @@ def test_composer_moves_from_empty_state_to_active_conversation():
         assert panel.chat_display.toPlainText() == (
             "You:\nHelp me develop this scene."
         )
+    finally:
+        panel.close()
+        app.setStyleSheet(previous_stylesheet)
+        app.processEvents()
+
+
+def test_welcome_message_varies_without_a_project_and_uses_project_name():
+    app, previous_stylesheet = _styled_application()
+    panel = ChatPanel()
+
+    try:
+        first_generic = panel.empty_title.full_text
+        assert first_generic in GENERIC_WELCOME_MESSAGES
+
+        panel._on_clear_clicked()
+        second_generic = panel.empty_title.full_text
+        assert second_generic in GENERIC_WELCOME_MESSAGES
+        assert second_generic != first_generic
+
+        panel.set_project_name("Ten Degrees of Sky")
+        assert panel.empty_title.full_text == (
+            "How can I help with Ten Degrees of Sky?"
+        )
+
+        panel._on_clear_clicked()
+        assert panel.empty_title.full_text == (
+            "How can I help with Ten Degrees of Sky?"
+        )
+    finally:
+        panel.close()
+        app.setStyleSheet(previous_stylesheet)
+        app.processEvents()
+
+
+def test_long_project_welcome_is_elided_to_one_line():
+    app, previous_stylesheet = _styled_application()
+    panel = ChatPanel()
+
+    try:
+        project_name = "A Very Long Project Name " * 12
+        expected_welcome = f"How can I help with {project_name.strip()}?"
+        panel.resize(500, 850)
+        panel.set_project_name(project_name)
+        panel.show()
+        app.processEvents()
+
+        assert panel.empty_title.full_text == expected_welcome
+        assert panel.empty_title.accessibleName() == expected_welcome
+        assert not panel.empty_title.wordWrap()
+        assert panel.empty_title.text() != expected_welcome
+        assert panel.empty_title.text().endswith("…")
+        assert panel.empty_title.toolTip() == expected_welcome
     finally:
         panel.close()
         app.setStyleSheet(previous_stylesheet)
