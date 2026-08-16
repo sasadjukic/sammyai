@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 import math
 import os
+import random
 import re
 
 from PySide6.QtCore import QEvent, QRect, QSize, QStringListModel, Qt, QTimer, Signal
@@ -30,6 +31,45 @@ from sammyai_core.resources import asset_path
 
 FILE_MENTION_PATTERN = re.compile(r"(?<![\w@])@([^\s,;]*)$")
 FILE_REFERENCE_EXTENSIONS = frozenset({".md", ".txt"})
+GENERIC_WELCOME_MESSAGES = (
+    "What would you like to work on?",
+    "What shall we create today?",
+    "Where would you like to begin?",
+    "What story are we shaping today?",
+)
+
+
+class ElidedLabel(QLabel):
+    """A single-line label that preserves its full text for accessibility."""
+
+    def __init__(self, text: str = "", parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._full_text = text
+        self.setTextFormat(Qt.PlainText)
+        self._update_display_text()
+
+    @property
+    def full_text(self) -> str:
+        return self._full_text
+
+    def setText(self, text: str) -> None:  # noqa: N802 - Qt API
+        self._full_text = text
+        self.setAccessibleName(text)
+        self._update_display_text()
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt API
+        super().resizeEvent(event)
+        self._update_display_text()
+
+    def _update_display_text(self) -> None:
+        available_width = max(0, self.contentsRect().width())
+        display_text = self.fontMetrics().elidedText(
+            self._full_text,
+            Qt.ElideRight,
+            available_width,
+        )
+        QLabel.setText(self, display_text)
+        self.setToolTip(self._full_text if display_text != self._full_text else "")
 
 
 class AutoGrowingTextEdit(QTextEdit):
@@ -397,6 +437,8 @@ class ChatPanel(QWidget):
         ChatPanel.ICONS_DIR = str(asset_path("icons"))
         self._thinking_message: ChatMessage | None = None
         self._conversation_started = False
+        self._project_name: str | None = None
+        self._welcome_text = ""
         self.setup_ui()
 
     def setup_ui(self) -> None:
@@ -471,10 +513,12 @@ class ChatPanel(QWidget):
         empty_layout.setSpacing(7)
         empty_layout.setAlignment(Qt.AlignCenter)
 
-        self.empty_title = QLabel("What would you like to work on?")
+        self.empty_title = ElidedLabel()
         self.empty_title.setObjectName("chatEmptyTitle")
         self.empty_title.setAlignment(Qt.AlignCenter)
-        self.empty_title.setWordWrap(True)
+        self.empty_title.setWordWrap(False)
+        self.empty_title.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self._refresh_welcome_message()
         self.empty_hint = QLabel(
             "Ask a question, develop an idea, or work with your project files."
         )
@@ -685,6 +729,25 @@ class ChatPanel(QWidget):
     ) -> None:
         self.input_field.set_project_file_provider(provider)
 
+    def set_project_name(self, project_name: str | None) -> None:
+        """Personalize the empty-chat greeting for the active project."""
+        cleaned_name = project_name.strip() if project_name else ""
+        self._project_name = cleaned_name or None
+        self._refresh_welcome_message()
+
+    def _refresh_welcome_message(self) -> None:
+        if self._project_name:
+            welcome_text = f"How can I help with {self._project_name}?"
+        else:
+            alternatives = tuple(
+                message
+                for message in GENERIC_WELCOME_MESSAGES
+                if message != self._welcome_text
+            )
+            welcome_text = random.choice(alternatives or GENERIC_WELCOME_MESSAGES)
+        self._welcome_text = welcome_text
+        self.empty_title.setText(welcome_text)
+
     def _on_model_changed(self, model_key: str) -> None:
         if not model_key:
             return
@@ -701,6 +764,7 @@ class ChatPanel(QWidget):
         self.chat_display.clear()
         self._thinking_message = None
         self.status_label.setText("New chat ready")
+        self._refresh_welcome_message()
         self._set_conversation_started(False)
         self.input_field.setFocus()
         self.new_chat_requested.emit()

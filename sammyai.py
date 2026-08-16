@@ -564,6 +564,7 @@ class TextEditor(QMainWindow):
             "set_project_file_provider",
             self._project_reference_files,
         )
+        self._chat_panel_safe("set_project_name", project.name)
         if self.project_dock is not None:
             self.project_dock.show()
             self.project_dock.raise_()
@@ -656,6 +657,7 @@ class TextEditor(QMainWindow):
             "set_project_file_provider",
             self._project_reference_files,
         )
+        self._chat_panel_safe("set_project_name", None)
         if self.project_dock is not None:
             self.project_dock.hide()
         self.close_project_action.setEnabled(False)
@@ -1435,6 +1437,14 @@ class TextEditor(QMainWindow):
             )
             self.chat_panel.set_project_file_provider(
                 self._project_reference_files
+            )
+            active_project = (
+                self.project_service.active_project
+                if self.project_service is not None
+                else None
+            )
+            self.chat_panel.set_project_name(
+                active_project.name if active_project is not None else None
             )
 
             # The primary chat only exposes temporary reference attachment.
