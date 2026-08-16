@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
+import shutil
 from typing import Any
 from uuid import uuid4
 
@@ -37,6 +38,12 @@ class Project:
     created_at: datetime
     updated_at: datetime
     last_opened_at: datetime
+
+
+@dataclass(frozen=True)
+class ProjectRemovalResult:
+    project: Project
+    cleanup_warnings: tuple[str, ...] = ()
 
 
 def _utc_now() -> datetime:
@@ -152,6 +159,24 @@ class ProjectRepository:
                 WHERE id = ?
                 """,
                 (_to_text(now), _to_text(now), project_id),
+            )
+        return self.get(project_id)
+
+    def update_root(self, project_id: str, root_path: str | Path) -> Project | None:
+        canonical_path = canonical_root(root_path)
+        with self.database.transaction() as connection:
+            connection.execute(
+                """
+                UPDATE projects
+                SET root_path = ?, root_key = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    str(canonical_path),
+                    root_key(canonical_path),
+                    _to_text(_utc_now()),
+                    project_id,
+                ),
             )
         return self.get(project_id)
 
@@ -296,6 +321,74 @@ class ProjectService:
 
     def recent_projects(self, limit: int = 10) -> list[Project]:
         return self.repository.list_recent(limit)
+
+    def get_project(self, project_id: str) -> Project | None:
+        return self.repository.get(project_id)
+
+    def relocate_project(
+        self,
+        project_id: str,
+        root_path: str | Path,
+    ) -> Project:
+        project = self.repository.get(project_id)
+        if project is None:
+            raise ProjectDirectoryError(f"Unknown project: {project_id}")
+        try:
+            new_root = canonical_root(root_path)
+        except OSError as error:
+            raise ProjectDirectoryError(
+                f"Project directory does not exist: {root_path}"
+            ) from error
+        if not new_root.is_dir():
+            raise ProjectDirectoryError(
+                f"Project path is not a directory: {new_root}"
+            )
+        registered = self.repository.get_by_root(new_root)
+        if registered is not None and registered.id != project_id:
+            raise ProjectAlreadyExistsError(
+                f"That folder is already registered as '{registered.name}'"
+            )
+        relocated = self.repository.update_root(project_id, new_root)
+        if relocated is None:
+            raise ProjectDirectoryError(f"Unknown project: {project_id}")
+        return self._activate(relocated)
+
+    def remove_project(self, project_id: str) -> ProjectRemovalResult:
+        """Forget a project and remove only SammyAI-owned project state."""
+        project = self.repository.get(project_id)
+        if project is None:
+            raise ProjectDirectoryError(f"Unknown project: {project_id}")
+
+        if self.repository.get_application_state(ACTIVE_PROJECT_KEY) == project_id:
+            self.repository.set_application_state(ACTIVE_PROJECT_KEY, None)
+        if self.active_project is not None and self.active_project.id == project_id:
+            self.active_project = None
+        self.repository.delete(project_id)
+
+        warnings: list[str] = []
+        managed_directories = (
+            self.paths.project_data_dir(project_id),
+            self.paths.project_cache_dir(project_id),
+        )
+        for directory in managed_directories:
+            try:
+                self._remove_managed_project_directory(directory)
+            except OSError as error:
+                warnings.append(f"Unable to remove {directory}: {error}")
+        return ProjectRemovalResult(project, tuple(warnings))
+
+    def _remove_managed_project_directory(self, directory: Path) -> None:
+        allowed_roots = (
+            self.paths.projects_data_dir.resolve(),
+            self.paths.projects_cache_dir.resolve(),
+        )
+        target = directory.resolve(strict=False)
+        if target in allowed_roots or not any(
+            target.parent == root for root in allowed_roots
+        ):
+            raise OSError(f"Refusing to remove unsafe managed path: {target}")
+        if target.exists():
+            shutil.rmtree(target)
 
     def _register_and_activate(self, root: Path, name: str) -> Project:
         project = self.repository.create(name, root)
