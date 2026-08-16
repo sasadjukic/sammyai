@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
-from PySide6.QtWidgets import QApplication
+import pytest
+from PySide6.QtWidgets import QApplication, QInputDialog, QMessageBox
 
 from llm.chat_manager import ChatManager
 from sammyai import TextEditor
@@ -32,7 +33,7 @@ class FakeRuntimeServices:
         self.project_database.close()
 
 
-def test_editor_restores_project_and_opens_tree_file(tmp_path):
+def test_editor_restores_project_and_opens_tree_file(tmp_path, monkeypatch):
     app = QApplication.instance() or QApplication([])
     paths = AppPaths(
         config_dir=tmp_path / "config",
@@ -58,6 +59,12 @@ def test_editor_restores_project_and_opens_tree_file(tmp_path):
     assert editor.close_project_action.isEnabled()
     assert "Test" not in editor.windowTitle()
     assert project.name in editor.windowTitle()
+    metadata = root / ".git"
+    metadata.mkdir()
+    config = metadata / "config"
+    config.write_text("protected", encoding="utf-8")
+    with pytest.raises(ValueError, match="Protected project metadata"):
+        editor._active_project_file(config)
     editor._populate_recent_projects_menu()
     assert editor.recent_projects_menu.actions()[0].text() == project.name
 
@@ -77,6 +84,64 @@ def test_editor_restores_project_and_opens_tree_file(tmp_path):
     assert editor.editor.toPlainText() == "# Revised Chapter\n"
     editor._on_undo()
     assert editor.editor.toPlainText() == "# Chapter One\n"
+
+    context_syncs = []
+    monkeypatch.setattr(
+        editor,
+        "_sync_after_file_tool_change",
+        lambda: context_syncs.append(True),
+    )
+    editor._copy_project_file(str(chapter))
+    assert editor.project_explorer.copied_file == chapter
+    editor._paste_project_file(str(chapter), str(root))
+    copied_chapter = root / "chapter-01 copy.md"
+    assert copied_chapter.read_text(encoding="utf-8") == "# Chapter One\n"
+    editor._paste_project_file(str(chapter), str(root))
+    second_copy = root / "chapter-01 copy 2.md"
+    assert second_copy.read_text(encoding="utf-8") == "# Chapter One\n"
+
+    rename_results = iter(
+        (("temporary.md", True), ("chapter-renamed.md", True))
+    )
+    monkeypatch.setattr(
+        QInputDialog,
+        "getText",
+        staticmethod(lambda *args, **kwargs: next(rename_results)),
+    )
+    monkeypatch.setattr(
+        QMessageBox,
+        "question",
+        staticmethod(lambda *args, **kwargs: QMessageBox.Yes),
+    )
+    warnings = []
+    monkeypatch.setattr(
+        QMessageBox,
+        "warning",
+        staticmethod(lambda *args, **kwargs: warnings.append(args[2])),
+    )
+
+    editor._rename_project_file(str(copied_chapter))
+    temporary = root / "temporary.md"
+    assert temporary.is_file()
+    assert not copied_chapter.exists()
+    editor._delete_project_file(str(temporary))
+    assert not temporary.exists()
+
+    editor._rename_project_file(str(chapter))
+    renamed_chapter = root / "chapter-renamed.md"
+    assert renamed_chapter.is_file()
+    assert editor.current_file == str(renamed_chapter)
+
+    editor.editor.document().setModified(True)
+    editor._delete_project_file(str(renamed_chapter))
+    assert renamed_chapter.is_file()
+    assert warnings[-1].startswith("The selected file has unsaved edits")
+
+    editor.editor.document().setModified(False)
+    editor._delete_project_file(str(renamed_chapter))
+    assert not renamed_chapter.exists()
+    assert editor.current_file is None
+    assert len(context_syncs) == 6
 
     editor._close_project()
     assert service.active_project is None
