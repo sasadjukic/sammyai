@@ -158,6 +158,53 @@ def test_new_chat_resets_the_panel_and_is_disabled_while_generating():
         app.processEvents()
 
 
+def test_thinking_message_animates_and_stops_with_request_lifecycle():
+    app, previous_stylesheet = _styled_application()
+    panel = ChatPanel()
+
+    try:
+        panel.show()
+        panel.set_thinking(True)
+        app.processEvents()
+
+        thinking_message = panel._thinking_message
+        assert thinking_message is not None
+        spinner = thinking_message.activity_indicator
+        assert spinner is not None
+        assert spinner.is_running()
+        assert spinner.accessibleName() == "SammyAI is working"
+
+        starting_angle = spinner.angle
+        QTest.qWait(spinner.FRAME_INTERVAL_MS * 2 + 20)
+        assert spinner.angle != starting_angle
+
+        spinner.stop()
+        spinner.repaint()
+        first_frame = spinner.grab().toImage()
+        spinner._advance()
+        spinner.repaint()
+        second_frame = spinner.grab().toImage()
+        assert first_frame != second_frame
+        spinner.start()
+
+        panel.set_thinking(True)
+        assert panel._thinking_message is thinking_message
+        assert sum(
+            message.role == "thinking"
+            for message in panel.chat_display.messages
+        ) == 1
+
+        panel.set_thinking(False)
+        assert not spinner.is_running()
+        assert panel._thinking_message is None
+        assert thinking_message not in panel.chat_display.messages
+        assert panel.new_chat_button.isEnabled()
+    finally:
+        panel.close()
+        app.setStyleSheet(previous_stylesheet)
+        app.processEvents()
+
+
 def test_composer_input_grows_and_keeps_a_bounded_height():
     app, previous_stylesheet = _styled_application()
     panel = ChatPanel()
