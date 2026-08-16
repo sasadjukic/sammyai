@@ -142,3 +142,56 @@ def test_recent_projects_are_ordered_by_last_opened(
 
     recent = service.recent_projects()
     assert [project.id for project in recent[:2]] == [first.id, second.id]
+
+
+def test_relocate_missing_project_preserves_identity_and_managed_state(
+    project_components,
+    tmp_path,
+):
+    paths, _, repository, service = project_components
+    original_root = tmp_path / "original"
+    relocated_root = tmp_path / "relocated"
+    original_root.mkdir()
+    project = service.open_project(original_root)
+    repository.set_setting(project.id, "story", {"format": "novel"})
+    original_root.rmdir()
+    relocated_root.mkdir()
+
+    relocated = service.relocate_project(project.id, relocated_root)
+
+    assert relocated.id == project.id
+    assert relocated.name == project.name
+    assert relocated.root_path == relocated_root.resolve()
+    assert service.active_project == relocated
+    assert repository.get_setting(project.id, "story") == {"format": "novel"}
+    assert paths.project_data_dir(project.id).is_dir()
+    assert paths.project_cache_dir(project.id).is_dir()
+
+
+def test_remove_project_purges_registration_and_managed_state_not_source_files(
+    project_components,
+    tmp_path,
+):
+    paths, _, repository, service = project_components
+    root = tmp_path / "finished-project"
+    root.mkdir()
+    manuscript = root / "manuscript.md"
+    manuscript.write_text("Keep me", encoding="utf-8")
+    project = service.open_project(root)
+    repository.set_setting(project.id, "story", {"status": "finished"})
+    (paths.project_data_dir(project.id) / "state.json").write_text(
+        "{}",
+        encoding="utf-8",
+    )
+    (paths.project_cache_dir(project.id) / "cache.bin").write_bytes(b"cache")
+
+    result = service.remove_project(project.id)
+
+    assert result.project.id == project.id
+    assert result.cleanup_warnings == ()
+    assert repository.get(project.id) is None
+    assert repository.get_application_state(ACTIVE_PROJECT_KEY) is None
+    assert service.active_project is None
+    assert not paths.project_data_dir(project.id).exists()
+    assert not paths.project_cache_dir(project.id).exists()
+    assert manuscript.read_text(encoding="utf-8") == "Keep me"

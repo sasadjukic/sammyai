@@ -202,6 +202,36 @@ class VectorStore:
         except Exception:
             logger.exception("Error deleting chunks for %s", file_path)
 
+    def delete_by_project(self, project_id: str) -> tuple[str, ...]:
+        """Delete all chunks in one project namespace and return their paths."""
+        try:
+            results = self.collection.get(
+                where={"project_id": project_id},
+                include=["metadatas"],
+            )
+            chunk_ids = results.get("ids") or []
+            metadatas = results.get("metadatas") or []
+            file_paths = tuple(
+                sorted(
+                    {
+                        str(metadata.get("file_path"))
+                        for metadata in metadatas
+                        if metadata.get("file_path")
+                    }
+                )
+            )
+            if chunk_ids:
+                self.collection.delete(ids=chunk_ids)
+                logger.info(
+                    "Deleted %s chunks for project %s",
+                    len(chunk_ids),
+                    project_id,
+                )
+            return file_paths
+        except Exception:
+            logger.exception("Error deleting chunks for project %s", project_id)
+            raise
+
     def get_file_metadata(self, file_path: str) -> Dict | None:
         """Return representative metadata for an indexed file."""
         try:

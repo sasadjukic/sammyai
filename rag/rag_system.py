@@ -236,6 +236,14 @@ class RAGSystem:
         
         # Remove from active files in retriever
         self.retriever.remove_active_file(file_path)
+
+    def remove_project(self, project_id: str) -> int:
+        """Remove every indexed chunk and active-file marker for a project."""
+        file_paths = self.vector_store.delete_by_project(project_id)
+        for file_path in file_paths:
+            self.retriever.remove_active_file(file_path)
+        self._invalidate_context_cache()
+        return len(file_paths)
     
     def mark_active_file(self, file_path: str) -> None:
         """

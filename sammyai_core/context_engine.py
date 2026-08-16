@@ -190,6 +190,17 @@ class ProjectFileRepository:
                 """
             )
 
+    def mark_project_pending(self, project_id: str) -> None:
+        with self.database.transaction() as connection:
+            connection.execute(
+                """
+                UPDATE project_files
+                SET sync_status = 'pending', last_error = NULL
+                WHERE project_id = ?
+                """,
+                (project_id,),
+            )
+
 
 class _ContextBudget:
     def __init__(self, max_tokens: int):

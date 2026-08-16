@@ -96,6 +96,24 @@ def test_get_file_metadata(store):
     assert metadata["project_id"] == "project-1"
     assert store.get_file_metadata("missing") is None
 
+def test_delete_by_project_removes_only_that_namespace(store):
+    store.add_documents(
+        ["p1-a", "p1-b", "p2-a"],
+        ["one", "two", "three"],
+        [np.random.rand(384) for _ in range(3)],
+        [
+            {"file_path": "project-1/a.md", "project_id": "project-1"},
+            {"file_path": "project-1/b.md", "project_id": "project-1"},
+            {"file_path": "project-2/a.md", "project_id": "project-2"},
+        ],
+    )
+
+    removed_paths = store.delete_by_project("project-1")
+
+    assert removed_paths == ("project-1/a.md", "project-1/b.md")
+    assert store.get_document_count() == 1
+    assert store.get_all_file_paths() == ["project-2/a.md"]
+
 def test_clear_collection(store):
     store.add_document("id1", "text", np.random.rand(384), {"file_path": "f1"})
     assert store.get_document_count() == 1

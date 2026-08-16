@@ -1,7 +1,12 @@
 from types import SimpleNamespace
 
 import pytest
-from PySide6.QtWidgets import QApplication, QInputDialog, QMessageBox
+from PySide6.QtWidgets import (
+    QApplication,
+    QFileDialog,
+    QInputDialog,
+    QMessageBox,
+)
 
 from llm.chat_manager import ChatManager
 from sammyai import TextEditor
@@ -43,7 +48,8 @@ def test_editor_restores_project_and_opens_tree_file(tmp_path, monkeypatch):
     ).ensure_created()
     database = ProjectDatabase(paths.project_database_path)
     database.migrate()
-    service = ProjectService(ProjectRepository(database), paths)
+    repository = ProjectRepository(database)
+    service = ProjectService(repository, paths)
     root = tmp_path / "novel"
     root.mkdir()
     project = service.open_project(root)
@@ -148,6 +154,55 @@ def test_editor_restores_project_and_opens_tree_file(tmp_path, monkeypatch):
     assert editor.project_explorer.project is None
     assert editor.project_dock.isHidden()
     assert editor.chat_panel.empty_title.full_text in GENERIC_WELCOME_MESSAGES
+
+    missing_root = tmp_path / "missing-project"
+    relocated_root = tmp_path / "relocated-project"
+    missing_root.mkdir()
+    missing_project = service.open_project(missing_root)
+    missing_root.rmdir()
+    relocated_root.mkdir()
+
+    editor._populate_recent_projects_menu()
+    missing_action = next(
+        action
+        for action in editor.recent_projects_menu.actions()
+        if action.text() == f"{missing_project.name} (missing)"
+    )
+    assert [action.text() for action in missing_action.menu().actions()] == [
+        f"Last location: {missing_root.resolve()}",
+        "",
+        "Locate Moved Folder...",
+        "Remove from SammyAI...",
+    ]
+    monkeypatch.setattr(
+        QFileDialog,
+        "getExistingDirectory",
+        staticmethod(lambda *args, **kwargs: str(relocated_root)),
+    )
+    missing_action.menu().actions()[2].trigger()
+    assert service.active_project.id == missing_project.id
+    assert service.active_project.root_path == relocated_root.resolve()
+
+    session_id = editor.chat_manager.get_active_session().session_id
+    assert editor.chat_manager.get_session_metadata("project_id") == missing_project.id
+    editor._close_project()
+    relocated_root.rmdir()
+    editor._populate_recent_projects_menu()
+    missing_action = next(
+        action
+        for action in editor.recent_projects_menu.actions()
+        if action.text() == f"{missing_project.name} (missing)"
+    )
+    missing_action.menu().actions()[3].trigger()
+
+    assert repository.get(missing_project.id) is None
+    assert editor.chat_manager.get_session(session_id) is None
+    assert not paths.project_data_dir(missing_project.id).exists()
+    assert not paths.project_cache_dir(missing_project.id).exists()
+    assert all(
+        missing_project.name not in action.text()
+        for action in editor.recent_projects_menu.actions()
+    )
 
     editor.close()
     app.processEvents()

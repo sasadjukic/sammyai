@@ -810,7 +810,12 @@ class TextEditor(QMainWindow):
             return
         self._set_active_project(project)
 
-    def _set_active_project(self, project: Project) -> None:
+    def _set_active_project(
+        self,
+        project: Project,
+        *,
+        force_reindex: bool = False,
+    ) -> None:
         if self.project_explorer is not None:
             self.project_explorer.set_project(project)
         self._chat_panel_safe(
@@ -834,7 +839,18 @@ class TextEditor(QMainWindow):
             f"Opened project: {project.name}",
             self.STATUS_NORMAL,
         )
-        self._schedule_project_context_sync(project)
+        self._associate_empty_chat_with_project(project.id)
+        self._schedule_project_context_sync(
+            project,
+            force_reindex=force_reindex,
+        )
+
+    def _associate_empty_chat_with_project(self, project_id: str) -> None:
+        if self.chat_manager is None:
+            return
+        session = self.chat_manager.get_active_session()
+        if session is not None and not session.messages:
+            self.chat_manager.set_session_metadata("project_id", project_id)
 
     def _schedule_project_context_sync(
         self,
@@ -943,16 +959,139 @@ class TextEditor(QMainWindow):
 
         for project in projects:
             exists = project.root_path.is_dir()
-            label = project.name if exists else f"{project.name} (missing)"
-            action = menu.addAction(label)
-            action.setToolTip(str(project.root_path))
-            action.setEnabled(exists)
             if exists:
+                action = menu.addAction(project.name)
+                action.setToolTip(str(project.root_path))
                 action.triggered.connect(
                     lambda _checked=False, project_id=project.id: (
                         self._open_registered_project(project_id)
                     )
                 )
+                continue
+
+            project_menu = menu.addMenu(f"{project.name} (missing)")
+            project_menu.menuAction().setToolTip(str(project.root_path))
+            location = project_menu.addAction(f"Last location: {project.root_path}")
+            location.setEnabled(False)
+            project_menu.addSeparator()
+            locate_action = project_menu.addAction("Locate Moved Folder...")
+            locate_action.triggered.connect(
+                lambda _checked=False, project_id=project.id: (
+                    self._locate_moved_project(project_id)
+                )
+            )
+            remove_action = project_menu.addAction("Remove from SammyAI...")
+            remove_action.triggered.connect(
+                lambda _checked=False, project_id=project.id: (
+                    self._remove_project_from_sammyai(project_id)
+                )
+            )
+
+    def _locate_moved_project(self, project_id: str) -> None:
+        if self.project_service is None:
+            return
+        project = self.project_service.get_project(project_id)
+        if project is None:
+            self._populate_recent_projects_menu()
+            return
+        path = QFileDialog.getExistingDirectory(
+            self,
+            f"Locate Folder for {project.name}",
+        )
+        if not path:
+            return
+        try:
+            relocated = self.project_service.relocate_project(project_id, path)
+        except ProjectError as error:
+            QMessageBox.critical(self, "Unable to Relocate Project", str(error))
+            return
+
+        cleanup_warning = ""
+        if self.rag_system is not None:
+            try:
+                self.rag_system.remove_project(project_id)
+            except Exception as error:
+                cleanup_warning = str(error)
+                logger.exception("Unable to clear old project vectors during relocation")
+        if self.context_engine is not None:
+            self.context_engine.file_repository.mark_project_pending(project_id)
+        self._set_active_project(relocated, force_reindex=True)
+        self._populate_recent_projects_menu()
+        if cleanup_warning:
+            QMessageBox.warning(
+                self,
+                "Project Relocated with Warning",
+                "The project was relocated, but its previous RAG entries could "
+                "not be fully cleared. Rebuild the project index to remove "
+                f"stale entries.\n\n{cleanup_warning}",
+            )
+
+    def _remove_project_from_sammyai(self, project_id: str) -> None:
+        if self.project_service is None:
+            return
+        project = self.project_service.get_project(project_id)
+        if project is None:
+            self._populate_recent_projects_menu()
+            return
+
+        folder_note = (
+            "Its folder still exists and will not be deleted."
+            if project.root_path.exists()
+            else "Its project folder is already missing."
+        )
+        reply = QMessageBox.question(
+            self,
+            "Remove Project from SammyAI",
+            f"Remove '{project.name}' from SammyAI?\n\n"
+            f"{folder_note}\n\n"
+            "SammyAI will remove this recent-project entry, project memory, "
+            "conversation summaries, project-linked chats, cached project "
+            "state, and indexed RAG files. This cannot be undone.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+
+        cleanup_warnings: list[str] = []
+        if self.rag_system is not None:
+            try:
+                self.rag_system.remove_project(project_id)
+            except Exception as error:
+                cleanup_warnings.append(f"RAG index: {error}")
+                logger.exception("Unable to remove project vectors")
+        try:
+            self.chat_manager.delete_project_data(project_id)
+        except Exception as error:
+            cleanup_warnings.append(f"Chat sessions: {error}")
+            logger.exception("Unable to remove project chat data")
+
+        try:
+            result = self.project_service.remove_project(project_id)
+        except ProjectError as error:
+            QMessageBox.critical(self, "Unable to Remove Project", str(error))
+            return
+        cleanup_warnings.extend(result.cleanup_warnings)
+
+        explorer_project = (
+            self.project_explorer.project
+            if self.project_explorer is not None
+            else None
+        )
+        if explorer_project is not None and explorer_project.id == project_id:
+            self._close_project()
+        self._populate_recent_projects_menu()
+        self.statusBar().showMessage(
+            f"Removed project from SammyAI: {project.name}",
+            self.STATUS_NORMAL,
+        )
+        if cleanup_warnings:
+            QMessageBox.warning(
+                self,
+                "Project Removed with Warnings",
+                "The project was removed from SammyAI, but some cleanup "
+                "could not be completed:\n\n" + "\n".join(cleanup_warnings),
+            )
 
     def create_actions(self):
         # Project actions
@@ -1753,10 +1892,14 @@ class TextEditor(QMainWindow):
 
         # Then add user message to session
         try:
+            message_metadata = {"agent_type": self.active_agent_type.value}
+            project_id = self._active_chat_project_id()
+            if project_id is not None:
+                message_metadata["project_id"] = project_id
             self.chat_manager.add_message(
                 MessageRole.USER,
                 message,
-                metadata={"agent_type": self.active_agent_type.value},
+                metadata=message_metadata,
             )
         except Exception as e:
             logger.exception("Failed to add user message to session")
@@ -1779,8 +1922,12 @@ class TextEditor(QMainWindow):
         """Create a fresh active session while preserving prior conversations."""
         try:
             if self.chat_manager:
+                metadata = {"agent_type": self.active_agent_type.value}
+                project_id = self._active_chat_project_id()
+                if project_id is not None:
+                    metadata["project_id"] = project_id
                 session = self.chat_manager.create_session(
-                    metadata={"agent_type": self.active_agent_type.value}
+                    metadata=metadata
                 )
                 self.chat_manager.set_active_session(session.session_id)
                 if self.chat_panel:
@@ -1791,11 +1938,20 @@ class TextEditor(QMainWindow):
                 "add_system_message",
                 "SammyAI could not create a new chat session.",
             )
+
+    def _active_chat_project_id(self) -> str | None:
+        project = (
+            self.project_service.active_project
+            if self.project_service is not None
+            else None
+        )
+        return project.id if project is not None else None
     
     def _handle_normal_chat(self, message: str):
         """Run the selected agent workflow outside the UI thread."""
         selected_agent = self.active_agent_type
         client = self.llm_client
+        request_project_id = self._active_chat_project_id()
 
         def worker():
             try:
@@ -1838,14 +1994,17 @@ class TextEditor(QMainWindow):
                     ),
                 )
 
+                response_metadata = {
+                    "agent_type": result.agent_type.value,
+                    "agent_run_id": result.run_id,
+                    "model_calls": result.model_calls,
+                }
+                if request_project_id is not None:
+                    response_metadata["project_id"] = request_project_id
                 self.chat_manager.add_message(
                     MessageRole.ASSISTANT,
                     result.response,
-                    metadata={
-                        "agent_type": result.agent_type.value,
-                        "agent_run_id": result.run_id,
-                        "model_calls": result.model_calls,
-                    },
+                    metadata=response_metadata,
                 )
                 self.agent_run_completed.emit(result)
             except Exception as e:
@@ -1858,6 +2017,7 @@ class TextEditor(QMainWindow):
     
     def _handle_dbe_request(self, message: str):
         """Handle DBE mode request with editor context."""
+        request_project_id = self._active_chat_project_id()
         # Get editor context
         text, cursor_line, selection_start, selection_end = self._get_editor_context_for_dbe()
         
@@ -1933,7 +2093,14 @@ class TextEditor(QMainWindow):
                 
                 # Add assistant message to session
                 try:
-                    self.chat_manager.add_message(MessageRole.ASSISTANT, reply)
+                    response_metadata = {}
+                    if request_project_id is not None:
+                        response_metadata["project_id"] = request_project_id
+                    self.chat_manager.add_message(
+                        MessageRole.ASSISTANT,
+                        reply,
+                        metadata=response_metadata,
+                    )
                 except Exception:
                     pass
                 

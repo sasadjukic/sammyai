@@ -320,6 +320,50 @@ class ChatManager:
             
             return True
         return False
+
+    def delete_project_data(self, project_id: str) -> tuple[tuple[str, ...], int]:
+        """Delete project-scoped sessions and tagged messages from mixed chats."""
+        deleted_sessions: list[str] = []
+        removed_messages = 0
+        for session_id, session in list(self.sessions.items()):
+            if session.metadata.get("project_id") == project_id:
+                retained_messages = [
+                    message
+                    for message in session.messages
+                    if message.metadata.get("project_id") not in (None, project_id)
+                ]
+                removed_messages += len(session.messages) - len(retained_messages)
+                if not retained_messages:
+                    if self.delete_session(session_id):
+                        deleted_sessions.append(session_id)
+                    continue
+                session.messages = retained_messages
+                remaining_project_ids = {
+                    message.metadata.get("project_id")
+                    for message in retained_messages
+                    if message.metadata.get("project_id") is not None
+                }
+                if len(remaining_project_ids) == 1:
+                    session.metadata["project_id"] = remaining_project_ids.pop()
+                else:
+                    session.metadata.pop("project_id", None)
+                session.updated_at = datetime.now()
+                self._autosave_session(session_id)
+                continue
+
+            retained_messages = [
+                message
+                for message in session.messages
+                if message.metadata.get("project_id") != project_id
+            ]
+            removed = len(session.messages) - len(retained_messages)
+            if not removed:
+                continue
+            session.messages = retained_messages
+            session.updated_at = datetime.now()
+            removed_messages += removed
+            self._autosave_session(session_id)
+        return tuple(deleted_sessions), removed_messages
     
     def list_sessions(self) -> List[str]:
         """
