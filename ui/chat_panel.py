@@ -8,7 +8,16 @@ import os
 import random
 import re
 
-from PySide6.QtCore import QEvent, QRect, QSize, QStringListModel, Qt, QTimer, Signal
+from PySide6.QtCore import (
+    QEvent,
+    QRect,
+    QRectF,
+    QSize,
+    QStringListModel,
+    Qt,
+    QTimer,
+    Signal,
+)
 from PySide6.QtGui import QColor, QIcon, QPainter, QPen, QPixmap, QTextCursor
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
@@ -263,6 +272,75 @@ def _copy_icon(color: str, size: int = 16) -> QIcon:
     return QIcon(pixmap)
 
 
+class ActivitySpinner(QWidget):
+    """Small native Qt progress spinner used while an agent is working."""
+
+    FRAME_INTERVAL_MS = 80
+    ROTATION_STEP_DEGREES = 30
+
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        *,
+        color: str = "#aea2db",
+        size: int = 18,
+    ) -> None:
+        super().__init__(parent)
+        self._color = QColor(color)
+        self._angle = 0
+        self.setFixedSize(size, size)
+        self.setAccessibleName("SammyAI is working")
+
+        self._timer = QTimer(self)
+        self._timer.setTimerType(Qt.PreciseTimer)
+        self._timer.setInterval(self.FRAME_INTERVAL_MS)
+        self._timer.timeout.connect(self._advance)
+
+    @property
+    def angle(self) -> int:
+        return self._angle
+
+    def is_running(self) -> bool:
+        return self._timer.isActive()
+
+    def start(self) -> None:
+        if not self._timer.isActive():
+            self._timer.start()
+            self.update()
+
+    def stop(self) -> None:
+        self._timer.stop()
+
+    def _advance(self) -> None:
+        self._angle = (
+            self._angle - self.ROTATION_STEP_DEGREES
+        ) % 360
+        self.update()
+
+    def paintEvent(self, _event) -> None:  # noqa: N802 - Qt API
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        diameter = min(self.width(), self.height()) - 4
+        ring = QRectF(
+            (self.width() - diameter) / 2,
+            (self.height() - diameter) / 2,
+            diameter,
+            diameter,
+        )
+
+        track_pen = QPen(QColor(174, 162, 219, 55), 2)
+        track_pen.setCapStyle(Qt.RoundCap)
+        painter.setPen(track_pen)
+        painter.drawEllipse(ring)
+
+        progress_pen = QPen(self._color, 2.4)
+        progress_pen.setCapStyle(Qt.RoundCap)
+        painter.setPen(progress_pen)
+        painter.drawArc(ring, self._angle * 16, 110 * 16)
+        painter.end()
+
+
 class ChatMessage(QFrame):
     """One independently actionable message in the conversation."""
 
@@ -327,11 +405,26 @@ class ChatMessage(QFrame):
             Qt.TextSelectableByMouse | Qt.LinksAccessibleByMouse
         )
         self.message_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
-        layout.addWidget(self.message_label)
+        self.activity_indicator: ActivitySpinner | None = None
+        if role == "thinking":
+            body = QHBoxLayout()
+            body.setContentsMargins(0, 0, 0, 0)
+            body.setSpacing(8)
+            self.activity_indicator = ActivitySpinner(self)
+            body.addWidget(self.activity_indicator, 0, Qt.AlignVCenter)
+            body.addWidget(self.message_label, 1)
+            layout.addLayout(body)
+            self.activity_indicator.start()
+        else:
+            layout.addWidget(self.message_label)
 
     def set_message_text(self, text: str) -> None:
         self.message_text = text
         self.message_label.setText(text)
+
+    def stop_activity(self) -> None:
+        if self.activity_indicator is not None:
+            self.activity_indicator.stop()
 
     def _copy_message(self) -> None:
         QApplication.clipboard().setText(self.message_text)
@@ -379,6 +472,7 @@ class ChatTranscript(QScrollArea):
             return
         self.messages.remove(message)
         self.message_layout.removeWidget(message)
+        message.stop_activity()
         message.setParent(None)
         message.deleteLater()
 
