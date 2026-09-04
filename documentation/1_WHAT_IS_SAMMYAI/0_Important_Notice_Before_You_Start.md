@@ -1,20 +1,22 @@
-## **Welcome to SammyAI v0.4.2-alpha!**
+## **Welcome to SammyAI v0.5.0-alpha!**
 
-SammyAI v0.4.2-alpha is the current development release. It builds on SammyAI's project-based writing architecture, safer AI-assisted editing, automatic context, persistent memory, and redesigned chat workflow with additional usability and project-management refinements.
+SammyAI v0.5.0-alpha is the current development release. It adds a multi-file editor workspace to SammyAI's project-based writing architecture, safer AI-assisted editing, automatic context, persistent memory, and redesigned chat workflow.
 
 **Current Status:**
 
-* **Version:** SammyAI v0.4.2-alpha
+* **Version:** SammyAI v0.5.0-alpha
 * **Development Stage:** Alpha
 * **Projects:** SammyAI now works around normal project folders, a live Project Explorer, recent projects, project settings, and OS-managed application data.
 * **Context Engine:** Project files can be synchronized automatically for retrieval, while explicit file references, Context Injection, RAG, and memory share a bounded prompt budget.
 * **Editing Safety:** AI file changes are reviewed as structured change sets with diff review, path confinement, atomic writes, stale-content checks, rollback, and undo support.
 * **Agents:** Assistant, Brainstormer, Writer, Editor, and Critic workflows are available through provider-neutral prompt layering.
 * **Memory:** Project-scoped persistent memories and conversation summaries are available with user approval.
-* **User Interface:** The chat composer, message layout, project explorer, advanced menus, and dark styling have been redesigned.
+* **User Interface:** The editor supports multiple independent document tabs, while the chat composer, message layout, Project Explorer, advanced menus, and dark styling share the same workspace.
 
-**Highlights of the Current v0.4.2-alpha Experience:**
+**Highlights of the Current v0.5.0-alpha Experience:**
 
+* **Multi-File Editing:** Keep multiple Markdown and text documents open, switch between independent tabs, and restore project tabs after restarting.
+* **Unsaved-Change Protection:** Dirty tabs prompt before closing or quitting, and dirty background tabs cannot be overwritten by conflicting AI changes.
 * **Project Explorer:** Open a project folder, browse the live file tree, and open files directly from the workspace.
 * **Automatic Project Context:** Supported project files are synchronized in the background when projects are opened or files are saved.
 * **Explicit File Context:** Use file references when you need SammyAI to work from a specific file. Ambiguous filenames require a relative path.

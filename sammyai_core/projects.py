@@ -325,6 +325,17 @@ class ProjectService:
     def get_project(self, project_id: str) -> Project | None:
         return self.repository.get(project_id)
 
+    def set_project_setting(self, project_id: str, key: str, value: Any) -> None:
+        self.repository.set_setting(project_id, key, value)
+
+    def get_project_setting(
+        self,
+        project_id: str,
+        key: str,
+        default: Any = None,
+    ) -> Any:
+        return self.repository.get_setting(project_id, key, default)
+
     def relocate_project(
         self,
         project_id: str,

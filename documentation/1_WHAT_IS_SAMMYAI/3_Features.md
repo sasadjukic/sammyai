@@ -16,6 +16,20 @@ A SammyAI project is a normal folder containing your writing files. SammyAI regi
 
 ---
 
+## Multi-File Editor Workspace
+
+SammyAI keeps multiple Markdown and plain-text documents open in a VS Code-like tab bar.
+
+* **Independent tabs:** Each document retains its text, cursor, scrolling, selection, and undo history while you work elsewhere.
+* **No duplicates:** Reopening an existing path focuses its current tab.
+* **Visible state:** Tabs show the full filename, file-type icon, close control, and an unsaved-change marker.
+* **Safe close and quit:** Dirty documents always offer Save, Discard, and Cancel choices before they can be closed.
+* **Project restore:** Project-relative open paths and the active document are restored when available.
+* **Correct active context:** Editor commands, status information, search, and the active-file retrieval boost follow the selected tab.
+* **AI edit safety:** Dirty background documents block conflicting change sets, while clean open documents refresh after approved file changes.
+
+---
+
 ## Agent Workflows
 
 SammyAI now supports multiple writing agents. Each agent uses provider-neutral prompt layering so the workflow is not tied to a single model vendor.

@@ -40,6 +40,7 @@ https://github.com/user-attachments/assets/67d9f084-840f-433b-a37e-4b3e80dbc69d
 - **Change LLM Settings**: Change LLM settings such as temperature, top-p and seed to tailor assistance to your specific needs.
 - **Multi-model Chat**: Seamlessly switch between different AI models during a single session to tailor assistance to your specific needs.
 - **Writing Projects**: Open a folder as a persistent project and browse its files from a live, collapsible explorer.
+- **Multi-file Editor Workspace**: Keep chapters, notes, and story bibles open in independent tabs with safe unsaved-change handling.
 - **Context Injection (CIN)**: Directly inject specific reference files into the current AI conversation for informed brainstorming.
 - **Retrieval-Augmented Generation (RAG)**: Index your project files to provide the AI with a deep "memory" of your world and characters.
 - **Diff-Based Editing (DBE)**: Review AI suggestions via visual diffs and surgically apply changes to your drafts.
@@ -90,7 +91,6 @@ Read more in our [Cost, Privacy and Copyrights document](https://github.com/sasa
 ## Roadmap
 
 Planned updates include:
-- **Multi-file editor workspace** - Ability to open and edit multiple files at the same time.
 - **Chat history** - SammyAI agents already do have access to chat history but the chat history is not visible to the user.
 - **US-English spell check**
 - **Inline diff review** - A switch from pop up window diffs to inline diffs
@@ -104,4 +104,3 @@ See [Planned Updates](https://github.com/sasadjukic/sammyai/blob/main/documentat
 ## License
 
 This project is licensed under the MIT License.
-

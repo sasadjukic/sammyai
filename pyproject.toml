@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sammyai"
-version = "0.3.1a0"
+version = "0.5.0a0"
 description = "A local-first creative writing assistant"
 readme = "README.md"
 requires-python = ">=3.11,<3.15"

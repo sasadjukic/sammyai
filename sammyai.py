@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout, QPushButton, QVBoxLayout, QSizePolicy, QStyle, QDialog,
     QInputDialog, QToolButton
 )
-from PySide6.QtGui import QAction, QKeySequence, QIcon, QPainter, QColor, QFont, QPalette, QTextCursor, QPixmap
+from PySide6.QtGui import QAction, QKeySequence, QIcon, QPainter, QColor, QFont, QTextCursor, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtCore import Qt, QRect, QSize, QTimer, Signal, Slot
 from api_key_manager import APIKeyManager
@@ -38,6 +38,12 @@ from ui.memory_management import (
     SummaryReviewDialog,
 )
 from ui.project_explorer import ProjectExplorer
+from ui.code_editor import (
+    CodeEditor,
+    LineNumberArea,
+    _extract_color_from_stylesheet,
+)
+from ui.editor_workspace import EditorWorkspace
 from sammyai_core.bootstrap import RuntimeServices, build_runtime_services
 from sammyai_core.documents import DocumentService
 from sammyai_core.logging_config import configure_logging, install_exception_hook
@@ -63,29 +69,8 @@ logger = logging.getLogger("sammyai")
 SEARCH_MATCH_BACKGROUND = "#e9a5a5"
 SEARCH_CURRENT_MATCH_BACKGROUND = "#65c0e0"
 SEARCH_HIGHLIGHT_FOREGROUND = "#1e1e1e"
-
-
-# --- Module-level helper functions ---
-
-def _extract_color_from_stylesheet(selector: str, css_property: str) -> Optional[str]:
-    """Extract a CSS color value from the application stylesheet.
-    
-    Args:
-        selector: CSS selector (e.g., 'QPlainTextEdit')
-        css_property: CSS property name (e.g., 'color', 'background-color')
-        
-    Returns:
-        Color string or None if not found
-    """
-    try:
-        ss = QApplication.instance().styleSheet() or ""
-        pattern = rf"{selector}\s*\{{[^}}]*(?<!-){css_property}\s*:\s*([^;]+);"
-        m = re.search(pattern, ss)
-        if m:
-            return m.group(1).strip()
-    except Exception:
-        pass
-    return None
+OPEN_DOCUMENTS_SETTING = "editor_open_paths"
+ACTIVE_DOCUMENT_SETTING = "editor_active_path"
 
 
 class SearchWidget(QWidget):
@@ -209,7 +194,7 @@ class TextEditor(QMainWindow):
     # Signals for LLM communication
     llm_response_received = Signal(str)
     llm_error_occurred = Signal(str)
-    dbe_diff_ready = Signal(str, str, str)  # original, modified, user_request
+    dbe_diff_ready = Signal(object)
     context_sync_finished = Signal(str, object, bool)
     agent_run_completed = Signal(object)
     agent_progress = Signal(str)
@@ -242,9 +227,8 @@ class TextEditor(QMainWindow):
         self.search_widget.hide()
         container_layout.addWidget(self.search_widget)
         
-        # Use a CodeEditor (QPlainTextEdit subclass) that supports line numbers
-        self.editor = CodeEditor()
-        container_layout.addWidget(self.editor)
+        self.editor_workspace = EditorWorkspace()
+        container_layout.addWidget(self.editor_workspace)
         
         container.setLayout(container_layout)
         self.setCentralWidget(container)
@@ -270,9 +254,16 @@ class TextEditor(QMainWindow):
         self.create_toolbar()
         # create status bar showing Ln/Col and word count
         self.create_statusbar()
-        self.current_file = None
-        self.untitled_count = 1
-        self.editor.document().modificationChanged.connect(self.update_window_title)
+        self.editor_workspace.active_document_changed.connect(
+            self._on_active_document_changed
+        )
+        self.editor_workspace.modified_state_changed.connect(
+            self._on_document_modified_changed
+        )
+        self.editor_workspace.close_requested.connect(
+            self._on_workspace_close_requested
+        )
+        self._rag_active_file: str | None = None
         self.update_window_title()
 
         # --- Initialize application services outside of the UI layer ---
@@ -372,8 +363,158 @@ class TextEditor(QMainWindow):
         self._create_project_explorer()
         self._restore_active_project()
 
+    @property
+    def editor(self) -> CodeEditor:
+        """Compatibility accessor for the active tab's editor."""
+        editor = self.editor_workspace.active_editor()
+        if editor is None:
+            raise RuntimeError("The editor workspace has no active document")
+        return editor
+
+    @property
+    def current_file(self) -> str | None:
+        """Compatibility accessor for the active tab's path."""
+        session = self.editor_workspace.active_session()
+        return str(session.path) if session is not None and session.path else None
+
+    def _on_active_document_changed(self, session) -> None:
+        for open_session in self.editor_workspace.sessions():
+            editor = self.editor_workspace.editor_for_session(open_session.session_id)
+            if editor is not None:
+                editor.setExtraSelections([])
+        self.current_matches = []
+        self.current_match_index = 0
+        if self.search_widget.isVisible() and self.search_widget.get_search_text():
+            self._on_search_text_changed(self.search_widget.get_search_text())
+        else:
+            self.search_widget.update_match_count(0, 0)
+        self._update_cursor_position()
+        self._update_word_count()
+        self.update_window_title()
+        self._update_rag_active_file(self.current_file)
+        self._persist_active_project_workspace()
+
+    def _on_document_modified_changed(
+        self,
+        session_id: str,
+        _modified: bool,
+    ) -> None:
+        session = self.editor_workspace.active_session()
+        if session is not None and session.session_id == session_id:
+            self.update_window_title()
+
+    def _on_workspace_close_requested(self, session_id: str) -> None:
+        if self._close_session_with_prompt(session_id):
+            self._persist_active_project_workspace()
+
+    def _update_rag_active_file(self, path: str | None) -> None:
+        previous = getattr(self, "_rag_active_file", None)
+        if previous == path:
+            return
+        rag_system = getattr(self, "rag_system", None)
+        if rag_system is not None:
+            try:
+                if previous:
+                    rag_system.unmark_active_file(previous)
+                if path:
+                    rag_system.mark_active_file(path)
+            except Exception:
+                logger.exception("Failed to update active RAG file to %s", path)
+        self._rag_active_file = path
+
+    def _persist_active_project_workspace(self) -> None:
+        project_service = getattr(self, "project_service", None)
+        project = project_service.active_project if project_service else None
+        if project is None or not hasattr(project_service, "set_project_setting"):
+            return
+        relative_paths: list[str] = []
+        active_relative_path: str | None = None
+        active_session = self.editor_workspace.active_session()
+        for session in self.editor_workspace.sessions():
+            if session.path is None:
+                continue
+            try:
+                relative = session.path.resolve(strict=False).relative_to(
+                    project.root_path.resolve()
+                )
+            except ValueError:
+                continue
+            relative_text = relative.as_posix()
+            relative_paths.append(relative_text)
+            if active_session is session:
+                active_relative_path = relative_text
+        try:
+            project_service.set_project_setting(
+                project.id,
+                OPEN_DOCUMENTS_SETTING,
+                relative_paths,
+            )
+            project_service.set_project_setting(
+                project.id,
+                ACTIVE_DOCUMENT_SETTING,
+                active_relative_path,
+            )
+        except Exception:
+            logger.exception("Unable to persist editor workspace for %s", project.id)
+
+    def _restore_project_workspace(self, project: Project) -> None:
+        if not hasattr(self.project_service, "get_project_setting"):
+            return
+        try:
+            relative_paths = self.project_service.get_project_setting(
+                project.id,
+                OPEN_DOCUMENTS_SETTING,
+                [],
+            )
+            active_relative_path = self.project_service.get_project_setting(
+                project.id,
+                ACTIVE_DOCUMENT_SETTING,
+                None,
+            )
+        except Exception:
+            logger.exception("Unable to load editor workspace for %s", project.id)
+            return
+        if not isinstance(relative_paths, list):
+            return
+
+        root = project.root_path.resolve()
+        restored: dict[str, str] = {}
+        for relative_text in relative_paths:
+            if not isinstance(relative_text, str):
+                continue
+            try:
+                candidate = (root / relative_text).resolve(strict=True)
+                candidate.relative_to(root)
+            except (OSError, ValueError):
+                continue
+            if (
+                not candidate.is_file()
+                or candidate.suffix.casefold() not in DocumentService.TEXT_EXTENSIONS
+            ):
+                continue
+            try:
+                session = self.editor_workspace.open_document(
+                    candidate,
+                    self.document_service.read_text(candidate),
+                )
+            except Exception:
+                logger.exception("Unable to restore open document %s", candidate)
+                continue
+            restored[relative_text] = session.session_id
+
+        if isinstance(active_relative_path, str):
+            session_id = restored.get(active_relative_path)
+            if session_id is not None:
+                self.editor_workspace.activate_document(session_id)
+        self._persist_active_project_workspace()
+
     def closeEvent(self, event):
-        """Persist state and release runtime resources on normal shutdown."""
+        """Protect dirty tabs, persist state, and release runtime resources."""
+        for session in self.editor_workspace.dirty_sessions():
+            if not self._confirm_session_can_close(session.session_id):
+                event.ignore()
+                return
+        self._persist_active_project_workspace()
         try:
             self.task_runner.shutdown()
             self.runtime_services.shutdown()
@@ -571,7 +712,10 @@ class TextEditor(QMainWindow):
         return os.path.normcase(str(current)) == os.path.normcase(str(path))
 
     def _ensure_file_operation_has_no_unsaved_conflict(self, path: Path) -> None:
-        if self._is_current_file(path) and self.editor.document().isModified():
+        if any(
+            self.editor_workspace.is_modified(session.session_id)
+            for session in self.editor_workspace.sessions_for_path(path)
+        ):
             raise ValueError(
                 "The selected file has unsaved edits. Save or discard them "
                 "before renaming or deleting it."
@@ -670,23 +814,20 @@ class TextEditor(QMainWindow):
                 )
                 return
 
-        was_current = self._is_current_file(source)
+        matching_sessions = self.editor_workspace.sessions_for_path(source)
+        active_session = self.editor_workspace.active_session()
         try:
             source.rename(target)
         except OSError as error:
             QMessageBox.critical(self, "Rename File", str(error))
             return
 
-        if was_current:
-            previous_file = self.current_file
-            self.current_file = str(target)
+        for session in matching_sessions:
+            self.editor_workspace.assign_path(session.session_id, target)
+        if active_session in matching_sessions:
+            self._update_rag_active_file(str(target.resolve()))
             self.update_window_title()
-            if self.rag_system:
-                try:
-                    self.rag_system.unmark_active_file(previous_file)
-                    self.rag_system.mark_active_file(self.current_file)
-                except Exception:
-                    logger.exception("Unable to update active file after rename")
+        self._persist_active_project_workspace()
         self.project_explorer.update_copied_file_after_rename(source, target)
         self._sync_after_file_tool_change()
         self.statusBar().showMessage(
@@ -714,7 +855,7 @@ class TextEditor(QMainWindow):
         if reply != QMessageBox.Yes:
             return
 
-        was_current = self._is_current_file(source)
+        matching_sessions = self.editor_workspace.sessions_for_path(source)
         try:
             source.unlink()
         except OSError as error:
@@ -722,8 +863,10 @@ class TextEditor(QMainWindow):
             return
 
         self.project_explorer.clear_copied_file_if(source)
-        if was_current:
-            self.close_file()
+        self.editor_workspace.close_documents(
+            (session.session_id for session in matching_sessions)
+        )
+        self._persist_active_project_workspace()
         self._sync_after_file_tool_change()
         self.statusBar().showMessage(
             f"Deleted {source.name}",
@@ -844,6 +987,7 @@ class TextEditor(QMainWindow):
             project,
             force_reindex=force_reindex,
         )
+        self._restore_project_workspace(project)
 
     def _associate_empty_chat_with_project(self, project_id: str) -> None:
         if self.chat_manager is None:
@@ -919,6 +1063,7 @@ class TextEditor(QMainWindow):
     def _close_project(self) -> None:
         if self.project_service is None:
             return
+        self._persist_active_project_workspace()
         self.project_service.close_project()
         if self.project_explorer is not None:
             self.project_explorer.clear_project()
@@ -1465,21 +1610,14 @@ class TextEditor(QMainWindow):
         )
 
 
-        # Connect editor signals to enable/disable actions based on context
-        # copyAvailable(bool) is emitted when a selection is present
-        self.editor.copyAvailable.connect(self.copy_action.setEnabled)
-        self.editor.copyAvailable.connect(self.cut_action.setEnabled)
-
-        # Document signals for undo/redo availability
-        doc = self.editor.document()
-        try:
-            doc.undoAvailable.connect(self.undo_action.setEnabled)
-            doc.redoAvailable.connect(self.redo_action.setEnabled)
-        except Exception:
-            # In case the API differs, fallback to checking availability manually
-            pass
+        # Workspace-level signals always reflect the active tab.
+        self.editor_workspace.copy_available.connect(self.copy_action.setEnabled)
+        self.editor_workspace.copy_available.connect(self.cut_action.setEnabled)
+        self.editor_workspace.undo_available.connect(self.undo_action.setEnabled)
+        self.editor_workspace.redo_available.connect(self.redo_action.setEnabled)
 
         # Keep the UI in sync at startup
+        doc = self.editor.document()
         self.copy_action.setEnabled(bool(self.editor.textCursor().hasSelection()))
         self.cut_action.setEnabled(bool(self.editor.textCursor().hasSelection()))
         self.undo_action.setEnabled(doc.isUndoAvailable())
@@ -1592,22 +1730,26 @@ class TextEditor(QMainWindow):
         sb.addPermanentWidget(self._status_word)
         sb.addPermanentWidget(self._status_pos)
 
-        # Connect editor signals to update status
-        self.editor.cursorPositionChanged.connect(self._update_cursor_position)
-        self.editor.textChanged.connect(self._update_word_count)
+        # Workspace signals follow whichever tab is active.
+        self.editor_workspace.cursor_position_changed.connect(
+            self._update_cursor_position
+        )
+        self.editor_workspace.text_changed.connect(self._update_word_count)
 
         # Initialize values
         self._update_cursor_position()
         self._update_word_count()
 
-    def _update_cursor_position(self):
-        cursor = self.editor.textCursor()
-        # blockNumber() is zero-based
-        ln = cursor.blockNumber() + 1
-        col = cursor.positionInBlock() + 1
+    def _update_cursor_position(self, *args):
+        if len(args) >= 3:
+            _, ln, col = args[:3]
+        else:
+            cursor = self.editor.textCursor()
+            ln = cursor.blockNumber() + 1
+            col = cursor.positionInBlock() + 1
         self._status_pos.setText(f"Ln {ln}, Col {col}")
 
-    def _update_word_count(self):
+    def _update_word_count(self, *args):
         text = self.editor.toPlainText()
         # count words using word boundaries
         words = re.findall(r"\b\w+\b", text)
@@ -2018,6 +2160,11 @@ class TextEditor(QMainWindow):
     def _handle_dbe_request(self, message: str):
         """Handle DBE mode request with editor context."""
         request_project_id = self._active_chat_project_id()
+        request_session = self.editor_workspace.active_session()
+        if request_session is None:
+            self._chat_panel_safe("set_thinking", False)
+            return
+        request_session_id = request_session.session_id
         # Get editor context
         text, cursor_line, selection_start, selection_end = self._get_editor_context_for_dbe()
         
@@ -2106,17 +2253,36 @@ class TextEditor(QMainWindow):
                 
                 # Emit signal to show diff on main thread
                 # Now comparing full original vs full reconstructed document
-                self.dbe_diff_ready.emit(original_text, reconstructed_text, message)
+                self.dbe_diff_ready.emit(
+                    {
+                        "session_id": request_session_id,
+                        "original": original_text,
+                        "modified": reconstructed_text,
+                        "user_request": message,
+                    }
+                )
                 
             except Exception as e:
                 self.llm_error_occurred.emit(str(e))
         
         self.task_runner.submit(worker, name="dbe")
     
-    @Slot(str, str, str)
-    def _show_dbe_diff(self, original: str, modified: str, user_request: str):
+    @Slot(object)
+    def _show_dbe_diff(self, payload):
         """Show DBE diff in viewer (called on main thread)."""
         self._chat_panel_safe("set_thinking", False)
+        session_id = payload["session_id"]
+        original = payload["original"]
+        modified = payload["modified"]
+        user_request = payload["user_request"]
+        session = self.editor_workspace.session(session_id)
+        if session is None:
+            self._chat_panel_safe(
+                "add_system_message",
+                "The document used for this DBE request is no longer open; "
+                "the suggestion was not applied.",
+            )
+            return
         
         # Create diff dialog
         dialog = self._create_diff_dialog()
@@ -2127,14 +2293,18 @@ class TextEditor(QMainWindow):
         # Load diff
         dialog.diff_viewer.load_diff(
             original, modified,
-            "current", "llm_suggestion"
+            session.display_name, "llm_suggestion"
         )
         
         # Show dialog
         if dialog.exec() == QDialog.Accepted:
             # User approved - apply changes
             modified_text = dialog.diff_viewer.get_modified_text()
-            if self._apply_reviewed_editor_change(original, modified_text):
+            if self._apply_reviewed_editor_change(
+                original,
+                modified_text,
+                session_id=session_id,
+            ):
                 self._chat_panel_safe("add_system_message", "✓ Changes applied successfully!")
                 self.statusBar().showMessage("✓ DBE changes applied", self.STATUS_NORMAL)
         else:
@@ -2182,14 +2352,14 @@ class TextEditor(QMainWindow):
             QMessageBox.warning(
                 self,
                 "Unsaved Document Conflict",
-                "The proposed change includes the current document, which has "
-                "unsaved edits. Save or discard those edits before applying "
-                "the change set.",
+                "The proposed change includes an open document with unsaved "
+                "edits. Save or discard those edits before applying the "
+                "change set.",
             )
             self._chat_panel_safe(
                 "add_system_message",
-                "File changes were not applied because the current document "
-                "has unsaved edits.",
+                "File changes were not applied because an open document has "
+                "unsaved edits.",
             )
             return
 
@@ -2307,8 +2477,6 @@ class TextEditor(QMainWindow):
         )
 
     def _current_document_conflicts_with(self, change_set) -> bool:
-        if not self.current_file or not self.editor.document().isModified():
-            return False
         project = (
             self.project_service.active_project
             if self.project_service is not None
@@ -2316,27 +2484,29 @@ class TextEditor(QMainWindow):
         )
         if project is None:
             return False
-        try:
-            relative_path = (
-                Path(self.current_file)
-                .resolve()
-                .relative_to(project.root_path)
-                .as_posix()
-            )
-        except ValueError:
-            return False
-        return any(
+        changed_paths = {
             os.path.normcase(change.relative_path)
-            == os.path.normcase(relative_path)
             for change in change_set.changes
-        )
+        }
+        for session in self.editor_workspace.dirty_sessions():
+            if session.path is None:
+                continue
+            try:
+                relative_path = (
+                    session.path.resolve()
+                    .relative_to(project.root_path.resolve())
+                    .as_posix()
+                )
+            except ValueError:
+                continue
+            if os.path.normcase(relative_path) in changed_paths:
+                return True
+        return False
 
     def _reload_current_file_if_changed(
         self,
         changed_paths: tuple[str, ...],
     ) -> None:
-        if not self.current_file:
-            return
         project = (
             self.project_service.active_project
             if self.project_service is not None
@@ -2344,29 +2514,45 @@ class TextEditor(QMainWindow):
         )
         if project is None:
             return
-        try:
-            relative_path = (
-                Path(self.current_file)
-                .resolve()
-                .relative_to(project.root_path)
-                .as_posix()
-            )
-        except ValueError:
-            return
         normalized_paths = {
             os.path.normcase(path)
             for path in changed_paths
         }
-        if os.path.normcase(relative_path) not in normalized_paths:
-            return
-        current_path = Path(self.current_file)
-        if current_path.exists():
-            self.editor.setPlainText(
-                self.document_service.read_text(current_path)
-            )
-            self.editor.document().setModified(False)
-        else:
-            self.close_file()
+        sessions_to_close: list[str] = []
+        for session in self.editor_workspace.sessions():
+            if session.path is None:
+                continue
+            try:
+                relative_path = (
+                    session.path.resolve(strict=False)
+                    .relative_to(project.root_path.resolve())
+                    .as_posix()
+                )
+            except ValueError:
+                continue
+            if os.path.normcase(relative_path) not in normalized_paths:
+                continue
+            if self.editor_workspace.is_modified(session.session_id):
+                session.external_change_state = "conflict"
+                continue
+            if session.path.exists():
+                try:
+                    content = self.document_service.read_text(session.path)
+                except Exception:
+                    session.external_change_state = "changed"
+                    logger.exception(
+                        "Unable to refresh externally changed document %s",
+                        session.path,
+                    )
+                else:
+                    self.editor_workspace.reload_document(
+                        session.session_id,
+                        content,
+                    )
+            else:
+                sessions_to_close.append(session.session_id)
+        self.editor_workspace.close_documents(sessions_to_close)
+        self._persist_active_project_workspace()
 
     def _on_model_selected(self, model_key: str):
         """Handle a model selection change from the UI.
@@ -2431,9 +2617,26 @@ class TextEditor(QMainWindow):
         self,
         expected_original: str,
         modified_text: str,
+        *,
+        session_id: str | None = None,
     ) -> bool:
         """Apply one reviewed replacement without discarding Qt undo history."""
-        if self.editor.toPlainText() != expected_original:
+        if session_id is None:
+            session = self.editor_workspace.active_session()
+            session_id = session.session_id if session is not None else None
+        editor = (
+            self.editor_workspace.editor_for_session(session_id)
+            if session_id is not None
+            else None
+        )
+        if editor is None:
+            QMessageBox.warning(
+                self,
+                "Edit Conflict",
+                "The document used for this edit is no longer open.",
+            )
+            return False
+        if editor.toPlainText() != expected_original:
             QMessageBox.warning(
                 self,
                 "Edit Conflict",
@@ -2442,12 +2645,12 @@ class TextEditor(QMainWindow):
             )
             return False
 
-        cursor = QTextCursor(self.editor.document())
+        cursor = QTextCursor(editor.document())
         cursor.beginEditBlock()
         cursor.select(QTextCursor.Document)
         cursor.insertText(modified_text)
         cursor.endEditBlock()
-        self.editor.setTextCursor(cursor)
+        editor.setTextCursor(cursor)
         return True
 
     def _on_show_llm_settings(self):
@@ -2548,26 +2751,18 @@ class TextEditor(QMainWindow):
 
     def _open_file_path(self, path: str | Path) -> None:
         document_path = str(Path(path).resolve())
+        existing = self.editor_workspace.sessions_for_path(document_path)
+        if existing:
+            self.editor_workspace.activate_document(existing[0].session_id)
+            self.statusBar().showMessage(
+                f"Focused {os.path.basename(document_path)}",
+                self.STATUS_QUICK,
+            )
+            return
         try:
             content = self.document_service.read_text(document_path)
-            previous_file = self.current_file
-            self.editor.setPlainText(content)
-            self.current_file = document_path
-            self.editor.document().setModified(False)
-            self.update_window_title()
-
-            # Opening remains separate from indexing, but only the current file
-            # receives the active-file retrieval boost.
-            if self.rag_system:
-                try:
-                    if previous_file and previous_file != document_path:
-                        self.rag_system.unmark_active_file(previous_file)
-                    self.rag_system.mark_active_file(document_path)
-                except Exception:
-                    logger.exception(
-                        "Failed to update active RAG file to %s",
-                        document_path,
-                    )
+            self.editor_workspace.open_document(document_path, content)
+            self._persist_active_project_workspace()
             self.statusBar().showMessage(
                 f"Opened {os.path.basename(document_path)}",
                 self.STATUS_QUICK,
@@ -2577,20 +2772,50 @@ class TextEditor(QMainWindow):
             QMessageBox.critical(self, "Error", str(error))
 
 
-    def save_file(self):
-        if not self.current_file:
-            path, _ = QFileDialog.getSaveFileName(self, "Save File", "", "Text Files (*.txt *.md);;Markdown Files (*.md);;Plain Text (*.txt);;All Files (*)")
-            if not path:
-                return
-            self.current_file = path
+    def _save_session(self, session_id: str, *, save_as: bool = False) -> bool:
+        session = self.editor_workspace.session(session_id)
+        editor = self.editor_workspace.editor_for_session(session_id)
+        if session is None or editor is None:
+            return False
+
+        target_path = session.path
+        if save_as or target_path is None:
+            title = "Save File As" if save_as else "Save File"
+            selected_path, _ = QFileDialog.getSaveFileName(
+                self,
+                title,
+                str(target_path or session.display_name),
+                "Text Files (*.txt *.md);;Markdown Files (*.md);;"
+                "Plain Text (*.txt);;All Files (*)",
+            )
+            if not selected_path:
+                return False
+            target_path = Path(selected_path).expanduser().resolve(strict=False)
+            other_sessions = tuple(
+                open_session
+                for open_session in self.editor_workspace.sessions_for_path(target_path)
+                if open_session.session_id != session_id
+            )
+            if other_sessions:
+                self.editor_workspace.activate_document(other_sessions[0].session_id)
+                QMessageBox.warning(
+                    self,
+                    "File Already Open",
+                    "That file is already open in another tab.",
+                )
+                return False
 
         try:
             self.document_service.write_text(
-                self.current_file,
-                self.editor.toPlainText(),
+                target_path,
+                editor.toPlainText(),
             )
-            self.editor.document().setModified(False)
-            self.update_window_title()
+            if session.path != target_path:
+                self.editor_workspace.assign_path(session_id, target_path)
+            self.editor_workspace.mark_clean(session_id)
+            if self.editor_workspace.active_session() is session:
+                self._update_rag_active_file(str(target_path))
+                self.update_window_title()
 
             project = (
                 self.project_service.active_project
@@ -2599,56 +2824,76 @@ class TextEditor(QMainWindow):
             )
             if project is not None:
                 try:
-                    Path(self.current_file).resolve().relative_to(project.root_path)
+                    target_path.resolve().relative_to(project.root_path)
                 except ValueError:
                     pass
                 else:
                     self._schedule_project_context_sync(project)
-            
-            if self.rag_system:
-                self.statusBar().showMessage(
-                    f"Saved {os.path.basename(self.current_file)}", self.STATUS_QUICK
-                )
-                
+            self._persist_active_project_workspace()
+            self.statusBar().showMessage(
+                f"Saved {target_path.name}",
+                self.STATUS_QUICK,
+            )
+            return True
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
-            
+            return False
 
+    def save_file(self) -> bool:
+        session = self.editor_workspace.active_session()
+        return bool(session and self._save_session(session.session_id))
 
-    def save_file_as(self):
-        path, _ = QFileDialog.getSaveFileName(self, "Save File As", "", "Text Files (*.txt *.md);;Markdown Files (*.md);;Plain Text (*.txt);;All Files (*)")
-        if not path:
-            return
-        self.current_file = path
-        self.save_file()
-        self.update_window_title()
+    def save_file_as(self) -> bool:
+        session = self.editor_workspace.active_session()
+        return bool(
+            session
+            and self._save_session(session.session_id, save_as=True)
+        )
 
-    def close_file(self):
-        # Unmark file as active in RAG system
-        if self.rag_system and self.current_file:
-            try:
-                self.rag_system.unmark_active_file(self.current_file)
-            except Exception as e:
-                logger.exception("Failed to unmark active file %s", self.current_file)
-        
-        self.editor.clear()
-        self.current_file = None
-        self.untitled_count += 1
-        self.editor.document().setModified(False)
-        self.update_window_title()
+    def _confirm_session_can_close(self, session_id: str) -> bool:
+        session = self.editor_workspace.session(session_id)
+        if session is None or not self.editor_workspace.is_modified(session_id):
+            return True
+        choice = QMessageBox.warning(
+            self,
+            "Unsaved Changes",
+            f"Save changes to '{session.display_name}' before closing?",
+            QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
+            QMessageBox.Save,
+        )
+        if choice == QMessageBox.Cancel:
+            return False
+        if choice == QMessageBox.Save:
+            return self._save_session(session_id)
+        return choice == QMessageBox.Discard
+
+    def _close_session_with_prompt(self, session_id: str) -> bool:
+        if not self._confirm_session_can_close(session_id):
+            return False
+        closed = self.editor_workspace.close_document(session_id)
+        if closed:
+            self._persist_active_project_workspace()
+        return closed
+
+    def close_file(self) -> bool:
+        session = self.editor_workspace.active_session()
+        return bool(
+            session and self._close_session_with_prompt(session.session_id)
+        )
 
     def new_file(self):
-        self.close_file()
+        self.editor_workspace.new_document()
+        self._persist_active_project_workspace()
 
     def update_window_title(self, *args):
         """Update the window title to show document name and editor name."""
-        if self.current_file:
-            import os
-            doc_name = os.path.basename(self.current_file)
-        else:
-            doc_name = f"Untitled {self.untitled_count}"
-        
-        is_modified = getattr(self.editor.document(), "isModified", lambda: False)()
+        session = self.editor_workspace.active_session()
+        doc_name = session.display_name if session is not None else "No Document"
+        is_modified = (
+            self.editor_workspace.is_modified(session.session_id)
+            if session is not None
+            else False
+        )
         star = "*" if is_modified else ""
         project_service = getattr(self, "project_service", None)
         project = project_service.active_project if project_service else None
@@ -2736,9 +2981,6 @@ class TextEditor(QMainWindow):
                 success = self.rag_system.index_file(file_to_index, force_reindex=True)
                 
                 if success:
-                    # Mark as active
-                    self.rag_system.mark_active_file(file_to_index)
-                    
                     # Get stats
                     stats = self.rag_system.get_stats()
                     
@@ -3375,115 +3617,6 @@ class TextEditor(QMainWindow):
         
         return text.strip()
 
-
-class LineNumberArea(QWidget):
-    def __init__(self, editor):
-        super().__init__(editor)
-        self._editor = editor
-
-    def sizeHint(self):
-        return QSize(self._editor.lineNumberAreaWidth(), 0)
-
-    def paintEvent(self, event):
-        self._editor.lineNumberAreaPaintEvent(event)
-
-
-class CodeEditor(QPlainTextEdit):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-
-        self.lineNumberArea = LineNumberArea(self)
-
-        self.blockCountChanged.connect(self.updateLineNumberAreaWidth)
-        self.updateRequest.connect(self.updateLineNumberArea)
-        self.cursorPositionChanged.connect(self.highlightCurrentLine)
-
-        self.updateLineNumberAreaWidth(0)
-        self.highlightCurrentLine()
-
-    def lineNumberAreaWidth(self):
-        # Calculate space needed for line numbers
-        digits = len(str(max(1, self.blockCount())))
-        space = self.fontMetrics().horizontalAdvance('9') * digits + 12
-        return space
-
-    def updateLineNumberAreaWidth(self, _):
-        self.setViewportMargins(self.lineNumberAreaWidth(), 0, 0, 0)
-
-    def _get_editor_background_color(self):
-        color_str = _extract_color_from_stylesheet(
-            "QPlainTextEdit",
-            "background-color",
-        )
-        if color_str:
-            try:
-                return QColor(color_str)
-            except Exception:
-                pass
-        return self.palette().color(QPalette.Base)
-
-    def _get_editor_text_color(self):
-        color_str = _extract_color_from_stylesheet("QPlainTextEdit", "color")
-        if color_str:
-            try:
-                return QColor(color_str)
-            except Exception:
-                pass
-        return self.palette().color(QPalette.Text)
-
-    def updateLineNumberArea(self, rect, dy):
-        if dy:
-            self.lineNumberArea.scroll(0, dy)
-        else:
-            self.lineNumberArea.update(0, rect.y(), self.lineNumberArea.width(), rect.height())
-
-        if rect.contains(self.viewport().rect()):
-            self.updateLineNumberAreaWidth(0)
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-
-        cr = self.contentsRect()
-        self.lineNumberArea.setGeometry(QRect(cr.left(), cr.top(), self.lineNumberAreaWidth(), cr.height()))
-
-    def highlightCurrentLine(self):
-        # Removing the yellow highlight to avoid low-contrast issues with dark themes.
-        # We intentionally do not set any extra selections here so the current line
-        # remains unhighlighted and text visibility is preserved.
-        self.setExtraSelections([])
-
-    def lineNumberAreaPaintEvent(self, event):
-        # Determine editor background and text color before creating the painter
-        bg_color = self._get_editor_background_color()
-        text_color = self._get_editor_text_color()
-        painter = QPainter(self.lineNumberArea)
-        painter.fillRect(event.rect(), bg_color)
-        
-        # Set the painter font to match the editor's font
-        painter.setFont(self.font())
-
-        block = self.firstVisibleBlock()
-        blockNumber = block.blockNumber()
-        top = int(self.blockBoundingGeometry(block).translated(self.contentOffset()).top())
-        bottom = top + int(self.blockBoundingRect(block).height())
-
-        height = self.fontMetrics().height()
-
-        while block.isValid() and top <= event.rect().bottom():
-            if block.isVisible() and bottom >= event.rect().top():
-                number = str(blockNumber + 1)
-                # Use the editor's text color so numbers contrast correctly
-                painter.setPen(text_color)
-                painter.drawText(0, top, self.lineNumberArea.width() - 4, height, Qt.AlignRight, number)
-
-            block = block.next()
-            top = bottom
-            bottom = top + int(self.blockBoundingRect(block).height())
-            blockNumber += 1
-
-
-    # Note: file operation methods (open/save/close/new) and edit action handlers
-    # are implemented on the TextEditor container and forward to this widget.
 
 def load_stylesheet(app: QApplication, path: str | Path) -> None:
     stylesheet_path = Path(path)

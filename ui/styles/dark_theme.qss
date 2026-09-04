@@ -11,6 +11,67 @@ QPlainTextEdit {
     font-family: Consolas, monospace;
     font-size: 15pt;
 }
+
+/* Multi-file editor workspace */
+#editorWorkspace,
+#editorTabs,
+#editorTabs > QWidget {
+    background-color: #1e1e1e;
+}
+
+#editorTabs::pane {
+    border: none;
+    border-top: 1px solid #2b2b2b;
+    background-color: #1e1e1e;
+}
+
+#editorTabs QTabBar {
+    background-color: #181818;
+}
+
+#editorTabs QTabBar::tab {
+    background-color: #202020;
+    color: #9d9d9d;
+    border: none;
+    border-right: 1px solid #181818;
+    border-top: 1px solid transparent;
+    min-width: 120px;
+    min-height: 30px;
+    padding: 3px 10px;
+}
+
+#editorTabs QTabBar::tab:selected {
+    background-color: #2d2d30;
+    color: #eeeeee;
+    border-top-color: #65c0e0;
+}
+
+#editorTabs QTabBar::tab:hover:!selected {
+    background-color: #292929;
+    color: #dddddd;
+}
+
+#editorTabCloseButton {
+    background-color: transparent;
+    color: #b8b8b8;
+    border: none;
+    border-radius: 3px;
+    padding: 0;
+    font-size: 13pt;
+}
+
+#editorTabCloseButton:hover {
+    background-color: #454545;
+    color: #ffffff;
+}
+
+#editorBreadcrumb {
+    color: #a7a7a7;
+    background-color: #1e1e1e;
+    border: none;
+    padding: 7px 14px;
+    font-size: 9pt;
+}
 QToolBar {
     background: #252526;
     spacing: 8px;
