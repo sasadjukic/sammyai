@@ -1,6 +1,6 @@
 # Context Injection and Attached References
 
-Context Injection (CIN) is used for high-priority reference material that should guide the current conversation. In the V0.4.1-alpha UI, the chat composer exposes this as an attachment control, and the Advanced menu exposes commands to attach or remove a reference.
+Context Injection (CIN) is used for high-priority reference material that should guide the current conversation. In the v0.4.2-alpha UI, the chat composer exposes this as an attachment control, and the Advanced menu exposes commands to attach or remove a reference.
 
 ---
 

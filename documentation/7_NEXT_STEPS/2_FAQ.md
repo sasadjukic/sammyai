@@ -33,7 +33,7 @@ Project context supports `.txt`, `.md`, and `.pdf`. Safe AI file edits target `.
 
 ### Do I still need to manually index files?
 
-Usually, no. V0.4.1-alpha adds automatic project synchronization for supported files. Legacy manual indexing remains under **Advanced > Legacy Manual Indexing** for fallback use.
+Usually, no. In v0.4.2-alpha, supported project files are synchronized automatically. Legacy manual indexing remains under **Advanced > Legacy Manual Indexing** for fallback use.
 
 ### What is the difference between project context, CIN, and memory?
 

@@ -62,4 +62,4 @@ Always review generated content before treating it as final.
 
 ## Next Steps
 
-Read the guides for Projects, LLM Chat, Project Context, Attached References, and Diff Review to understand how the V0.4.1-alpha workflow fits together.
+Read the guides for Projects, LLM Chat, Project Context, Attached References, and Diff Review to understand how the v0.4.2-alpha workflow fits together.

@@ -90,9 +90,14 @@ Read more in our [Cost, Privacy and Copyrights document](https://github.com/sasa
 ## Roadmap
 
 Planned updates include:
-- **Long-Form Stress Testing**: Ensuring stability and output quality.
-- **Agent Workflow Quality**: Improve draft, evaluation, and revision behavior.
-- **Writing Styles:** Implementing custom writing styles
+- **Multi-file editor workspace** - Ability to open and edit multiple files at the same time.
+- **Chat history** - SammyAI agents already do have access to chat history but the chat history is not visible to the user.
+- **US-English spell check**
+- **Inline diff review** - A switch from pop up window diffs to inline diffs
+- **Story-focused selection actions** - Ability to highlight wanted part of your text and perform actions only on that part of the text.
+- **Writer style profiles** - Implementing custom writing profiles
+- **Prose and screenplay modes** - Implementing specific formats
+- **PDF export** - Export stories to PDF 
 
 See [Planned Updates](https://github.com/sasadjukic/sammyai/blob/main/documentation/7_NEXT_STEPS/1_Planned_Updates.md) for more details.
 

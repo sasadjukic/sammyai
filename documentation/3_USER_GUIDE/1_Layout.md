@@ -1,6 +1,6 @@
 # SammyAI Workspace Layout
 
-SammyAI V0.4.1-alpha uses a project-based workspace with a writing editor, Project Explorer, chat panel, and menu commands for context, memory, and reviewed edits.
+SammyAI v0.4.2-alpha uses a project-based workspace with a writing editor, Project Explorer, chat panel, and menu commands for context, memory, and reviewed edits.
 
 ---
 

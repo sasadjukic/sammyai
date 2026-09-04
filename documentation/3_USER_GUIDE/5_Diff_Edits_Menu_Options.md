@@ -1,6 +1,6 @@
 # Diff Review and Change-Set Options
 
-SammyAI V0.4.1-alpha uses reviewed change sets for safer AI-assisted editing. Instead of immediately rewriting files, SammyAI can prepare a structured proposal and show the diff before you apply it.
+SammyAI v0.4.2-alpha uses reviewed change sets for safer AI-assisted editing. Instead of immediately rewriting files, SammyAI can prepare a structured proposal and show the diff before you apply it.
 
 ---
 

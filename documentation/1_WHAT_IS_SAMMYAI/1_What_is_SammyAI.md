@@ -6,7 +6,7 @@
 
 * SammyAI is designed to support the flow of human creative collaboration. It can brainstorm, ask questions, draft, critique, revise, and help manage complex project context while leaving final creative authority with the writer.
 
-* In V0.4.1-alpha, SammyAI is organized around writing projects. A project is a normal folder on your computer. SammyAI registers that folder, watches supported files, stores runtime metadata in OS-managed application data, and avoids adding hidden files to your project folder.
+* In v0.4.2-alpha, SammyAI is organized around writing projects. A project is a normal folder on your computer. SammyAI registers that folder, watches supported files, stores runtime metadata in OS-managed application data, and avoids adding hidden files to your project folder.
 
 ## Use Cases
 

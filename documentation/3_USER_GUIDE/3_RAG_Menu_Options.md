@@ -1,6 +1,6 @@
 # Project Context and RAG Options
 
-Retrieval-Augmented Generation (RAG) helps SammyAI find relevant details from project files without pasting entire documents into the prompt. In V0.4.1-alpha, project context is synchronized automatically for supported files.
+Retrieval-Augmented Generation (RAG) helps SammyAI find relevant details from project files without pasting entire documents into the prompt. In v0.4.2-alpha, project context is synchronized automatically for supported files.
 
 ---
 

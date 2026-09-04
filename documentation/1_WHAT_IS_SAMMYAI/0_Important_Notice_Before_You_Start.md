@@ -1,10 +1,10 @@
-## **Welcome to the V0.4.1-alpha Release of SammyAI!**
+## **Welcome to SammyAI v0.4.2-alpha!**
 
-SammyAI V0.4.1-alpha is a major alpha update focused on project-based writing, safer AI-assisted editing, automatic context, persistent memory, and a redesigned chat workflow.
+SammyAI v0.4.2-alpha is the current development release. It builds on SammyAI's project-based writing architecture, safer AI-assisted editing, automatic context, persistent memory, and redesigned chat workflow with additional usability and project-management refinements.
 
 **Current Status:**
 
-* **Version:** SammyAI V0.4.1-alpha
+* **Version:** SammyAI v0.4.2-alpha
 * **Development Stage:** Alpha
 * **Projects:** SammyAI now works around normal project folders, a live Project Explorer, recent projects, project settings, and OS-managed application data.
 * **Context Engine:** Project files can be synchronized automatically for retrieval, while explicit file references, Context Injection, RAG, and memory share a bounded prompt budget.
@@ -13,7 +13,7 @@ SammyAI V0.4.1-alpha is a major alpha update focused on project-based writing, s
 * **Memory:** Project-scoped persistent memories and conversation summaries are available with user approval.
 * **User Interface:** The chat composer, message layout, project explorer, advanced menus, and dark styling have been redesigned.
 
-**Key Highlights of V0.4.1-alpha:**
+**Highlights of the Current v0.4.2-alpha Experience:**
 
 * **Project Explorer:** Open a project folder, browse the live file tree, and open files directly from the workspace.
 * **Automatic Project Context:** Supported project files are synchronized in the background when projects are opened or files are saved.
@@ -21,6 +21,9 @@ SammyAI V0.4.1-alpha is a major alpha update focused on project-based writing, s
 * **Reviewed Change Sets:** AI editing proposals are shown for review before they touch your project files.
 * **Persistent Memory:** Save important characters, plot facts, world details, style choices, decisions, and preferences as project memories after review.
 * **New Chat Workflow:** Start a fresh chat session without losing the previous session's saved state.
+* **Project File Actions:** Copy, paste, rename, and delete files from the Project Explorer with safeguards for unsaved documents and protected project metadata.
+* **Missing Project Recovery:** Reconnect a moved project folder or safely remove its SammyAI-managed registration and runtime data.
+* **Interface Refinements:** Use clearer search highlights, project-aware welcome messages, and an animated activity indicator while an agent is working.
 
 **Important Notes:**
 
