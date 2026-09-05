@@ -23,7 +23,10 @@ For every release:
 5. Complete the manual acceptance checklist on Windows.
 6. Update user documentation and release notes.
 7. Tag the release only after every definition-of-done item passes.
-8. Do not begin the next feature while the current release has known
+8. After implementation and manual acceptance, add a status line directly
+   below the feature heading using the format
+   `**Status: COMPLETED — YYYY-MM-DD**`.
+9. Do not begin the next feature while the current release has known
    correctness, data-loss, or migration problems.
 
 The order is intentional. Later editor features depend on the document
@@ -119,6 +122,8 @@ measurable.
 ---
 
 ## Release 1: v0.5.0-alpha — Multi-file editor workspace
+
+> **Status: COMPLETED — 2026-09-04**
 
 ### Goal
 
