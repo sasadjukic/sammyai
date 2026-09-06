@@ -212,6 +212,39 @@ def test_canceling_quit_keeps_all_dirty_tabs_and_services_running(
         app.processEvents()
 
 
+def test_last_tab_removal_handles_transient_no_active_document_state(tmp_path):
+    app = QApplication.instance() or QApplication([])
+    paths, database, service, _project = _project_components(tmp_path)
+    window = TextEditor(
+        services=FakeRuntimeServices(service),
+        app_paths=paths,
+    )
+
+    try:
+        session = window.editor_workspace.active_session()
+        window.editor.insertPlainText("Two words")
+        assert window._status_word.text() == "Words: 2"
+        assert window._status_pos.text() == "Ln 1, Col 10"
+
+        window.editor_workspace.close_document(
+            session.session_id,
+            ensure_document=False,
+        )
+
+        assert window.editor_workspace.active_session() is None
+        assert window._status_word.text() == "Words: 0"
+        assert window._status_pos.text() == "Ln 1, Col 1"
+        assert "No Document" in window.windowTitle()
+
+        replacement = window.editor_workspace.new_document()
+        assert replacement.display_name == "Untitled 2"
+        assert window.editor_workspace.active_session() is replacement
+    finally:
+        window.close()
+        database.close()
+        app.processEvents()
+
+
 def test_project_restoration_skips_missing_files_and_restores_active_tab(tmp_path):
     app = QApplication.instance() or QApplication([])
     paths, database, service, project = _project_components(tmp_path)

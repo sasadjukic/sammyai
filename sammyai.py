@@ -384,6 +384,16 @@ class TextEditor(QMainWindow):
                 editor.setExtraSelections([])
         self.current_matches = []
         self.current_match_index = 0
+        if session is None:
+            # Removing the final tab briefly leaves QTabWidget without a current
+            # page before EditorWorkspace creates the replacement untitled tab.
+            self.search_widget.update_match_count(0, 0)
+            self._update_cursor_position()
+            self._update_word_count()
+            self.update_window_title()
+            self._update_rag_active_file(None)
+            self._persist_active_project_workspace()
+            return
         if self.search_widget.isVisible() and self.search_widget.get_search_text():
             self._on_search_text_changed(self.search_widget.get_search_text())
         else:
@@ -1744,13 +1754,18 @@ class TextEditor(QMainWindow):
         if len(args) >= 3:
             _, ln, col = args[:3]
         else:
-            cursor = self.editor.textCursor()
+            editor = self.editor_workspace.active_editor()
+            if editor is None:
+                self._status_pos.setText("Ln 1, Col 1")
+                return
+            cursor = editor.textCursor()
             ln = cursor.blockNumber() + 1
             col = cursor.positionInBlock() + 1
         self._status_pos.setText(f"Ln {ln}, Col {col}")
 
     def _update_word_count(self, *args):
-        text = self.editor.toPlainText()
+        editor = self.editor_workspace.active_editor()
+        text = editor.toPlainText() if editor is not None else ""
         # count words using word boundaries
         words = re.findall(r"\b\w+\b", text)
         self._status_word.setText(f"Words: {len(words)}")
