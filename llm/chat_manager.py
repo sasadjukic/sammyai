@@ -165,6 +165,18 @@ class ChatSession:
         )
 
 
+@dataclass(frozen=True)
+class ConversationSummary:
+    """UI-independent description of a persisted conversation."""
+    id: str
+    title: str
+    preview: str
+    project_id: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+    message_count: int
+
+
 class ChatManager:
     """Manages multiple chat sessions and provides session persistence."""
     
@@ -185,6 +197,7 @@ class ChatManager:
             autosave: Persist mutations immediately when storage is configured
         """
         self.sessions: Dict[str, ChatSession] = {}
+        self.load_errors: list[str] = []
         self.active_session_id: Optional[str] = None
         self.storage_dir = storage_dir
         self.rag_system = rag_system
@@ -262,8 +275,62 @@ class ChatManager:
         """
         if session_id in self.sessions:
             self.active_session_id = session_id
+            self._save_history_selection()
             return True
         return False
+
+    def conversation_summaries(self, project_id=None, scope="all") -> list[ConversationSummary]:
+        summaries = []
+        for session in list(self.sessions.values()):
+            project = session.metadata.get("project_id")
+            if scope == "project" and project != project_id:
+                continue
+            if scope == "unassigned" and project is not None:
+                continue
+            first_user = next((m.content for m in session.messages if m.role == MessageRole.USER), "")
+            title = session.metadata.get("title") or " ".join(first_user.split())[:80] or "New conversation"
+            preview = " ".join(session.messages[-1].content.split())[:160] if session.messages else "No messages yet"
+            summaries.append(ConversationSummary(
+                session.session_id, title, preview, project, session.created_at,
+                session.updated_at, len(session.messages),
+            ))
+        return sorted(summaries, key=lambda item: (item.updated_at.timestamp(), item.id), reverse=True)
+
+    def rename_session(self, session_id: str, title: str) -> bool:
+        title = " ".join(title.split())[:120]
+        session = self.get_session(session_id)
+        if not title or session is None:
+            return False
+        previous = dict(session.metadata), session.updated_at
+        session.metadata["title"] = title
+        session.updated_at = datetime.now()
+        if self.storage_dir and not self.save_session(session_id):
+            session.metadata, session.updated_at = previous
+            return False
+        return True
+
+    def _save_history_selection(self) -> None:
+        if not self.storage_dir or not self.autosave:
+            return
+        try:
+            path = Path(self.storage_dir, ".history-state")
+            temporary = path.with_suffix(".tmp")
+            temporary.write_text(json.dumps({"active_session_id": self.active_session_id}), encoding="utf-8")
+            os.replace(temporary, path)
+        except OSError:
+            logger.exception("Unable to save chat history selection")
+
+    def _restore_history_selection(self) -> None:
+        selected = None
+        try:
+            selected = json.loads(Path(self.storage_dir, ".history-state").read_text(encoding="utf-8")).get("active_session_id")
+        except (OSError, ValueError, AttributeError):
+            pass
+        if isinstance(selected, str) and selected in self.sessions:
+            self.active_session_id = selected
+        else:
+            summaries = self.conversation_summaries()
+            self.active_session_id = summaries[0].id if summaries else None
 
     def set_session_metadata(
         self,
@@ -303,12 +370,13 @@ class ChatManager:
             True if successful, False if session not found
         """
         if session_id in self.sessions:
-            del self.sessions[session_id]
             if self.storage_dir:
                 try:
                     Path(self.storage_dir, f"{session_id}.json").unlink(missing_ok=True)
                 except OSError as error:
                     logger.exception("Error deleting persisted session %s", session_id)
+                    return False
+            del self.sessions[session_id]
             
             # If deleted session was active, clear active session
             if self.active_session_id == session_id:
@@ -316,8 +384,9 @@ class ChatManager:
                 
                 # Set another session as active if available
                 if self.sessions:
-                    self.active_session_id = next(iter(self.sessions.keys()))
+                    self.active_session_id = self.conversation_summaries()[0].id
             
+            self._save_history_selection()
             return True
         return False
 
@@ -577,6 +646,12 @@ class ChatManager:
                 data = json.load(f)
             
             session = ChatSession.from_dict(data)
+            if session.session_id != session_id or not isinstance(session.metadata, dict):
+                raise ValueError("Invalid session identity or metadata")
+            if any(not isinstance(m.content, str) or not isinstance(m.metadata, dict) for m in session.messages):
+                raise ValueError("Invalid message content or metadata")
+            if "title" in session.metadata and not isinstance(session.metadata["title"], str):
+                raise ValueError("Invalid conversation title")
             self.sessions[session_id] = session
             
             # Set as active if no active session
@@ -585,6 +660,7 @@ class ChatManager:
             
             return session
         except Exception as e:
+            self.load_errors.append(session_id)
             logger.exception("Error loading session %s", session_id)
             return None
     
@@ -616,11 +692,13 @@ class ChatManager:
         
         try:
             count = 0
+            self.load_errors.clear()
             for filename in os.listdir(self.storage_dir):
                 if filename.endswith('.json'):
                     session_id = filename[:-5]  # Remove .json extension
                     if self.load_session(session_id):
                         count += 1
+            self._restore_history_selection()
             return count
         except Exception as e:
             logger.exception("Error loading sessions from %s", self.storage_dir)

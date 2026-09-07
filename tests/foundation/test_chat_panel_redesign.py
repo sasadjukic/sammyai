@@ -261,6 +261,7 @@ def test_file_mentions_filter_active_project_text_files_and_insert_paths():
     try:
         panel.resize(700, 850)
         panel.show()
+        app.processEvents()  # Settle layout before opening the completion popup.
         panel.set_project_file_provider(project_files)
         panel.input_field.setFocus()
         QTest.keyClicks(panel.input_field, "Rewrite @s")
@@ -291,6 +292,7 @@ def test_accepting_file_completion_does_not_send_the_message():
     try:
         panel.resize(700, 850)
         panel.show()
+        app.processEvents()  # Settle layout before opening the completion popup.
         panel.set_project_file_provider(lambda: ("scene.md",))
         panel.input_field.setFocus()
         QTest.keyClicks(panel.input_field, "Edit @s")

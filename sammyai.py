@@ -976,6 +976,7 @@ class TextEditor(QMainWindow):
             self._project_reference_files,
         )
         self._chat_panel_safe("set_project_name", project.name)
+        self._chat_panel_safe("set_history_project", project.id)
         if self.project_dock is not None:
             self.project_dock.show()
             self.project_dock.raise_()
@@ -1005,6 +1006,7 @@ class TextEditor(QMainWindow):
         session = self.chat_manager.get_active_session()
         if session is not None and not session.messages:
             self.chat_manager.set_session_metadata("project_id", project_id)
+            self._chat_panel_safe("refresh_history")
 
     def _schedule_project_context_sync(
         self,
@@ -1082,6 +1084,7 @@ class TextEditor(QMainWindow):
             self._project_reference_files,
         )
         self._chat_panel_safe("set_project_name", None)
+        self._chat_panel_safe("set_history_project", None)
         if self.project_dock is not None:
             self.project_dock.hide()
         self.close_project_action.setEnabled(False)
@@ -1217,6 +1220,8 @@ class TextEditor(QMainWindow):
                 logger.exception("Unable to remove project vectors")
         try:
             self.chat_manager.delete_project_data(project_id)
+            self._chat_panel_safe("load_session", self.chat_manager.get_active_session())
+            self._chat_panel_safe("refresh_history")
         except Exception as error:
             cleanup_warnings.append(f"Chat sessions: {error}")
             logger.exception("Unable to remove project chat data")
@@ -1978,6 +1983,8 @@ class TextEditor(QMainWindow):
                 lambda: self.chat_dock.hide() if self.chat_dock else None
             )
             # When a message is sent from the UI, handle it
+            self.chat_panel.bind_history(self.chat_manager, self._active_chat_project_id())
+            self.chat_panel.conversation_selected.connect(self._on_conversation_selected)
             self.chat_panel.message_sent.connect(self._on_chat_message_sent)
             # When the model selection changes in the UI, attempt to switch clients
             self.chat_panel.model_selected.connect(self._on_model_selected)
@@ -2021,7 +2028,9 @@ class TextEditor(QMainWindow):
                     self.active_agent_type.value
                 )
                 if agent_idx >= 0:
+                    self.chat_panel.agent_combo.blockSignals(True)
                     self.chat_panel.agent_combo.setCurrentIndex(agent_idx)
+                    self.chat_panel.agent_combo.blockSignals(False)
             except Exception:
                 pass
         except Exception as e:
@@ -2042,6 +2051,8 @@ class TextEditor(QMainWindow):
         if not message:
             return
 
+        if self.chat_manager.get_active_session() is None:
+            self._on_new_chat_requested()
         # Immediately show user message in UI FIRST
         if self.chat_panel:
             self.chat_panel.add_user_message(message)
@@ -2061,6 +2072,8 @@ class TextEditor(QMainWindow):
         except Exception as e:
             logger.exception("Failed to add user message to session")
 
+        self._chat_panel_safe("refresh_history")
+
         # If LLM not available, inform the user
         if not self.llm_client:
             self._chat_panel_safe("set_thinking", False)
@@ -2075,6 +2088,16 @@ class TextEditor(QMainWindow):
             # Agent workflows own normal chat behavior.
             self._handle_normal_chat(message)
 
+    def _on_conversation_selected(self, session_id: str) -> None:
+        agent = self.chat_manager.get_session_metadata("agent_type", "general", session_id=session_id)
+        index = self.chat_panel.agent_combo.findData(agent)
+        if index < 0:
+            index = 0
+        self.chat_panel.agent_combo.blockSignals(True)
+        self.chat_panel.agent_combo.setCurrentIndex(index)
+        self.chat_panel.agent_combo.blockSignals(False)
+        self.active_agent_type = AgentType(self.chat_panel.agent_combo.currentData())
+
     def _on_new_chat_requested(self):
         """Create a fresh active session while preserving prior conversations."""
         try:
@@ -2088,6 +2111,8 @@ class TextEditor(QMainWindow):
                 )
                 self.chat_manager.set_active_session(session.session_id)
                 if self.chat_panel:
+                    self.chat_panel.load_session(session)
+                    self.chat_panel.refresh_history()
                     self.chat_panel.set_status("New chat ready")
         except Exception:
             logger.exception("Error creating a new chat session")
@@ -2109,12 +2134,14 @@ class TextEditor(QMainWindow):
         selected_agent = self.active_agent_type
         client = self.llm_client
         request_project_id = self._active_chat_project_id()
+        request_chat_session_id = self.chat_manager.active_session_id
 
         def worker():
             try:
                 if self.chat_manager:
                     msgs = self.chat_manager.get_messages_for_llm_with_context(
                         query=message,
+                        session_id=request_chat_session_id,
                         top_k=3,
                     )
                 else:
@@ -2161,6 +2188,7 @@ class TextEditor(QMainWindow):
                 self.chat_manager.add_message(
                     MessageRole.ASSISTANT,
                     result.response,
+                    session_id=request_chat_session_id,
                     metadata=response_metadata,
                 )
                 self.agent_run_completed.emit(result)
@@ -2175,6 +2203,7 @@ class TextEditor(QMainWindow):
     def _handle_dbe_request(self, message: str):
         """Handle DBE mode request with editor context."""
         request_project_id = self._active_chat_project_id()
+        request_chat_session_id = self.chat_manager.active_session_id
         request_session = self.editor_workspace.active_session()
         if request_session is None:
             self._chat_panel_safe("set_thinking", False)
@@ -2214,7 +2243,8 @@ class TextEditor(QMainWindow):
                 # Get messages with editor context
                 msgs = self.chat_manager.get_messages_for_llm_with_dbe_context(
                     query=message,
-                    editor_context=editor_context
+                    editor_context=editor_context,
+                    session_id=request_chat_session_id,
                 )
 
                 # Serialize access while the legacy client prompt is overridden.
@@ -2261,6 +2291,7 @@ class TextEditor(QMainWindow):
                     self.chat_manager.add_message(
                         MessageRole.ASSISTANT,
                         reply,
+                        session_id=request_chat_session_id,
                         metadata=response_metadata,
                     )
                 except Exception:
@@ -2286,6 +2317,7 @@ class TextEditor(QMainWindow):
     def _show_dbe_diff(self, payload):
         """Show DBE diff in viewer (called on main thread)."""
         self._chat_panel_safe("set_thinking", False)
+        self._chat_panel_safe("load_session", self.chat_manager.get_active_session())
         session_id = payload["session_id"]
         original = payload["original"]
         modified = payload["modified"]

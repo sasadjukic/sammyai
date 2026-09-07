@@ -844,3 +844,70 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 .btnPrimary:hover {
     background-color: #65c0e0;
 }
+
+
+/* Saved conversations stay compact above the transcript and composer. */
+#chatHistoryButton {
+    background: transparent;
+    color: #b8c1c0;
+    border: 1px solid #454545;
+    border-radius: 7px;
+    padding: 6px 9px;
+    font-size: 9pt;
+}
+#chatHistoryButton:hover, #chatHistoryButton:checked {
+    background: #3a3a3a;
+    color: #81c1d9;
+}
+#chatConversationTitle {
+    color: #b8c1c0;
+    font-size: 9pt;
+    padding: 0 4px;
+}
+#chatHistoryDrawer {
+    background: #252525;
+    border: 1px solid #454545;
+    border-radius: 8px;
+}
+#chatHistoryDrawer QListWidget {
+    background: #252525;
+    color: #eeeeee;
+    border: none;
+    outline: none;
+}
+#chatHistoryDrawer QListWidget::item {
+    padding: 7px;
+    border-radius: 5px;
+}
+#chatHistoryDrawer QListWidget::item:selected {
+    background: #3d5963;
+    color: #ffffff;
+}
+#chatHistoryDrawer QListWidget::item:hover {
+    background: #363636;
+}
+#chatHistoryDrawer QLabel {
+    color: #b8c1c0;
+    font-size: 8pt;
+}
+
+#chatHistoryDrawer QPushButton,
+#chatHistoryDrawer QComboBox {
+    background: #333333;
+    color: #eeeeee;
+    border: 1px solid #505050;
+    border-radius: 5px;
+    padding: 4px 8px;
+    font-size: 8pt;
+}
+#chatHistoryDrawer QPushButton:hover {
+    background: #454545;
+}
+#chatHistoryDrawer QPushButton:disabled {
+    color: #777777;
+}
+#chatHistoryDrawer QComboBox QAbstractItemView {
+    background: #333333;
+    color: #eeeeee;
+    selection-background-color: #3d5963;
+}

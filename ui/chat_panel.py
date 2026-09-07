@@ -27,6 +27,10 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QInputDialog,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -515,6 +519,7 @@ class ChatPanel(QWidget):
     # Retained for compatibility with integrations written before the redesign.
     clear_chat_requested = Signal()
     close_requested = Signal()
+    conversation_selected = Signal(str)
 
     COLOR_USER = "#e9a5a5"
     COLOR_ASSISTANT = "#81c1d9"
@@ -532,6 +537,11 @@ class ChatPanel(QWidget):
         self._thinking_message: ChatMessage | None = None
         self._conversation_started = False
         self._project_name: str | None = None
+        self._history_manager = None
+        self._history_project_id = None
+        self._displayed_session_id = None
+        self._drafts = {}
+        self._history_busy = False
         self._welcome_text = ""
         self.setup_ui()
 
@@ -548,6 +558,7 @@ class ChatPanel(QWidget):
         self.layout.setSpacing(12)
 
         self._build_header()
+        self._build_history()
         self._build_conversation_area()
         self._build_composer()
 
@@ -585,12 +596,157 @@ class ChatPanel(QWidget):
         header_layout.addWidget(self.icon_label)
         header_layout.addWidget(self.text_label)
         header_layout.addStretch()
+        self.history_button = QPushButton("History")
+        self.history_button.setObjectName("chatHistoryButton")
+        self.history_button.setCheckable(True)
+        self.history_button.setToolTip("Show or hide saved conversations")
+        self.history_button.setAccessibleName("Chat history")
+        self.history_button.toggled.connect(lambda visible: self.history_drawer.setVisible(visible))
+        header_layout.addWidget(self.history_button)
         header_layout.addWidget(self.new_chat_button)
         header_layout.addWidget(self.close_button)
         self.layout.addWidget(self.header)
 
         self.new_chat_button.clicked.connect(self._on_clear_clicked)
         self.close_button.clicked.connect(self._on_close_clicked)
+
+    def _build_history(self) -> None:
+        self.history_drawer = QFrame()
+        self.history_drawer.setObjectName("chatHistoryDrawer")
+        self.history_drawer.setMaximumHeight(230)
+        layout = QVBoxLayout(self.history_drawer)
+        layout.setContentsMargins(8, 4, 8, 4)
+        controls = QHBoxLayout()
+        self.history_filter = QComboBox()
+        self.history_filter.addItem("Current project", "project")
+        self.history_filter.addItem("All conversations", "all")
+        self.history_filter.addItem("Unassigned", "unassigned")
+        self.history_filter.setAccessibleName("Filter conversations")
+        self.history_filter.currentIndexChanged.connect(self.refresh_history)
+        controls.addWidget(self.history_filter, 1)
+        self.rename_chat_button = QPushButton("Rename")
+        self.delete_chat_button = QPushButton("Delete")
+        self.rename_chat_button.clicked.connect(self._rename_conversation)
+        self.delete_chat_button.clicked.connect(self._delete_conversation)
+        controls.addWidget(self.rename_chat_button)
+        controls.addWidget(self.delete_chat_button)
+        layout.addLayout(controls)
+        self.history_list = QListWidget()
+        self.history_list.setAccessibleName("Saved conversations")
+        self.history_list.setMinimumHeight(70)
+        self.history_list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.history_list.setTextElideMode(Qt.ElideRight)
+        self.history_list.currentItemChanged.connect(self._history_item_changed)
+        layout.addWidget(self.history_list, 1)
+        self.history_hint = QLabel("Loading conversations…")
+        self.history_hint.setWordWrap(True)
+        layout.addWidget(self.history_hint)
+        self.layout.addWidget(self.history_drawer)
+        self.history_drawer.hide()
+        self.conversation_title = ElidedLabel()
+        self.conversation_title.setObjectName("chatConversationTitle")
+        self.layout.addWidget(self.conversation_title)
+        self.conversation_title.hide()
+
+    def bind_history(self, manager, project_id=None) -> None:
+        self._history_manager = manager
+        self.set_history_project(project_id)
+        self.load_session(manager.get_active_session())
+        self.refresh_history()
+
+    def set_history_project(self, project_id) -> None:
+        self._history_project_id = project_id
+        self.history_filter.setCurrentIndex(0 if project_id is not None else 1)
+        self.refresh_history()
+
+    def refresh_history(self, *_args) -> None:
+        manager = self._history_manager
+        if manager is None:
+            return
+        self.history_list.blockSignals(True)
+        self.history_list.clear()
+        summaries = manager.conversation_summaries(
+            self._history_project_id, self.history_filter.currentData(),
+        )
+        for summary in summaries:
+            row = QListWidgetItem(f"{summary.title}\n{summary.updated_at:%d %b %Y, %H:%M} · {summary.message_count} messages")
+            row.setData(Qt.UserRole, summary.id)
+            row.setToolTip(f"{summary.title}\n{summary.preview}")
+            self.history_list.addItem(row)
+            if summary.id == manager.active_session_id:
+                self.history_list.setCurrentItem(row)
+        self.history_list.blockSignals(False)
+        active = manager.get_active_session()
+        active_summary = next((s for s in manager.conversation_summaries() if active and s.id == active.session_id), None)
+        self.conversation_title.setText(active_summary.title if active_summary else "New conversation")
+        self.conversation_title.show()
+        hint = "Select a conversation to reopen it." if summaries else "No conversations in this view. Start a new chat or choose All conversations."
+        if manager.load_errors:
+            hint += f" {len(manager.load_errors)} saved conversations could not be read; their files were preserved."
+        if self._history_busy:
+            hint = "A response is running. You can switch conversations when it finishes."
+        self.history_hint.setText(hint)
+        selected = self.history_list.currentItem() is not None
+        self.rename_chat_button.setEnabled(selected and not self._history_busy)
+        self.delete_chat_button.setEnabled(selected and not self._history_busy)
+
+    def _history_item_changed(self, item, _previous) -> None:
+        if item:
+            self.select_conversation(item.data(Qt.UserRole))
+
+    def select_conversation(self, session_id: str) -> None:
+        if self._history_busy or self._history_manager is None:
+            return
+        if self._history_manager.set_active_session(session_id):
+            self.load_session(self._history_manager.get_active_session())
+            self.refresh_history()
+            self.conversation_selected.emit(session_id)
+
+    def load_session(self, session) -> None:
+        """Restore a transcript without emitting send or new-chat signals."""
+        if self._displayed_session_id:
+            self._drafts[self._displayed_session_id] = self.input_field.toPlainText()
+        self.chat_display.clear()
+        self._thinking_message = None
+        self._displayed_session_id = session.session_id if session else None
+        self.input_field.setPlainText(self._drafts.get(self._displayed_session_id, ""))
+        self._set_conversation_started(bool(session and session.messages))
+        if session:
+            for message in sorted(session.messages, key=lambda m: m.timestamp.timestamp()):
+                widget = self.chat_display.add_message(message.role.value, message.content, copyable=message.role.value != "system")
+                details = [message.timestamp.strftime("%d %b %Y, %H:%M")]
+                details.extend(f"{key}: {value}" for key, value in message.metadata.items())
+                widget.setToolTip("\n".join(details))
+        self.set_status("")
+
+    def _rename_conversation(self) -> None:
+        item = self.history_list.currentItem()
+        if not item or self._history_busy:
+            return
+        title, accepted = QInputDialog.getText(self, "Rename conversation", "Title:", text=item.text().split("\n")[0])
+        if accepted:
+            if not self._history_manager.rename_session(item.data(Qt.UserRole), title):
+                self.set_status("Could not save the title. Enter a non-empty title and check storage access.")
+            self.refresh_history()
+
+    def _delete_conversation(self) -> None:
+        item = self.history_list.currentItem()
+        if not item or self._history_busy:
+            return
+        session_id = item.data(Qt.UserRole)
+        if QMessageBox.question(self, "Delete conversation?", f'Delete "{item.text().split(chr(10))[0]}" and all its messages? This cannot be undone.', QMessageBox.Yes | QMessageBox.No, QMessageBox.No) != QMessageBox.Yes:
+            return
+        if not self._history_manager.delete_session(session_id):
+            self.set_status("Could not delete the conversation. Check storage access and try again.")
+            return
+        self._drafts.pop(session_id, None)
+        if self._displayed_session_id == session_id:
+            self._displayed_session_id = None
+        if not self._history_manager.get_active_session():
+            metadata = {"project_id": self._history_project_id} if self._history_project_id else {}
+            session = self._history_manager.create_session(metadata=metadata)
+            self._history_manager.set_active_session(session.session_id)
+        self.select_conversation(self._history_manager.active_session_id)
 
     def _build_conversation_area(self) -> None:
         self.conversation_area = QWidget()
@@ -861,6 +1017,10 @@ class ChatPanel(QWidget):
         self._refresh_welcome_message()
         self._set_conversation_started(False)
         self.input_field.setFocus()
+        if self._displayed_session_id:
+            self._drafts[self._displayed_session_id] = self.input_field.toPlainText()
+        self._displayed_session_id = None
+        self.input_field.clear()
         self.new_chat_requested.emit()
         self.clear_chat_requested.emit()
 
@@ -893,6 +1053,12 @@ class ChatPanel(QWidget):
         self.send_button.setEnabled(enabled)
 
     def set_thinking(self, thinking: bool) -> None:
+        self._history_busy = thinking
+        self.new_chat_button.setEnabled(not thinking)
+        self.history_list.setEnabled(not thinking)
+        self.set_input_enabled(not thinking)
+        self.agent_combo.setEnabled(not thinking)
+        self.refresh_history()
         if thinking and self._thinking_message is None:
             self._ensure_conversation_started()
             self._thinking_message = self.chat_display.add_message(
