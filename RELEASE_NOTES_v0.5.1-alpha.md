@@ -18,10 +18,3 @@ restoration, project filtering and cleanup, deletion failure/cancellation,
 transcript metadata, drafts, narrow-panel layout, and normal/DBE requests whose
 active conversation changes before their worker executes. Offscreen Qt visual
 inspection also verified the panel at 500 × 750 pixels.
-
-## Acceptance
-
-Windows manual acceptance is pending. No release tag or completion status has
-been applied. Verify narrow and tall chat panels, keyboard selection, restart
-restoration, project filters, rename, delete/cancel, offline/error recovery,
-and both normal and DBE generation before releasing.
