@@ -237,6 +237,8 @@ as:
 
 ## Release 2: v0.5.1-alpha — Chat history
 
+> **Status: COMPLETED — 2026-09-09**
+
 ### Goal
 
 Make already-persisted conversations visible, understandable, and safely

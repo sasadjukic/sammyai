@@ -1,10 +1,10 @@
-## **Welcome to SammyAI v0.5.0-alpha!**
+## **Welcome to SammyAI v0.5.1-alpha!**
 
-SammyAI v0.5.0-alpha is the current development release. It adds a multi-file editor workspace to SammyAI's project-based writing architecture, safer AI-assisted editing, automatic context, persistent memory, and redesigned chat workflow.
+SammyAI v0.5.1-alpha is the current development release. It adds visible chat history to SammyAI's multi-file writing workspace, with saved conversation restoration, project filters, renaming, and confirmed deletion.
 
 **Current Status:**
 
-* **Version:** SammyAI v0.5.0-alpha
+* **Version:** SammyAI v0.5.1-alpha
 * **Development Stage:** Alpha
 * **Projects:** SammyAI now works around normal project folders, a live Project Explorer, recent projects, project settings, and OS-managed application data.
 * **Context Engine:** Project files can be synchronized automatically for retrieval, while explicit file references, Context Injection, RAG, and memory share a bounded prompt budget.
@@ -13,8 +13,9 @@ SammyAI v0.5.0-alpha is the current development release. It adds a multi-file ed
 * **Memory:** Project-scoped persistent memories and conversation summaries are available with user approval.
 * **User Interface:** The editor supports multiple independent document tabs, while the chat composer, message layout, Project Explorer, advanced menus, and dark styling share the same workspace.
 
-**Highlights of the Current v0.5.0-alpha Experience:**
+**Highlights of the Current v0.5.1-alpha Experience:**
 
+* **Chat History:** Browse and reopen saved conversations, start new chats, rename or delete conversations, and filter by current project, all conversations, or unassigned chats.
 * **Multi-File Editing:** Keep multiple Markdown and text documents open, switch between independent tabs, and restore project tabs after restarting.
 * **Unsaved-Change Protection:** Dirty tabs prompt before closing or quitting, and dirty background tabs cannot be overwritten by conflicting AI changes.
 * **Project Explorer:** Open a project folder, browse the live file tree, and open files directly from the workspace.

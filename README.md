@@ -9,6 +9,8 @@
 
 # SammyAI
 
+**Current version: [v0.5.1-alpha](RELEASE_NOTES_v0.5.1-alpha.md)**
+
 
 https://github.com/user-attachments/assets/67d9f084-840f-433b-a37e-4b3e80dbc69d
 
@@ -91,7 +93,6 @@ Read more in our [Cost, Privacy and Copyrights document](https://github.com/sasa
 ## Roadmap
 
 Planned updates include:
-- **Chat history** - SammyAI agents already do have access to chat history but the chat history is not visible to the user.
 - **US-English spell check**
 - **Inline diff review** - A switch from pop up window diffs to inline diffs
 - **Story-focused selection actions** - Ability to highlight wanted part of your text and perform actions only on that part of the text.

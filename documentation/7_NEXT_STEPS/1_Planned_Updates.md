@@ -1,9 +1,9 @@
 # Strategic Roadmap and Planned Updates
 
-SammyAI v0.4.2-alpha is a functional foundation for project-based creative
-writing. It combines a plain-text editor, project navigation, model and agent
-workflows, automatic project context, persistent memory, and reviewed file
-changes. The next phase will expand the everyday writing experience while
+SammyAI v0.5.1-alpha is the current development release for project-based
+creative writing. It combines a multi-file editor, visible chat history, project
+navigation, model and agent workflows, automatic project context, persistent
+memory, and reviewed file changes. The next phase will expand the everyday writing experience while
 preserving the application's local-first design and user control over AI edits.
 
 This roadmap presents the intended direction at a product level. Features will
@@ -17,28 +17,32 @@ the [Feature Implementation Guide](3_Feature_Implementation_Guide.md).
 
 ## v0.5 — Editor and Conversation Usability
 
-The v0.5 series will improve the two surfaces writers use most often: the text
+The v0.5 series improves the two surfaces writers use most often: the text
 editor and the chat panel.
 
 ### v0.5.0-alpha — Multi-file editor workspace
 
-SammyAI will support multiple open documents through a tabbed workspace. Tabs
-will show filenames, file-type icons, and unsaved-change indicators. Writers
-will be able to move between chapters, notes, outlines, and story bibles
+> **Status: COMPLETED — 2026-09-04**
+
+SammyAI supports multiple open documents through a tabbed workspace. Tabs
+show filenames, file-type icons, and unsaved-change indicators. Writers
+can move between chapters, notes, outlines, and story bibles
 without repeatedly closing and reopening files.
 
-The workspace will also introduce safer document-state handling so saving,
+The workspace also introduces safer document-state handling so saving,
 closing, renaming, deleting, search, project context, and AI-assisted editing
 continue to target the correct file.
 
 ### v0.5.1-alpha — Chat history
 
-Saved conversations will become visible through a collapsible history view in
-the chat panel. Writers will be able to find and reopen previous conversations,
+> **Status: COMPLETED — 2026-09-09**
+
+Saved conversations are visible through a collapsible history view in
+the chat panel. Writers can find and reopen previous conversations,
 distinguish project conversations from unassigned ones, and manage conversation
 titles and deletion.
 
-This work will expose conversation data that SammyAI already saves while
+This feature exposes conversation data that SammyAI already saves while
 ensuring that model responses remain attached to the conversation in which
 they were started.
 
@@ -146,6 +150,6 @@ The following priorities apply throughout every roadmap release:
   notes as each feature ships.
 
 > [!NOTE]
-> This roadmap describes the current direction after v0.4.2-alpha. Priorities
+> This roadmap describes the current direction as of v0.5.1-alpha. Priorities
 > and release boundaries may be adjusted when testing reveals a safer or more
 > useful sequence.
