@@ -1,4 +1,4 @@
-# v0.5.1-alpha — Chat history (unreleased)
+# v0.5.1-alpha — Chat history
 
 - Added a collapsible conversation list with current-project, all-conversation,
   and unassigned views, automatic titles, timestamps, previews, and counts.
