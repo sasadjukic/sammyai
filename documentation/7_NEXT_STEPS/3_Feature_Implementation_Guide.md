@@ -15,6 +15,10 @@ dates.
 
 For every release:
 
+Work on a temporary `codex/<feature-name>` branch created from the last accepted
+release. Keep feature work off `main`; the maintainer tests and merges the branch
+after acceptance. Do not merge or delete the feature branch automatically.
+
 1. Start from the last accepted release, not from an unfinished feature branch.
 2. Write or update characterization tests before changing existing behavior.
 3. Implement the smallest complete version of the feature described here.
@@ -302,6 +306,8 @@ switchable from the chat panel.
 ---
 
 ## Release 3: v0.5.2-alpha — US-English spell check
+
+> **Status: COMPLETED — 2026-09-13**
 
 ### Goal
 

@@ -27,6 +27,9 @@ def _extract_color_from_stylesheet(
     return None
 
 
+from ui.editor_decorations import EditorDecorationManager
+
+
 class LineNumberArea(QWidget):
     def __init__(self, editor: "CodeEditor") -> None:
         super().__init__(editor)
@@ -42,12 +45,19 @@ class LineNumberArea(QWidget):
 class CodeEditor(QPlainTextEdit):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
+        self.decorations = EditorDecorationManager(self)
         self.lineNumberArea = LineNumberArea(self)
         self.blockCountChanged.connect(self.updateLineNumberAreaWidth)
         self.updateRequest.connect(self.updateLineNumberArea)
         self.cursorPositionChanged.connect(self.highlightCurrentLine)
         self.updateLineNumberAreaWidth(0)
         self.highlightCurrentLine()
+
+    def contextMenuEvent(self, event):
+        if hasattr(self, "spell_check"):
+            self.spell_check.context_menu(event)
+        else:
+            super().contextMenuEvent(event)
 
     def lineNumberAreaWidth(self) -> int:
         digits = len(str(max(1, self.blockCount())))
@@ -93,9 +103,7 @@ class CodeEditor(QPlainTextEdit):
         )
 
     def highlightCurrentLine(self) -> None:
-        # Search and future decoration managers own extra selections.
-        if not self.extraSelections():
-            self.setExtraSelections([])
+        pass  # Named decoration layers own extra selections.
 
     def lineNumberAreaPaintEvent(self, event) -> None:
         painter = QPainter(self.lineNumberArea)

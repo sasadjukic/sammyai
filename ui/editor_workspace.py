@@ -39,8 +39,9 @@ class EditorWorkspace(QWidget):
     redo_available = Signal(bool)
     close_requested = Signal(str)
 
-    def __init__(self, parent=None, *, create_initial_document: bool = True) -> None:
+    def __init__(self, parent=None, *, create_initial_document: bool = True, spell_hub=None) -> None:
         super().__init__(parent)
+        self.spell_hub = spell_hub
         self.setObjectName("editorWorkspace")
         self.tabs = QTabWidget(self)
         self.tabs.setObjectName("editorTabs")
@@ -218,6 +219,9 @@ class EditorWorkspace(QWidget):
 
     def _add_session(self, session: DocumentSession) -> None:
         editor = CodeEditor(self)
+        if self.spell_hub is not None:
+            from ui.spell_check import SpellCheckController
+            SpellCheckController(editor, self.spell_hub)
         editor.setPlainText(session.content)
         editor.document().setModified(False)
 

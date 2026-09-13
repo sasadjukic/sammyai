@@ -30,6 +30,8 @@ from editing.change_set_viewer import ChangeSetReviewDialog
 
 # LLM Settings UI
 from ui.llm_settings import LLMSettingsDialog
+from ui.app_settings import AppSettingsDialog
+from ui.spell_check import SpellCheckHub, SpellCheckController
 
 # RAG management UI
 from ui.rag_management import RAGFileManagementDialog
@@ -227,7 +229,8 @@ class TextEditor(QMainWindow):
         self.search_widget.hide()
         container_layout.addWidget(self.search_widget)
         
-        self.editor_workspace = EditorWorkspace()
+        self.spell_hub = SpellCheckHub(self.app_paths.config_dir, self)
+        self.editor_workspace = EditorWorkspace(spell_hub=self.spell_hub)
         container_layout.addWidget(self.editor_workspace)
         
         container.setLayout(container_layout)
@@ -381,7 +384,7 @@ class TextEditor(QMainWindow):
         for open_session in self.editor_workspace.sessions():
             editor = self.editor_workspace.editor_for_session(open_session.session_id)
             if editor is not None:
-                editor.setExtraSelections([])
+                editor.decorations.set("search", [])
         self.current_matches = []
         self.current_match_index = 0
         if session is None:
@@ -1378,7 +1381,7 @@ class TextEditor(QMainWindow):
 
         self.settings_action = QAction("Settings", self)
         self.settings_action.setEnabled(True)
-        self.settings_action.triggered.connect(self._on_show_llm_settings)
+        self.settings_action.triggered.connect(self._on_show_app_settings)
 
         # Initial enable/disable states
         self.copy_action.setEnabled(False)
@@ -1666,6 +1669,8 @@ class TextEditor(QMainWindow):
 
         # Edit menu
         edit_menu = menubar.addMenu("Edit")
+        edit_menu.addAction(self.settings_action)
+        edit_menu.addSeparator()
         # add icons to edit menu actions
         self.copy_action.setIcon(self._load_menu_icon("edit-copy", QStyle.SP_DialogOpenButton))
         self.cut_action.setIcon(self._load_menu_icon("edit-cut", QStyle.SP_DialogOpenButton))
@@ -1842,7 +1847,7 @@ class TextEditor(QMainWindow):
             
             extra_selections.append(selection)
         
-        self.editor.setExtraSelections(extra_selections)
+        self.editor.decorations.set("search", extra_selections)
     
     def _navigate_to_match(self, index):
         """Navigate to and select a specific match."""
@@ -1943,7 +1948,7 @@ class TextEditor(QMainWindow):
     
     def _clear_search_highlights(self):
         """Clear all search highlights from the editor."""
-        self.editor.setExtraSelections([])
+        self.editor.decorations.set("search", [])
     
     def eventFilter(self, obj, event):
         """Handle keyboard events in the search widget."""
@@ -1979,6 +1984,7 @@ class TextEditor(QMainWindow):
         """Create the chat panel and dock widget and wire up messaging."""
         try:
             self.chat_panel = ChatPanel(self)
+            SpellCheckController(self.chat_panel.input_field, self.spell_hub)
             self.chat_panel.close_requested.connect(
                 lambda: self.chat_dock.hide() if self.chat_dock else None
             )
@@ -2699,6 +2705,9 @@ class TextEditor(QMainWindow):
         cursor.endEditBlock()
         editor.setTextCursor(cursor)
         return True
+
+    def _on_show_app_settings(self):
+        AppSettingsDialog(self.spell_hub, self._on_show_llm_settings, self).exec()
 
     def _on_show_llm_settings(self):
         """Show the LLM parameter settings dialog and update configuration."""

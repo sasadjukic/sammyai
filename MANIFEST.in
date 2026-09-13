@@ -1,3 +1,5 @@
 include LICENSE.md
 recursive-include icons *.svg
 recursive-include ui/styles *.qss
+recursive-include sammyai_core/licenses *.txt
+include THIRD_PARTY_NOTICES.md

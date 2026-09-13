@@ -114,6 +114,12 @@ class AutoGrowingTextEdit(QTextEdit):
         self.textChanged.connect(self._update_file_completions)
         self.update_editor_height()
 
+    def contextMenuEvent(self, event):
+        if hasattr(self, "spell_check"):
+            self.spell_check.context_menu(event)
+        else:
+            super().contextMenuEvent(event)
+
     def set_project_file_provider(
         self,
         provider: Callable[[], Iterable[str]] | None,
