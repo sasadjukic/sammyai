@@ -911,3 +911,42 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
     color: #eeeeee;
     selection-background-color: #3d5963;
 }
+
+/* Application preferences */
+QDialog#appSettingsDialog {
+    background-color: #252526;
+    color: #dddddd;
+}
+QDialog#appSettingsDialog QLabel,
+QDialog#appSettingsDialog QCheckBox,
+QDialog#appSettingsDialog QGroupBox {
+    color: #dddddd;
+    font-family: "Segoe UI";
+    font-size: 10pt;
+}
+QDialog#appSettingsDialog QGroupBox {
+    border: 1px solid #454545;
+    border-radius: 5px;
+    margin-top: 12px;
+    padding: 14px 10px 10px 10px;
+}
+QDialog#appSettingsDialog QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 12px;
+    padding: 0 4px;
+}
+QDialog#appSettingsDialog QPushButton {
+    color: #dddddd;
+    background-color: #333333;
+    border: 1px solid #555555;
+    border-radius: 4px;
+    padding: 7px 14px;
+    font-family: "Segoe UI";
+    font-size: 10pt;
+}
+QDialog#appSettingsDialog QPushButton:hover {
+    background-color: #404040;
+}
+QDialog#appSettingsDialog QPushButton:focus {
+    border-color: #65c0e0;
+}

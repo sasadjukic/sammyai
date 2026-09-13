@@ -48,7 +48,8 @@ def test_primary_ui_fonts_use_valid_point_sizes():
 
 def test_search_matches_use_accessible_sammyai_accent_colors():
     app, previous_stylesheet = _application_with_dark_theme()
-    editor = QPlainTextEdit("sky above, sky below.")
+    editor = CodeEditor()
+    editor.setPlainText("sky above, sky below.")
 
     try:
         first_match = editor.document().find("sky")

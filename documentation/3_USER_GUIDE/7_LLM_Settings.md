@@ -40,8 +40,9 @@ Seed can make outputs more reproducible when the selected provider and model sup
 ## 3. Applying Changes
 
 1. Open **Settings** from the sidebar.
-2. Choose a preset or adjust values manually.
-3. Apply the settings.
+2. Select **LLM settings…**.
+3. Choose a preset or adjust values manually.
+4. Apply the settings.
 
 Changes affect subsequent AI interactions.
 
