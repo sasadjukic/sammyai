@@ -1,9 +1,9 @@
 # Strategic Roadmap and Planned Updates
 
-SammyAI v0.5.1-alpha is the current development release for project-based
-creative writing. It combines a multi-file editor, visible chat history, project
-navigation, model and agent workflows, automatic project context, persistent
-memory, and reviewed file changes. The next phase will expand the everyday writing experience while
+SammyAI v0.5.2-alpha is the current development release for project-based
+creative writing. It combines a multi-file editor, visible chat history, offline
+US English spell checking, project navigation, model and agent workflows,
+automatic project context, persistent memory, and reviewed file changes. The next phase will expand the everyday writing experience while
 preserving the application's local-first design and user control over AI edits.
 
 This roadmap presents the intended direction at a product level. Features will
@@ -48,10 +48,13 @@ they were started.
 
 ### v0.5.2-alpha — US-English spell check
 
-The editor and chat composer will gain local US-English spell checking,
+> **Status: COMPLETED — 2026-09-13**
+
+The editor and chat composer support local US-English spell checking,
 including misspelling indicators, replacement suggestions, ignore controls,
-and a personal dictionary. Spell checking will operate offline and will be
-designed to remain responsive in long chapters and multi-file projects.
+and a personal dictionary. Spell checking operates offline with background
+checks for long chapters and multi-file projects. Writers can enable or disable
+it under **Settings > Writing**.
 
 ## v0.6 — Integrated AI Editing
 
@@ -150,6 +153,6 @@ The following priorities apply throughout every roadmap release:
   notes as each feature ships.
 
 > [!NOTE]
-> This roadmap describes the current direction as of v0.5.1-alpha. Priorities
+> This roadmap describes the current direction as of v0.5.2-alpha. Priorities
 > and release boundaries may be adjusted when testing reveals a safer or more
 > useful sequence.

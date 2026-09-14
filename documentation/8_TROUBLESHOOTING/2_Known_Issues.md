@@ -1,6 +1,6 @@
 # Known Issues
 
-This document tracks known limitations, model tendencies, and workflow risks in SammyAI v0.5.1-alpha.
+This document tracks known limitations, model tendencies, and workflow risks in SammyAI v0.5.2-alpha.
 
 ## LLM Behavior and Style
 
