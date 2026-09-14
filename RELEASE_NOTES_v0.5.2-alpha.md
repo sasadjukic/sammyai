@@ -1,7 +1,6 @@
 # v0.5.2-alpha — US English spell check
 
-Status: implementation on `codex/us-english-spell-check`; Windows manual acceptance
-and merge are pending. No release tag has been created.
+Status: implementation on `codex/us-english-spell-check`; Windows manual acceptance and merge are have been accepted. No release tag has been created.
 
 ## Changes
 
@@ -25,5 +24,4 @@ application preferences separate from model presets and project metadata.
 
 ## Acceptance
 
-See `documentation/7_NEXT_STEPS/4_Spell_Check_Acceptance.md` for automated validation
-and the remaining Windows checklist. Version metadata is `0.5.2a0`.
+See `documentation/7_NEXT_STEPS/4_Spell_Check_Acceptance.md`. Version metadata is `0.5.2a0`.
