@@ -1,52 +1,75 @@
-# Diff Review and Change-Set Options
+# Inline Diff Review
 
-SammyAI v0.5.2-alpha uses reviewed change sets for safer AI-assisted editing. Instead of immediately rewriting files, SammyAI can prepare a structured proposal and show the diff before you apply it.
+SammyAI v0.6.0-alpha shows proposed edits inside the affected document tabs.
+Your draft stays intact until you finish reviewing and explicitly apply your decisions.
 
----
+![Inline review with accepted, rejected, and pending hunks](pictures/Inline_Review.png)
 
-## 1. Reviewed Change Sets
+## Review a proposal
 
-Change sets can include:
+1. Open a project, select the Editor agent, reference the exact file, and request an edit.
+2. Each affected document opens in a tab marked **[Review]**. The read-only review
+   shows unchanged context, removed lines prefixed with **−**, and proposed lines
+   prefixed with **+**. Each hunk is labeled **PENDING**, **ACCEPTED**, or **REJECTED**.
+3. Select a hunk by clicking its text or using **Previous** and **Next**. Choose
+   **Accept Hunk** or **Reject Hunk**. You can change your decision before applying.
+4. **Accept All** and **Reject All** affect the current file. For a proposal covering
+   several files, visit each review tab. The footer counts unresolved hunks across
+   the entire proposal.
+5. When all hunks have a decision, choose **Apply Reviewed Changes**. All accepted
+   project changes are saved together. Rejecting every hunk leaves the files unchanged.
 
-* File creation.
-* File updates.
-* File deletion.
-* Character-range edits inside supported text files.
+Creating or deleting a file is one indivisible decision, including empty files.
+Updating an existing file supports partial acceptance. The final text is rebuilt
+from the original snapshot, so earlier line insertions cannot move later edits.
+Long, highly repetitive passages may be grouped into a larger hunk to keep review
+generation responsive; accepting or rejecting it still preserves the exact snapshot.
 
-Safety features include:
+**Cancel Review** discards the proposal's decisions in all its tabs and resumes
+normal editing. It does not modify your draft or files. Newly proposed files do
+not exist on disk until applied; their temporary tabs close when canceled or rejected.
 
-* Project-root path confinement.
-* Supported edit targets limited to `.md` and `.txt`.
-* Hash-based stale-content conflict detection.
-* Atomic writes with staged files and backups.
-* Multi-file rollback if an apply step fails.
-* Undo and redo for applied change sets.
+## Drafts, conflicts, and undo
 
-## 2. Editor Agent Workflow
+- Structured project proposals require clean buffers for every affected file,
+  including background tabs. Save or discard existing edits before requesting a proposal.
+- While reviewing, the original editor is locked. Finish or cancel before saving,
+  replacing text, renaming, or deleting the file. Find and Copy work in the review surface.
+- File hashes, document identities, and buffer revisions are checked before apply.
+  If anything changed, the proposal stays open with a conflict message. Cancel it,
+  reopen the current file if needed, and request a new proposal.
+- Project files use path confinement, staged atomic writes, backups, rollback on
+  failure, and **Edit > Compare and Review > Undo Last Applied Change Set / Redo
+  Last Applied Change Set**. History operations also protect dirty or reviewed tabs.
+- Untitled drafts, unsaved buffers, and files outside the active project use
+  **Apply to Draft**. This is one normal editor **Undo / Redo** step; use **Save**
+  afterward. If a draft has a path, an external disk change also blocks its review.
+- Closing a reviewed tab or exiting asks whether to cancel its pending proposal.
+  Project switches ask to cancel pending reviews. Review decisions are temporary
+  and are not restored after restart; unapplied proposals never alter source files.
 
-Use the Editor agent when you want SammyAI to propose file changes.
+## Manual comparisons and legacy DBE
 
-1. Open a project.
-2. Reference the exact file that should be changed.
-3. Ask for a specific edit.
-4. Review the proposed change set.
-5. Accept or reject the proposal.
+**Edit > Compare and Review** also provides:
 
-Existing files require complete explicit file context before modification. This prevents the agent from editing a file based on stale or incomplete assumptions.
+- **Compare with File… (Ctrl+D)**: propose the selected file's text for the current document.
+- **Compare with Clipboard (Ctrl+Shift+D)**: review clipboard text against the current document.
+- **Apply Diff from File…**: validate a `.diff` or `.patch` and review the resulting changes.
 
-## 3. Edit > Compare and Review
+These tools use the same inline controls. For a clean file inside the active project,
+Apply saves through the project file tools. For a draft, the footer says **Apply to Draft**.
 
-The Compare and Review menu contains manual diff tools.
+**Advanced > Enable Legacy DBE Mode** still sends the selected editor context to
+the model. Its response now opens inline review attached to the originating document,
+even if you switched tabs or conversations while waiting.
 
-* **Compare with File... (Ctrl+D):** Compare the current editor text with another file.
-* **Compare with Clipboard (Ctrl+Shift+D):** Compare the editor text with clipboard content.
-* **Apply Diff from File...:** Load a `.diff` or `.patch` file and review it before applying.
-* **Undo Last Applied Change Set:** Revert the most recent applied change set when possible.
-* **Redo Last Applied Change Set:** Reapply an undone change set when possible.
+The previous popup remains a temporary compatibility fallback during Windows
+acceptance. To enable it for one PowerShell session before launching:
 
-## 4. Legacy DBE Mode
+```powershell
+$env:SAMMYAI_POPUP_REVIEW = '1'
+.\Scripts\python.exe sammyai.py
+```
 
-The old DBE toggle remains under **Advanced** as **Enable Legacy DBE Mode**. It is kept as a fallback while the newer agent and change-set pipeline is tested.
-
-> [!TIP]
-> Prefer the Editor agent and reviewed change sets for project file edits. Use manual comparison tools when you want to inspect external text or patches.
+Remove that environment variable to return to inline review. The fallback reviews
+whole proposals and retains the old popup's controls.

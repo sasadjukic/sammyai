@@ -2,6 +2,29 @@
 QMainWindow {
     background-color: #1e1e1e;
 }
+/* Inline review semantic tokens, also read by the diff highlighter. */
+QLabel#reviewAddition { color: #b6e3c2; background-color: #193c2b; }
+QLabel#reviewDeletion { color: #f2b8bd; background-color: #48262d; }
+QLabel#reviewCurrent { color: #ffffff; background-color: #34485f; }
+QLabel#reviewPending { color: #e8d59b; background-color: #3c3524; }
+QLabel#reviewGutter { color: #a2adbd; background-color: #22262e; }
+QLabel#reviewTitle { font-size: 15px; font-weight: bold; }
+#inlineReview { background-color: #1e1e1e; }
+#inlineReview QLabel { color: #cbd0d8; font-size: 10pt; }
+#inlineReview QLabel#reviewTitle { color: #f1f3f5; font-size: 12pt; font-weight: bold; }
+#inlineReview QPushButton {
+    color: #e1e5eb;
+    background-color: #292e36;
+    border: 1px solid #414955;
+    border-radius: 4px;
+    padding: 6px 8px;
+    font-size: 9pt;
+}
+#inlineReview QPushButton:hover { background-color: #363f4b; }
+#inlineReview QPushButton:focus { border: 1px solid #65c0e0; }
+#inlineReview QPushButton:disabled { color: #838b98; background-color: #24272d; }
+#inlineReview QPlainTextEdit { font-size: 11pt; }
+
 QPlainTextEdit {
     color: #dddddd;
     background-color: #1e1e1e;

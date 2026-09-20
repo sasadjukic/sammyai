@@ -3,6 +3,7 @@ import re
 import os
 import logging
 import shutil
+from dataclasses import replace
 from pathlib import Path
 from threading import Lock
 from typing import Optional
@@ -46,6 +47,7 @@ from ui.code_editor import (
     _extract_color_from_stylesheet,
 )
 from ui.editor_workspace import EditorWorkspace
+from ui.review_controller import ReviewController
 from sammyai_core.bootstrap import RuntimeServices, build_runtime_services
 from sammyai_core.documents import DocumentService
 from sammyai_core.logging_config import configure_logging, install_exception_hook
@@ -282,6 +284,13 @@ class TextEditor(QMainWindow):
             None,
         )
         self.file_tools = getattr(self.runtime_services, "file_tools", None)
+        self.review_controller = ReviewController(self.editor_workspace, self.file_tools, self)
+        self.review_controller.applied.connect(self._on_inline_review_applied)
+        self.review_controller.finished.connect(self._on_inline_review_finished)
+        self.editor_workspace.review_changed.connect(self._on_review_changed)
+        self.editor_workspace.review_text_changed.connect(self._on_review_text_changed)
+        # Temporary compatibility switch while Windows acceptance is in progress.
+        self.popup_review_fallback = os.environ.get("SAMMYAI_POPUP_REVIEW") == "1"
         self.memory_service = getattr(
             self.runtime_services,
             "memory_service",
@@ -385,6 +394,9 @@ class TextEditor(QMainWindow):
             editor = self.editor_workspace.editor_for_session(open_session.session_id)
             if editor is not None:
                 editor.decorations.set("search", [])
+            review = self.editor_workspace.review_for_session(open_session.session_id)
+            if review:
+                review.decorations.set("search", [])
         self.current_matches = []
         self.current_match_index = 0
         if session is None:
@@ -523,6 +535,9 @@ class TextEditor(QMainWindow):
 
     def closeEvent(self, event):
         """Protect dirty tabs, persist state, and release runtime resources."""
+        if not self._confirm_reviews_can_cancel():
+            event.ignore()
+            return
         for session in self.editor_workspace.dirty_sessions():
             if not self._confirm_session_can_close(session.session_id):
                 event.ignore()
@@ -725,6 +740,9 @@ class TextEditor(QMainWindow):
         return os.path.normcase(str(current)) == os.path.normcase(str(path))
 
     def _ensure_file_operation_has_no_unsaved_conflict(self, path: Path) -> None:
+        if any(self.editor_workspace.review_for_session(session.session_id)
+               for session in self.editor_workspace.sessions_for_path(path)):
+            raise ValueError("Finish or cancel the inline review before renaming or deleting this file.")
         if any(
             self.editor_workspace.is_modified(session.session_id)
             for session in self.editor_workspace.sessions_for_path(path)
@@ -902,6 +920,8 @@ class TextEditor(QMainWindow):
             self._set_active_project(project)
 
     def _create_project(self) -> None:
+        if not self._confirm_reviews_can_cancel():
+            return
         if self.project_service is None:
             return
         parent = QFileDialog.getExistingDirectory(
@@ -948,6 +968,8 @@ class TextEditor(QMainWindow):
     def _open_project_path(self, path: str | Path) -> None:
         if self.project_service is None:
             return
+        if not self._confirm_reviews_can_cancel():
+            return
         try:
             project = self.project_service.open_project(path)
         except ProjectError as error:
@@ -957,6 +979,8 @@ class TextEditor(QMainWindow):
 
     def _open_registered_project(self, project_id: str) -> None:
         if self.project_service is None:
+            return
+        if not self._confirm_reviews_can_cancel():
             return
         try:
             project = self.project_service.open_registered_project(project_id)
@@ -972,6 +996,9 @@ class TextEditor(QMainWindow):
         *,
         force_reindex: bool = False,
     ) -> None:
+        # Reviews retain project identity. Switching projects explicitly cancels
+        # outstanding proposals, never re-targeting them to the new project.
+        self.review_controller.cancel_all()
         if self.project_explorer is not None:
             self.project_explorer.set_project(project)
         self._chat_panel_safe(
@@ -1077,6 +1104,8 @@ class TextEditor(QMainWindow):
 
     def _close_project(self) -> None:
         if self.project_service is None:
+            return
+        if not self._confirm_reviews_can_cancel():
             return
         self._persist_active_project_workspace()
         self.project_service.close_project()
@@ -1784,10 +1813,14 @@ class TextEditor(QMainWindow):
         """Show the search widget in find-only mode and focus the input field."""
         self.search_widget.show_replace_controls(False)
         self.search_widget.show()
+        self._on_search_text_changed(self.search_widget.get_search_text())
         self.search_widget.focus_input()
     
     def _on_replace(self):
         """Show the search widget in find-and-replace mode and focus the input field."""
+        if self.editor.isReadOnly():
+            self._on_search()
+            return
         self.search_widget.show_replace_controls(True)
         self.search_widget.show()
         self.search_widget.focus_input()
@@ -1814,7 +1847,7 @@ class TextEditor(QMainWindow):
     def _find_all_matches(self, text):
         """Find all occurrences of text in the document and return their cursor positions."""
         matches = []
-        document = self.editor.document()
+        document = self.editor_workspace.active_text_surface().document()
         cursor = QTextCursor(document)
         
         # Find all matches
@@ -1847,7 +1880,7 @@ class TextEditor(QMainWindow):
             
             extra_selections.append(selection)
         
-        self.editor.decorations.set("search", extra_selections)
+        self.editor_workspace.active_text_surface().decorations.set("search", extra_selections)
     
     def _navigate_to_match(self, index):
         """Navigate to and select a specific match."""
@@ -1856,8 +1889,8 @@ class TextEditor(QMainWindow):
         
         self.current_match_index = index
         cursor = self.current_matches[index]
-        self.editor.setTextCursor(cursor)
-        self.editor.ensureCursorVisible()
+        self.editor_workspace.active_text_surface().setTextCursor(cursor)
+        self.editor_workspace.active_text_surface().ensureCursorVisible()
         
         # Update highlighting to show new current match
         self._highlight_all_matches()
@@ -1883,6 +1916,8 @@ class TextEditor(QMainWindow):
     
     def _replace_current(self):
         """Replace the current match and move to the next one."""
+        if self.editor.isReadOnly():
+            return
         if not self.current_matches or self.current_match_index >= len(self.current_matches):
             return
         
@@ -1913,6 +1948,8 @@ class TextEditor(QMainWindow):
     
     def _replace_all(self):
         """Replace all matches at once."""
+        if self.editor.isReadOnly():
+            return
         if not self.current_matches:
             return
         
@@ -1944,11 +1981,15 @@ class TextEditor(QMainWindow):
         self._clear_search_highlights()
         self.current_matches = []
         self.current_match_index = 0
-        self.editor.setFocus()
+        surface = self.editor_workspace.active_text_surface()
+        if surface:
+            surface.setFocus()
     
     def _clear_search_highlights(self):
         """Clear all search highlights from the editor."""
-        self.editor.decorations.set("search", [])
+        surface = self.editor_workspace.active_text_surface()
+        if surface:
+            surface.decorations.set("search", [])
     
     def eventFilter(self, obj, event):
         """Handle keyboard events in the search widget."""
@@ -2184,6 +2225,14 @@ class TextEditor(QMainWindow):
                     ),
                 )
 
+                if result.change_set is not None and result.change_set.project_id != request_project_id:
+                    result = replace(
+                        result, change_set=None, change_preview=None,
+                        notices=result.notices + (
+                            "The project changed while this request was running. Request a new proposal in the intended project.",
+                        ),
+                    )
+
                 response_metadata = {
                     "agent_type": result.agent_type.value,
                     "agent_run_id": result.run_id,
@@ -2197,7 +2246,7 @@ class TextEditor(QMainWindow):
                     session_id=request_chat_session_id,
                     metadata=response_metadata,
                 )
-                self.agent_run_completed.emit(result)
+                self.agent_run_completed.emit(replace(result, originating_session_id=request_chat_session_id))
             except Exception as e:
                 self.llm_error_occurred.emit(str(e))
 
@@ -2215,6 +2264,7 @@ class TextEditor(QMainWindow):
             self._chat_panel_safe("set_thinking", False)
             return
         request_session_id = request_session.session_id
+        request_document_path = request_session.normalized_path
         # Get editor context
         text, cursor_line, selection_start, selection_end = self._get_editor_context_for_dbe()
         
@@ -2311,6 +2361,8 @@ class TextEditor(QMainWindow):
                         "original": original_text,
                         "modified": reconstructed_text,
                         "user_request": message,
+                        "chat_session_id": request_chat_session_id,
+                        "document_path": request_document_path,
                     }
                 )
                 
@@ -2334,6 +2386,17 @@ class TextEditor(QMainWindow):
                 "add_system_message",
                 "The document used for this DBE request is no longer open; "
                 "the suggestion was not applied.",
+            )
+            return
+
+        if "document_path" in payload and session.normalized_path != payload["document_path"]:
+            self._chat_panel_safe("add_system_message", "The document path changed while DBE was running. Request a new proposal.")
+            return
+        if not self.popup_review_fallback:
+            self._start_editor_review(
+                original, modified, f"DBE suggestion: {user_request}",
+                session_id=session_id, chat_session_id=payload.get("chat_session_id"),
+                agent_id="legacy-dbe",
             )
             return
         
@@ -2376,7 +2439,8 @@ class TextEditor(QMainWindow):
     def _handle_agent_run_result(self, result: AgentRunResult) -> None:
         """Render one agent result and review any proposed file changes."""
         self._chat_panel_safe("set_thinking", False)
-        self._chat_panel_safe("add_assistant_message", result.response)
+        if result.originating_session_id is None or result.originating_session_id == self.chat_manager.active_session_id:
+            self._chat_panel_safe("add_assistant_message", result.response)
         self._chat_panel_safe(
             "set_status",
             f"{result.agent_type.display_name} completed "
@@ -2391,6 +2455,17 @@ class TextEditor(QMainWindow):
             or result.change_preview is None
             or self.file_tools is None
         ):
+            return
+
+        if not self.popup_review_fallback:
+            try:
+                self.review_controller.start_change_set(
+                    result.change_set, agent_id=result.run_id,
+                    chat_session_id=result.originating_session_id,
+                )
+                self._close_search()
+            except (FileToolError, OSError, ValueError) as error:
+                QMessageBox.warning(self, "Cannot Start Review", str(error))
             return
 
         dialog = ChangeSetReviewDialog(result.change_preview, self)
@@ -2447,6 +2522,52 @@ class TextEditor(QMainWindow):
         self.redo_change_set_action.setEnabled(
             bool(tools and tools.can_redo)
         )
+
+    def _on_inline_review_applied(self, applied) -> None:
+        self._update_change_set_history_actions()
+        self._reload_current_file_if_changed(applied.changed_paths)
+        self._sync_after_file_tool_change()
+        self._persist_active_project_workspace()
+
+    def _on_inline_review_finished(self, message) -> None:
+        self.statusBar().showMessage(message, self.STATUS_NORMAL)
+
+    def _on_review_changed(self, session_id) -> None:
+        session = self.editor_workspace.active_session()
+        if session is not None and session.session_id == session_id:
+            self._close_search()
+
+    def _on_review_text_changed(self, session_id) -> None:
+        session = self.editor_workspace.active_session()
+        if session is not None and session.session_id == session_id:
+            if self.search_widget.isVisible():
+                self._on_search_text_changed(self.search_widget.get_search_text())
+            else:
+                self.current_matches = []
+
+    def _start_editor_review(self, original, proposed, description, *, session_id=None, chat_session_id=None, agent_id=None):
+        session = self.editor_workspace.active_session()
+        document_id = session_id or (session.session_id if session else None)
+        try:
+            return self.review_controller.start_buffer(
+                document_id, original, proposed, description,
+                chat_session_id=chat_session_id, agent_id=agent_id,
+            )
+        except (FileToolError, OSError, ValueError) as error:
+            QMessageBox.warning(self, "Cannot Start Review", str(error))
+            return None
+
+    def _confirm_reviews_can_cancel(self) -> bool:
+        if not self.review_controller.batches:
+            return True
+        choice = QMessageBox.warning(
+            self, "Pending Reviews", "Cancel all pending reviews and continue? No proposed changes will be applied.",
+            QMessageBox.Discard | QMessageBox.Cancel, QMessageBox.Cancel,
+        )
+        if choice != QMessageBox.Discard:
+            return False
+        self.review_controller.cancel_all()
+        return True
 
     def _undo_last_change_set(self) -> None:
         if self.file_tools is None:
@@ -2541,7 +2662,10 @@ class TextEditor(QMainWindow):
             os.path.normcase(change.relative_path)
             for change in change_set.changes
         }
-        for session in self.editor_workspace.dirty_sessions():
+        for session in self.editor_workspace.sessions():
+            if not (self.editor_workspace.is_modified(session.session_id)
+                    or self.editor_workspace.review_for_session(session.session_id)):
+                continue
             if session.path is None:
                 continue
             try:
@@ -2648,7 +2772,7 @@ class TextEditor(QMainWindow):
 
     # --- Edit action handlers (TextEditor forwards to the editor widget) ---
     def _on_copy(self):
-        self.editor.copy()
+        self.editor_workspace.active_text_surface().copy()
 
     def _on_paste(self):
         self.editor.paste()
@@ -2657,14 +2781,16 @@ class TextEditor(QMainWindow):
         self.editor.cut()
 
     def _on_undo(self):
-        self.editor.undo()
+        if not self.editor.isReadOnly():
+            self.editor.undo()
 
     def _on_redo(self):
-        self.editor.redo()
+        if not self.editor.isReadOnly():
+            self.editor.redo()
 
     def _on_repeat(self):
         # Repeat last redo action
-        self.editor.redo()
+        self._on_redo()
 
     def _apply_reviewed_editor_change(
         self,
@@ -2688,6 +2814,8 @@ class TextEditor(QMainWindow):
                 "Edit Conflict",
                 "The document used for this edit is no longer open.",
             )
+            return False
+        if self.editor_workspace.review_for_session(session_id):
             return False
         if editor.toPlainText() != expected_original:
             QMessageBox.warning(
@@ -2833,6 +2961,9 @@ class TextEditor(QMainWindow):
         editor = self.editor_workspace.editor_for_session(session_id)
         if session is None or editor is None:
             return False
+        if self.editor_workspace.review_for_session(session_id):
+            self.statusBar().showMessage("Finish or cancel the review before saving this document.", self.STATUS_NORMAL)
+            return False
 
         target_path = session.path
         if save_as or target_path is None:
@@ -2907,6 +3038,15 @@ class TextEditor(QMainWindow):
         )
 
     def _confirm_session_can_close(self, session_id: str) -> bool:
+        batch = self.review_controller.batch_for_document(session_id)
+        if batch:
+            choice = QMessageBox.warning(
+                self, "Pending Review", "Cancel this proposal's review in all affected tabs and close this document?",
+                QMessageBox.Discard | QMessageBox.Cancel, QMessageBox.Cancel,
+            )
+            if choice != QMessageBox.Discard:
+                return False
+            self.review_controller.cancel(batch.id, closing_document=session_id)
         session = self.editor_workspace.session(session_id)
         if session is None or not self.editor_workspace.is_modified(session_id):
             return True
@@ -3489,6 +3629,10 @@ class TextEditor(QMainWindow):
         
         try:
             other_text = self.document_service.read_text(path)
+
+            if not self.popup_review_fallback:
+                self._start_editor_review(current_text, other_text, f"Compare with {Path(path).name}")
+                return
             
             # Create diff dialog
             dialog = self._create_diff_dialog()
@@ -3523,6 +3667,10 @@ class TextEditor(QMainWindow):
         
         if not clipboard_text:
             QMessageBox.warning(self, "Empty Clipboard", "Clipboard is empty.")
+            return
+
+        if not self.popup_review_fallback:
+            self._start_editor_review(current_text, clipboard_text, "Compare with Clipboard")
             return
         
         # Create diff dialog
@@ -3560,6 +3708,12 @@ class TextEditor(QMainWindow):
         
         try:
             diff_string = self.document_service.read_text(path)
+
+            if not self.popup_review_fallback:
+                diff = self.diff_manager.parse_diff_string(diff_string)
+                proposed = self.diff_manager.apply_diff(current_text, diff, strict=True)
+                self._start_editor_review(current_text, proposed, f"Apply patch: {Path(path).name}")
+                return
             
             # Create diff dialog
             dialog = self._create_diff_dialog()

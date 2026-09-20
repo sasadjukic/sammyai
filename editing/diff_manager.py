@@ -35,6 +35,13 @@ class DiffHunk:
     header: str          # Hunk header line (e.g., @@ -1,4 +1,5 @@)
     
     def __str__(self):
+        if self.header.startswith('@@'):
+            body = []
+            for line in self.lines:
+                body.append(line)
+                if not line.endswith(('\n', '\r')):
+                    body.append('\n\\ No newline at end of file\n')
+            return self.header.rstrip('\r\n') + '\n' + ''.join(body)
         return f"{self.header}\n" + "\n".join(self.lines)
 
 
@@ -50,8 +57,8 @@ class Diff:
         """Convert diff to string representation."""
         result = []
         if self.format == DiffFormat.UNIFIED:
-            result.append(f"--- {self.original_name}")
-            result.append(f"+++ {self.modified_name}")
+            return (f"--- {self.original_name}\n+++ {self.modified_name}\n"
+                    + ''.join(str(hunk) for hunk in self.hunks))
         
         for hunk in self.hunks:
             result.append(str(hunk))
@@ -223,7 +230,7 @@ class DiffManager:
             line = diff_lines[i]
             
             # Skip header lines (---, +++)
-            if line.startswith('---') or line.startswith('+++'):
+            if current_hunk is None and (line.startswith('---') or line.startswith('+++')):
                 i += 1
                 continue
             
@@ -246,8 +253,12 @@ class DiffManager:
                     modified_start=mod_start,
                     modified_count=mod_count,
                     lines=[],
-                    header=line
+                    header=line.rstrip('\r\n')
                 )
+            elif line.startswith('\\ No newline at end of file'):
+                if current_hunk is None or not current_hunk.lines:
+                    raise DiffConflict("No-newline marker has no preceding diff line")
+                current_hunk.lines[-1] = current_hunk.lines[-1].removesuffix('\n').removesuffix('\r')
             elif current_hunk is not None:
                 # Add line to current hunk
                 current_hunk.lines.append(line)
@@ -317,7 +328,7 @@ class DiffManager:
             Modified lines after applying hunk
         """
         # Convert to 0-indexed
-        start_line = hunk.original_start - 1
+        start_line = hunk.original_start if hunk.original_count == 0 else hunk.original_start - 1
         
         # Extract expected original lines from hunk
         expected_lines = []
@@ -337,6 +348,11 @@ class DiffManager:
         
         # Verify that the original lines match
         end_line = start_line + len(expected_lines)
+
+        if strict and (len(expected_lines) != hunk.original_count or len(new_lines) != hunk.modified_count):
+            raise DiffConflict("Hunk line counts do not match its header")
+        if start_line < 0 or start_line > len(lines):
+            raise DiffConflict("Hunk starts outside the original file")
         
         if end_line > len(lines):
             raise DiffConflict(
@@ -349,7 +365,7 @@ class DiffManager:
         if strict:
             # Strict matching: lines must match exactly
             for i, (expected, actual) in enumerate(zip(expected_lines, actual_lines)):
-                if expected.rstrip('\n') != actual.rstrip('\n'):
+                if expected != actual:
                     raise DiffConflict(
                         f"Line {start_line + i + 1} does not match expected content.\n"
                         f"Expected: {expected.rstrip()}\n"
@@ -370,7 +386,7 @@ class DiffManager:
         Returns:
             Parsed Diff object
         """
-        lines = diff_string.splitlines()
+        lines = diff_string.splitlines(keepends=True)
         
         # Detect format
         if any(line.startswith('@@') for line in lines):

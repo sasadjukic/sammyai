@@ -176,6 +176,21 @@ class SafeFileTools:
         self._redo_stack.clear()
         return result
 
+    def validate(self, change_set: ChangeSet) -> tuple[tuple[FileChange, Path], ...]:
+        """Read-only validation for review; apply repeats these checks before writing."""
+        project = self._require_project()
+        if change_set.project_id != project.id:
+            raise ChangeConflictError("The change set belongs to a different project")
+        resolved = []
+        for change in change_set.changes:
+            target = self._resolve_path(
+                project, change.relative_path,
+                must_exist=change.before_content is not None,
+            )
+            self._validate_precondition(target, change)
+            resolved.append((change, target))
+        return tuple(resolved)
+
     @property
     def can_undo(self) -> bool:
         return bool(self._undo_stack)
@@ -221,15 +236,7 @@ class SafeFileTools:
         staged: list[_StagedFile] = []
         created_directories: list[Path] = []
         try:
-            resolved: list[tuple[FileChange, Path]] = []
-            for change in change_set.changes:
-                target = self._resolve_path(
-                    project,
-                    change.relative_path,
-                    must_exist=change.before_content is not None,
-                )
-                self._validate_precondition(target, change)
-                resolved.append((change, target))
+            resolved = self.validate(change_set)
 
             for change, target in resolved:
                 staged_file = _StagedFile(change=change, target=target)

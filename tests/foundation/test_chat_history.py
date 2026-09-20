@@ -92,7 +92,7 @@ def test_response_uses_origin_even_if_active_session_changes(tmp_path):
     from threading import Lock
     from types import SimpleNamespace
     from sammyai import TextEditor
-    from sammyai_core.agent_workflows import AgentType
+    from sammyai_core.agent_workflows import AgentRunResult, AgentType
 
     for mode in ("normal", "dbe"):
         manager = ChatManager(str(tmp_path / mode), autosave=True)
@@ -106,7 +106,7 @@ def test_response_uses_origin_even_if_active_session_changes(tmp_path):
             return "Answer for A"
         def run(agent, **kwargs):
             response = kwargs["complete"](kwargs["messages"], "Test prompt")
-            return SimpleNamespace(response=response, agent_type=agent, run_id="run", model_calls=1)
+            return AgentRunResult("run", agent, response, (), 1)
         target = SimpleNamespace(
             chat_manager=manager, active_agent_type=AgentType.GENERAL,
             llm_client=SimpleNamespace(system_prompt="base", chat=complete),
@@ -116,7 +116,7 @@ def test_response_uses_origin_even_if_active_session_changes(tmp_path):
             agent_progress=SimpleNamespace(emit=lambda value: None),
             agent_run_completed=SimpleNamespace(emit=results.append),
             llm_error_occurred=SimpleNamespace(emit=errors.append),
-            editor_workspace=SimpleNamespace(active_session=lambda: SimpleNamespace(session_id="document")),
+            editor_workspace=SimpleNamespace(active_session=lambda: SimpleNamespace(session_id="document", normalized_path=None)),
             _get_editor_context_for_dbe=lambda: ("Original line", 1, None, None),
             current_file=None, dbe_context_lines=20,
             _extract_text_from_llm_response=lambda reply: reply,
