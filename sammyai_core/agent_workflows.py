@@ -77,6 +77,7 @@ class AgentRunResult:
     change_set: ChangeSet | None = None
     change_preview: ChangeSetPreview | None = None
     notices: tuple[str, ...] = ()
+    originating_session_id: str | None = None
 
 
 LLMCompletion = Callable[[list[dict[str, str]], str], str]

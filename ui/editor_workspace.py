@@ -38,6 +38,9 @@ class EditorWorkspace(QWidget):
     undo_available = Signal(bool)
     redo_available = Signal(bool)
     close_requested = Signal(str)
+    document_closing = Signal(str)
+    review_changed = Signal(str)
+    review_text_changed = Signal(str)
 
     def __init__(self, parent=None, *, create_initial_document: bool = True, spell_hub=None) -> None:
         super().__init__(parent)
@@ -60,6 +63,7 @@ class EditorWorkspace(QWidget):
         self._editors: dict[str, CodeEditor] = {}
         self._pages: dict[str, QWidget] = {}
         self._breadcrumbs: dict[str, QLabel] = {}
+        self._reviews: dict[str, QWidget] = {}
         self._path_to_session: dict[str, str] = {}
         self._untitled_counter = 0
         self._icon_provider = QFileIconProvider()
@@ -81,6 +85,44 @@ class EditorWorkspace(QWidget):
 
     def editor_for_session(self, session_id: str) -> CodeEditor | None:
         return self._editors.get(session_id)
+
+    def review_for_session(self, session_id: str):
+        return self._reviews.get(session_id)
+
+    def active_text_surface(self):
+        session = self.active_session()
+        review = self._reviews.get(session.session_id) if session else None
+        return review.view if review else self.active_editor()
+
+    def show_review(self, session_id: str, widget: QWidget) -> None:
+        self._require_session(session_id)
+        if session_id in self._reviews:
+            raise ValueError("This document already has a pending review")
+        editor = self._editors[session_id]
+        self._reviews[session_id] = widget
+        editor.setReadOnly(True)
+        editor.hide()
+        self._pages[session_id].layout().addWidget(widget)
+        widget.view.textChanged.connect(lambda: self.review_text_changed.emit(session_id))
+        widget.view.copyAvailable.connect(
+            lambda available: self._forward_if_active(session_id, self.copy_available, available)
+        )
+        self._refresh_session_chrome(session_id)
+        self.review_changed.emit(session_id)
+
+    def hide_review(self, session_id: str) -> None:
+        widget = self._reviews.pop(session_id, None)
+        if widget is None:
+            return
+        self._pages[session_id].layout().removeWidget(widget)
+        widget.dispose()
+        widget.hide()
+        widget.deleteLater()
+        editor = self._editors[session_id]
+        editor.setReadOnly(False)
+        editor.show()
+        self._refresh_session_chrome(session_id)
+        self.review_changed.emit(session_id)
 
     def sessions(self) -> tuple[DocumentSession, ...]:
         return tuple(
@@ -143,10 +185,12 @@ class EditorWorkspace(QWidget):
             return False
         self.tabs.setCurrentIndex(index)
         editor = self._editors[session_id]
-        editor.setFocus()
+        self.active_text_surface().setFocus()
         return True
 
     def assign_path(self, session_id: str, path: str | Path) -> None:
+        if session_id in self._reviews:
+            raise ValueError("Cancel or finish the review before changing its path")
         session = self._require_session(session_id)
         normalized = normalize_document_path(path)
         owner = self._path_to_session.get(normalized)
@@ -167,6 +211,8 @@ class EditorWorkspace(QWidget):
         self.modified_state_changed.emit(session_id, False)
 
     def reload_document(self, session_id: str, content: str) -> None:
+        if session_id in self._reviews:
+            raise ValueError("Cancel or finish the review before reloading its document")
         session = self._require_session(session_id)
         editor = self._editors[session_id]
         cursor_position = editor.textCursor().position()
@@ -193,6 +239,7 @@ class EditorWorkspace(QWidget):
         page = self._pages.get(session_id)
         if session is None or page is None:
             return False
+        self.document_closing.emit(session_id)
         index = self.tabs.indexOf(page)
         if session.normalized_path is not None:
             self._path_to_session.pop(session.normalized_path, None)
@@ -397,7 +444,8 @@ class EditorWorkspace(QWidget):
         if index < 0:
             return
         dirty_marker = " ●" if self.is_modified(session_id) else ""
-        self.tabs.setTabText(index, f"{session.display_name}{dirty_marker}")
+        review_marker = " [Review]" if session_id in self._reviews else ""
+        self.tabs.setTabText(index, f"{session.display_name}{dirty_marker}{review_marker}")
         self.tabs.setTabToolTip(
             index,
             str(session.path) if session.path is not None else session.display_name,

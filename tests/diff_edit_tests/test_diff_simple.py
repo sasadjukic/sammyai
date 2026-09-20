@@ -49,3 +49,24 @@ def test_conflict_detection():
 
     with pytest.raises(DiffConflict):
         manager.apply_diff("Completely different\ntext\n", diff, strict=True)
+
+
+@pytest.mark.parametrize("before,after", [
+    ("old\n", "new\n"), ("old", "new"),
+    ("old\n", "new"), ("old", "new\n"),
+    ("", "new\n"), ("old\n", ""),
+    ("a\r\nb\r\n", "a\r\nnew\r\nb\r\n"),
+    ("--old\n", "++new\n"),
+    ("a\nb\n", "a\ninserted\nb\n"),
+])
+def test_exported_patch_round_trip_preserves_content(before, after):
+    manager = DiffManager()
+    exported = str(manager.generate_diff(before, after, context_lines=0))
+    parsed = manager.parse_diff_string(exported)
+    assert manager.apply_diff(before, parsed) == after
+
+
+def test_standard_no_newline_marker_is_respected():
+    manager = DiffManager()
+    patch = "--- a\n+++ b\n@@ -1 +1 @@\n-old\n+new\n\\ No newline at end of file\n"
+    assert manager.apply_diff("old\n", manager.parse_diff_string(patch)) == "new"

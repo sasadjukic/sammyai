@@ -56,6 +56,7 @@ def test_search_matches_use_accessible_sammyai_accent_colors():
         second_match = editor.document().find("sky", first_match)
         search_state = SimpleNamespace(
             editor=editor,
+            editor_workspace=SimpleNamespace(active_text_surface=lambda: editor),
             current_matches=[first_match, second_match],
             current_match_index=0,
         )

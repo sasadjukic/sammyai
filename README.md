@@ -9,7 +9,7 @@
 
 # SammyAI
 
-**Current version: [v0.5.2-alpha](RELEASE_NOTES_v0.5.2-alpha.md)**
+**Current version: [v0.6.0-alpha](RELEASE_NOTES_v0.6.0-alpha.md)**
 
 
 https://github.com/user-attachments/assets/67d9f084-840f-433b-a37e-4b3e80dbc69d
@@ -46,7 +46,7 @@ https://github.com/user-attachments/assets/67d9f084-840f-433b-a37e-4b3e80dbc69d
 - **Multi-file Editor Workspace**: Keep chapters, notes, and story bibles open in independent tabs with safe unsaved-change handling.
 - **Context Injection (CIN)**: Directly inject specific reference files into the current AI conversation for informed brainstorming.
 - **Retrieval-Augmented Generation (RAG)**: Index your project files to provide the AI with a deep "memory" of your world and characters.
-- **Diff-Based Editing (DBE)**: Review AI suggestions via visual diffs and surgically apply changes to your drafts.
+- **Inline Diff Review**: Review AI suggestions in the affected document tabs, accept or reject individual hunks, and apply accepted changes with conflict checks and undo. See [Diff review](documentation/3_USER_GUIDE/5_Diff_Edits_Menu_Options.md).
 
 Check out all the features [Features](https://github.com/sasadjukic/sammyai/blob/main/documentation/1_WHAT_IS_SAMMYAI/3_Features.md).
 
@@ -94,8 +94,6 @@ Read more in our [Cost, Privacy and Copyrights document](https://github.com/sasa
 ## Roadmap
 
 Planned updates include:
-- **US-English spell check**
-- **Inline diff review** - A switch from pop up window diffs to inline diffs
 - **Story-focused selection actions** - Ability to highlight wanted part of your text and perform actions only on that part of the text.
 - **Writer style profiles** - Implementing custom writing profiles
 - **Prose and screenplay modes** - Implementing specific formats

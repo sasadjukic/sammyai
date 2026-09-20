@@ -372,6 +372,9 @@ feature to overwrite `setExtraSelections()` independently.
 
 ## Release 4: v0.6.0-alpha — Inline diff review
 
+Implementation is on `codex/inline-diff-review`; interactive acceptance is pending.
+See [the acceptance record](5_Inline_Diff_Review_Acceptance.md).
+
 ### Goal
 
 Review AI-proposed changes inside the relevant editor tab with clear accepted
