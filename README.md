@@ -45,7 +45,7 @@ https://github.com/user-attachments/assets/67d9f084-840f-433b-a37e-4b3e80dbc69d
 - **Writing Projects**: Open a folder as a persistent project and browse its files from a live, collapsible explorer.
 - **Multi-file Editor Workspace**: Keep chapters, notes, and story bibles open in independent tabs with safe unsaved-change handling.
 - **Context Injection (CIN)**: Directly inject specific reference files into the current AI conversation for informed brainstorming.
-- **Retrieval-Augmented Generation (RAG)**: Index your project files to provide the AI with a deep "memory" of your world and characters.
+- **Retrieval-Augmented Generation (RAG)**: Automatically synchronize project files, import persistent references, and inspect indexed sources through [Project Context](documentation/3_USER_GUIDE/3_RAG_Menu_Options.md).
 - **Inline Diff Review**: Review AI suggestions in the affected document tabs, accept or reject individual hunks, and apply accepted changes with conflict checks and undo. See [Diff review](documentation/3_USER_GUIDE/5_Diff_Edits_Menu_Options.md).
 
 Check out all the features [Features](https://github.com/sasadjukic/sammyai/blob/main/documentation/1_WHAT_IS_SAMMYAI/3_Features.md).

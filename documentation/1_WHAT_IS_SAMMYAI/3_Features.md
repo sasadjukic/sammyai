@@ -56,7 +56,7 @@ The context engine helps SammyAI retrieve relevant project material without past
 * **Ambiguity handling:** If two files share the same name, use a relative path.
 * **Context budget:** Explicit files, context injection, RAG, and memory share a bounded context budget.
 
-Legacy manual indexing remains available under **Advanced > Legacy Manual Indexing** while the new context engine is tested.
+Use **Advanced > Project Context > Import Reference File...** to copy external references into the project's `References` folder for automatic synchronization. **Indexed Files...** shows indexed sources and project attribution, including preserved unassigned legacy entries.
 
 ---
 

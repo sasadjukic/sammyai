@@ -1,7 +1,7 @@
 # v0.6.0-alpha — Inline diff review
 
-Implementation branch: `codex/inline-diff-review`. Version metadata: `0.6.0a0`.
-Interactive Windows acceptance and maintainer merge are pending. No tag has been created.
+Inline diff review was tested and merged into `main` by the maintainer.
+Version metadata: `0.6.0a0`.
 
 Validation: 210 supported automated tests pass (16 model/external tests excluded).
 The wheel builds and passes an isolated offline core/asset installation check.
@@ -41,3 +41,18 @@ fallback. It is not used by default.
 
 See the [acceptance record](documentation/7_NEXT_STEPS/5_Inline_Diff_Review_Acceptance.md)
 and [user guide](documentation/3_USER_GUIDE/5_Diff_Edits_Menu_Options.md).
+
+## Unreleased follow-up — Manual indexing retirement
+
+- Removed the Legacy Manual Indexing menu and its indexing/management handlers.
+- Project Context now offers **Import Reference File...**, which preserves the
+  external source and copies it into the project's `References` folder for normal
+  automatic synchronization. Name collisions never overwrite existing files.
+- **Indexed Files...** provides read-only inspection of project and unassigned
+  legacy entries, including source paths and chunk counts.
+- Existing index entries are preserved. No automatic migration or purge occurs.
+  The global reset confirmation now explains its effect on legacy entries.
+- Legacy DBE remains available.
+
+Branch: `codex/retire-manual-indexing`; maintainer testing and merge are pending.
+See the [validation and acceptance guide](documentation/7_NEXT_STEPS/6_Manual_Indexing_Retirement.md).

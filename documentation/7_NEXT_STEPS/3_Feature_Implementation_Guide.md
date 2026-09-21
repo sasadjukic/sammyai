@@ -144,7 +144,7 @@ losing unsaved text or confusing editor, project, RAG, or agent state.
 - Closing a dirty tab or quitting with dirty tabs asks the user to save,
   discard, or cancel.
 - The active tab drives Save, Save As, search, word count, cursor position,
-  manual indexing, selection operations, and legacy DBE context.
+  selection operations, and legacy DBE context.
 - Open tabs and the active tab are restored per project where practical.
 
 ### Recommended design
@@ -372,8 +372,13 @@ feature to overwrite `setExtraSelections()` independently.
 
 ## Release 4: v0.6.0-alpha — Inline diff review
 
-Implementation is on `codex/inline-diff-review`; interactive acceptance is pending.
+**Status: COMPLETED — 2026-09-20**
+
+The maintainer confirmed testing and merged inline diff review into `main`.
 See [the acceptance record](5_Inline_Diff_Review_Acceptance.md).
+
+The subsequent [manual indexing retirement](6_Manual_Indexing_Retirement.md)
+is an unreleased maintenance follow-up on its own temporary branch.
 
 ### Goal
 

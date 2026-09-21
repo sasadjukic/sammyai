@@ -100,6 +100,32 @@ def test_project_sync_uses_hashes_and_removes_deleted_files(tmp_path):
         database.close()
 
 
+def test_imported_reference_uses_project_namespace_and_normal_sync_lifecycle(tmp_path):
+    from sammyai_core.project_references import ProjectReferenceImporter
+    database, project, repository, rag, engine = make_engine(tmp_path)
+    source = tmp_path / "research.md"
+    source.write_bytes(b"Research\r\n")
+    try:
+        target = ProjectReferenceImporter().import_file(project, source)
+        report = engine.sync_active_project()
+        assert report.added == 1
+        assert rag.indexed[0][0] == str(target)
+        assert rag.indexed[0][2]["project_id"] == project.id
+        assert rag.indexed[0][2]["relative_path"] == "References/research.md"
+        assert "References/research.md" in engine.list_referenceable_files()
+        assert engine.sync_active_project().unchanged == 1
+        source.write_bytes(b"External source changed")
+        assert engine.sync_active_project().unchanged == 1
+        assert target.read_bytes() == b"Research\r\n"
+        target.unlink()
+        assert engine.sync_active_project().removed == 1
+        assert rag.removed == [str(target)]
+        assert source.read_bytes() == b"External source changed"
+        assert repository.list_for_project(project.id) == []
+    finally:
+        database.close()
+
+
 def test_project_index_can_be_forced_and_invalidated(tmp_path):
     database, project, repository, rag, engine = make_engine(tmp_path)
     chapter = project.root_path / "chapter.md"
