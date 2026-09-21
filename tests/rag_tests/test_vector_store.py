@@ -96,6 +96,28 @@ def test_get_file_metadata(store):
     assert metadata["project_id"] == "project-1"
     assert store.get_file_metadata("missing") is None
 
+
+def test_index_inventory_keeps_project_and_legacy_entries_without_mutation(store):
+    store.add_documents(
+        ["p1-a", "p1-b", "p2", "legacy", "unknown"],
+        ["one", "two", "three", "legacy", "unknown"],
+        [np.zeros(384) for _ in range(5)],
+        [
+            {"file_path": "chapter.md", "project_id": "one"},
+            {"file_path": "chapter.md", "project_id": "one"},
+            {"file_path": "chapter.md", "project_id": "two"},
+            {"file_path": "external.txt"},
+            {"chunk_index": 0},
+        ],
+    )
+    inventory = store.get_indexed_files()
+    assert {(entry.file_path, entry.project_id): entry.chunk_count for entry in inventory} == {
+        ("chapter.md", "one"): 2, ("chapter.md", "two"): 1,
+        ("external.txt", None): 1, ("", None): 1,
+    }
+    assert store.get_document_count() == 5
+    assert store.get_indexed_files() == inventory
+
 def test_delete_by_project_removes_only_that_namespace(store):
     store.add_documents(
         ["p1-a", "p1-b", "p2-a"],

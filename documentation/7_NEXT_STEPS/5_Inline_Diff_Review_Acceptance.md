@@ -1,8 +1,9 @@
 # Inline diff review acceptance — 2026-09-20
 
 Branch: `codex/inline-diff-review`. Target version: `0.6.0a0`.
-Implementation is ready for Windows interactive acceptance. Do not merge, tag,
-or mark Release 4 completed until the maintainer accepts it.
+The maintainer confirmed that testing passed and that inline diff review was
+merged into `main`. Acceptance recorded on 2026-09-20. The checklist below is
+retained for repeat testing; individual checklist results were not supplied.
 
 ## Scope
 
@@ -41,7 +42,7 @@ tokens, and a temporary popup fallback. No review persistence or automatic rebas
 - Narrow review with chat open was also rendered and visually inspected using
   `--with-chat --width 1000 --height 700`. Qt honors the combined panels' minimum
   width; panels can be collapsed to leave more room for the editor.
-- `git diff --check` passes. The branch has not been merged or tagged.
+- `git diff --check` passed before handoff. The maintainer subsequently merged the branch.
 
 ## Repeatable interactive demo
 

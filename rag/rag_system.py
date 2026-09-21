@@ -385,6 +385,10 @@ class RAGSystem:
             'files': indexed_files,
             'active_file_list': list(self.retriever.active_files)
         }
+
+    def get_indexed_files(self):
+        """Return a read-only inventory, including unassigned legacy records."""
+        return self.vector_store.get_indexed_files()
     
     def get_file_structure_summary(self) -> str:
         """Get a summary of indexed file structure"""

@@ -9,6 +9,8 @@ from pathlib import Path
 import gc
 import logging
 
+from sammyai_core.context_index import IndexedFileSummary
+
 
 logger = logging.getLogger(__name__)
 
@@ -279,6 +281,26 @@ class VectorStore:
         except Exception:
             logger.exception("Error getting indexed file paths")
             return []
+
+    def get_indexed_files(self) -> tuple[IndexedFileSummary, ...]:
+        """Inspect project attribution without fetching document text/embeddings.
+
+        Keep unassigned records visible, including records with no source path.
+        Storage failures propagate so diagnostics cannot mistake them for an
+        empty index.
+        """
+        result = self.collection.get(include=["metadatas"])
+        counts: dict[tuple[str, str | None], int] = {}
+        for metadata in result.get("metadatas") or []:
+            metadata = metadata or {}
+            file_path = metadata.get("file_path") or ""
+            project_id = metadata.get("project_id") or None
+            key = (file_path, project_id)
+            counts[key] = counts.get(key, 0) + 1
+        return tuple(
+            IndexedFileSummary(file_path, project_id, counts[(file_path, project_id)])
+            for file_path, project_id in sorted(counts, key=lambda key: (key[0].casefold(), key[1] or ""))
+        )
     
     def clear_collection(self) -> None:
         """Clear all documents from the collection"""

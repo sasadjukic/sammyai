@@ -62,6 +62,10 @@ If SammyAI reports that the project system is not initialized:
 * Use **Advanced > Project Context > Rebuild Active Project Index...** to force a rebuild.
 * Use **Advanced > Project Context > Context Index Statistics...** to inspect index state.
 
-### Legacy Manual Indexing
+### External References and Legacy Entries
 
-Manual indexing is no longer the normal first step for project files. Use **Advanced > Legacy Manual Indexing** only as a fallback or for external files outside the project.
+The manual indexing menu has been retired. Open a project and use **Advanced > Project Context > Import Reference File...** to copy an external reference into its `References` folder. Changes to the external original do not update this copy.
+
+Use **Indexed Files...** in the same menu to inspect source paths and project attribution. Existing unassigned legacy entries are preserved but are excluded from project-scoped retrieval. Import their original files into the relevant project to use them again. If an import reports that context indexing is unavailable, the copy is still preserved; restore the context service and rebuild the project.
+
+**Reset Entire Context Index...** affects all projects and legacy entries. Project files can be rebuilt, but unassigned legacy entries cannot be restored automatically. Inspect them before deciding to reset; source files are never deleted by an index reset.

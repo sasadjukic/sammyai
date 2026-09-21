@@ -39,8 +39,7 @@ The menu bar contains project, editing, context, and memory commands.
 * **Edit > Compare and Review:** Compare with a file, compare with clipboard, apply a diff file, and undo or redo applied change sets.
 * **View:** Show or hide the Project Explorer.
 * **Advanced > Persistent Memory:** Manage project memory and summarize the current chat for review.
-* **Advanced > Project Context:** Rebuild, inspect, or reset the active project context index.
-* **Advanced > Legacy Manual Indexing:** Use older manual RAG indexing tools when needed.
+* **Advanced > Project Context:** Import persistent reference files, inspect indexed sources, rebuild the active project, or reset the entire context index.
 
 ## 4. Multi-File Editing Canvas
 
@@ -53,7 +52,7 @@ The center of the workspace is a tabbed plain-text editor for `.txt` and `.md` f
 * **Safe closing:** Closing an unsaved tab, or quitting with unsaved tabs, asks whether to save, discard, or cancel.
 * **Project restoration:** Saved project files that were open, plus the active tab, are restored the next time that project is opened. Missing or moved files are skipped safely.
 * **Line numbers:** Useful for references and precise editing.
-* **Active-tab commands:** Save, Save As, search, replace, word count, cursor position, manual indexing, and editor actions apply to the active tab.
+* **Active-tab commands:** Save, Save As, search, replace, word count, cursor position, and editor actions apply to the active tab.
 * **Reviewed edits:** Accepted AI change sets update files after review.
 * **Background-tab protection:** An unsaved background tab blocks a conflicting AI change set. Clean open tabs refresh when an approved external change updates them.
 * **Undo and redo:** Standard document undo and redo remain independent per tab, with additional change-set undo and redo in the Compare and Review menu.

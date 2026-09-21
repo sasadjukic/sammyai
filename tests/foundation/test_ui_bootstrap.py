@@ -76,7 +76,6 @@ def test_editor_accepts_injected_runtime_services(tmp_path):
     assert [action.text() for action in editor.advanced_menu.actions()] == [
         "Persistent Memory",
         "Project Context",
-        "Legacy Manual Indexing",
         "",
         "Enable Legacy DBE Mode",
     ]
@@ -87,6 +86,8 @@ def test_editor_accepts_injected_runtime_services(tmp_path):
         "Summarize Current Chat...",
     ]
     assert not editor.rebuild_project_context_action.isEnabled()
+    assert not editor.import_reference_action.isEnabled()
+    assert not editor.inspect_context_action.isEnabled()
     assert not editor.manage_memory_action.isEnabled()
     assert not editor.summarize_chat_action.isEnabled()
 

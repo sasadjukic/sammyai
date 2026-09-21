@@ -35,7 +35,7 @@ from ui.app_settings import AppSettingsDialog
 from ui.spell_check import SpellCheckHub, SpellCheckController
 
 # RAG management UI
-from ui.rag_management import RAGFileManagementDialog
+from ui.rag_management import ContextIndexDialog
 from ui.memory_management import (
     MemoryManagementDialog,
     SummaryReviewDialog,
@@ -55,6 +55,7 @@ from sammyai_core.paths import AppPaths, get_app_paths, migrate_legacy_runtime_d
 from sammyai_core.resources import asset_path, source_root
 from sammyai_core.tasks import BackgroundTaskRunner
 from sammyai_core.projects import Project, ProjectError
+from sammyai_core.project_references import ProjectReferenceImporter
 from sammyai_core.agent_workflows import (
     AgentRunResult,
     AgentType,
@@ -215,6 +216,7 @@ class TextEditor(QMainWindow):
 
         self.app_paths = app_paths or get_app_paths()
         self.document_service = DocumentService()
+        self.reference_importer = ProjectReferenceImporter()
         self.task_runner = BackgroundTaskRunner()
         self._llm_lock = Lock()
 
@@ -319,9 +321,8 @@ class TextEditor(QMainWindow):
         self.rebuild_project_context_action.setEnabled(False)
         self.rag_stats_action.setEnabled(self.rag_system is not None)
         self.clear_rag_action.setEnabled(self.rag_system is not None)
-        self.index_action.setEnabled(self.rag_system is not None)
-        self.upload_rag_action.setEnabled(self.rag_system is not None)
-        self.manage_rag_action.setEnabled(self.rag_system is not None)
+        self.inspect_context_action.setEnabled(self.rag_system is not None)
+        self.import_reference_action.setEnabled(False)
         self.manage_memory_action.setEnabled(False)
         self.summarize_chat_action.setEnabled(False)
         if self.runtime_services.project_error:
@@ -353,10 +354,6 @@ class TextEditor(QMainWindow):
         # Chat panel (created lazily when the chat button is pressed)
         self.chat_dock: QDockWidget | None = None
         self.chat_panel: ChatPanel | None = None
-
-        # Track if indexing is in progress
-        self._indexing_in_progress = False
-        self._indexing_lock = Lock()
 
         # Initialize DBE state
         self.dbe_enabled = False
@@ -565,31 +562,6 @@ class TextEditor(QMainWindow):
         """
         path, _ = QFileDialog.getOpenFileName(self, title, "", file_filter)
         return path if path else None
-
-    def _show_indexing_status(self, filename: str, status: str, file_size_kb: float = 0, total_chunks: int = 0):
-        """Display indexing status message in statusbar.
-        
-        Args:
-            filename: Name of the file being indexed
-            status: One of 'start', 'success', 'error'
-            file_size_kb: File size in KB (for 'start' status)
-            total_chunks: Total chunks indexed (for 'success' status)
-        """
-        if status == "start":
-            self.statusBar().showMessage(
-                f"Indexing {filename} ({file_size_kb:.1f}KB)...", 
-                self.STATUS_PERSISTENT
-            )
-        elif status == "success":
-            self.statusBar().showMessage(
-                f"✓ Indexed {filename} ({total_chunks} total chunks)", 
-                self.STATUS_NORMAL
-            )
-        elif status == "error":
-            self.statusBar().showMessage(
-                f"✗ Failed to index {filename}", 
-                self.STATUS_ERROR
-            )
 
     def _chat_panel_safe(self, method_name: str, *args):
         """Safely call a chat panel method if it exists.
@@ -1011,6 +983,7 @@ class TextEditor(QMainWindow):
             self.project_dock.show()
             self.project_dock.raise_()
         self.close_project_action.setEnabled(True)
+        self.import_reference_action.setEnabled(True)
         self.rebuild_project_context_action.setEnabled(
             self.context_engine is not None and self.rag_system is not None
         )
@@ -1121,6 +1094,7 @@ class TextEditor(QMainWindow):
             self.project_dock.hide()
         self.close_project_action.setEnabled(False)
         self.rebuild_project_context_action.setEnabled(False)
+        self.import_reference_action.setEnabled(False)
         self.manage_memory_action.setEnabled(False)
         self.summarize_chat_action.setEnabled(False)
         self.update_window_title()
@@ -1419,17 +1393,10 @@ class TextEditor(QMainWindow):
         self.undo_action.setEnabled(False)
         self.redo_action.setEnabled(False)
 
-        # Legacy manual indexing remains available under Advanced.
-        self.index_action = QAction("Index Current File Manually...", self)
-        self.index_action.triggered.connect(self._index_current_file_manually)
-        self.index_action.setStatusTip(
-            "Legacy fallback: manually index the current file"
-        )
-
-        self.upload_rag_action = QAction("Add External File to Index...", self)
-        self.upload_rag_action.triggered.connect(self._upload_file_for_rag)
-        self.upload_rag_action.setStatusTip(
-            "Legacy fallback: persistently index a file outside the project"
+        self.import_reference_action = QAction("Import Reference File...", self)
+        self.import_reference_action.triggered.connect(self._import_project_reference)
+        self.import_reference_action.setStatusTip(
+            "Copy a reference into this project's References folder for automatic context synchronization"
         )
 
         self.rebuild_project_context_action = QAction(
@@ -1443,9 +1410,11 @@ class TextEditor(QMainWindow):
             "Regenerate context embeddings for every supported project file"
         )
 
-        # Advanced index management actions
-        self.manage_rag_action = QAction("Legacy Index Manager...", self)
-        self.manage_rag_action.triggered.connect(self._manage_rag_index)
+        self.inspect_context_action = QAction("Indexed Files...", self)
+        self.inspect_context_action.triggered.connect(self._inspect_context_index)
+        self.inspect_context_action.setStatusTip(
+            "Inspect project and unassigned legacy index entries without changing them"
+        )
         
         self.clear_rag_action = QAction("Reset Entire Context Index...", self)
         self.clear_rag_action.triggered.connect(self._clear_rag_index)
@@ -1744,18 +1713,14 @@ class TextEditor(QMainWindow):
         self.project_context_menu = self.advanced_menu.addMenu(
             "Project Context"
         )
+        self.project_context_menu.addAction(self.import_reference_action)
+        self.project_context_menu.addAction(self.inspect_context_action)
+        self.project_context_menu.addSeparator()
         self.project_context_menu.addAction(
             self.rebuild_project_context_action
         )
         self.project_context_menu.addAction(self.rag_stats_action)
         self.project_context_menu.addAction(self.clear_rag_action)
-
-        self.legacy_rag_menu = self.advanced_menu.addMenu(
-            "Legacy Manual Indexing"
-        )
-        self.legacy_rag_menu.addAction(self.index_action)
-        self.legacy_rag_menu.addAction(self.upload_rag_action)
-        self.legacy_rag_menu.addAction(self.manage_rag_action)
 
         self.advanced_menu.addSeparator()
         self.advanced_menu.addAction(self.toggle_dbe_action)
@@ -2896,38 +2861,6 @@ class TextEditor(QMainWindow):
 
 
     # --- File operations ---
-    def _should_index_file(self, file_path: str, max_size_kb: int = 100) -> bool:
-        """
-        Check if a file should be indexed based on its size.
-        
-        Args:
-            file_path: Path to the file
-            max_size_kb: Maximum file size in KB to index (default 100KB)
-            
-        Returns:
-            True if file should be indexed, False otherwise
-        """
-        try:
-            file_size = os.path.getsize(file_path)
-            file_size_kb = file_size / 1024
-            
-            if file_size_kb > max_size_kb:
-                # Ask user if they want to index large files
-                reply = QMessageBox.question(
-                    self,
-                    "Large File Indexing",
-                    f"The file is {file_size_kb:.1f}KB. Indexing large files may temporarily freeze the UI.\n\n"
-                    f"Do you want to index this file for RAG context?",
-                    QMessageBox.Yes | QMessageBox.No,
-                    QMessageBox.No
-                )
-                return reply == QMessageBox.Yes
-            
-            return True
-        except Exception as e:
-            logger.exception("Error checking file size for %s", file_path)
-            return False
-    
     def open_file(self):
         path, _ = QFileDialog.getOpenFileName(self, "Open File", "", "Text Files (*.txt *.md);;Markdown Files (*.md);;Plain Text (*.txt);;All Files (*)")
         if path:
@@ -3134,167 +3067,41 @@ class TextEditor(QMainWindow):
         )
         self._schedule_project_context_sync(project, force_reindex=True)
 
-    # Legacy manual indexing methods
-    def _index_current_file_manually(self):
-        """User explicitly requests indexing of current file."""
-        if not self.current_file:
-            QMessageBox.warning(self, "No File", "No file is currently open.")
+    def _import_project_reference(self) -> None:
+        project = self.project_service.active_project if self.project_service else None
+        if project is None:
+            QMessageBox.warning(self, "Import Reference", "Open a project before importing a reference.")
             return
-        
-        if not self.rag_system:
-            QMessageBox.warning(self, "RAG Unavailable", "RAG system not initialized.")
-            return
-        
-        # Check if already indexing
-        with self._indexing_lock:
-            if self._indexing_in_progress:
-                QMessageBox.information(
-                    self, 
-                    "Indexing in Progress", 
-                    "Already indexing a file. Please wait."
-                )
-                return
-            self._indexing_in_progress = True
-        
-        # Check file size
-        if not self._should_index_file(self.current_file, max_size_kb=500):
-            with self._indexing_lock:
-                self._indexing_in_progress = False
-            return
-        
-        file_to_index = self.current_file
-        file_size_kb = os.path.getsize(file_to_index) / 1024
-        
-        self._show_indexing_status(
-            os.path.basename(file_to_index), 
-            "start", 
-            file_size_kb
-        )
-        
-        def index_worker():
-            try:
-                # Index the file
-                success = self.rag_system.index_file(file_to_index, force_reindex=True)
-                
-                if success:
-                    # Get stats
-                    stats = self.rag_system.get_stats()
-                    
-                    # Update UI on main thread
-                    QTimer.singleShot(0, lambda: self._show_indexing_status(
-                        os.path.basename(file_to_index),
-                        "success",
-                        total_chunks=stats['total_documents']
-                    ))
-                else:
-                    QTimer.singleShot(0, lambda: self._show_indexing_status(
-                        os.path.basename(file_to_index),
-                        "error"
-                    ))
-            except Exception as e:
-                logger.exception("Error indexing current file %s", file_to_index)
-                QTimer.singleShot(0, lambda: self.statusBar().showMessage(
-                    f"✗ Error indexing: {str(e)}", 
-                    self.STATUS_ERROR
-                ))
-            finally:
-                # Release the lock
-                with self._indexing_lock:
-                    self._indexing_in_progress = False
-        
-        # Start indexing in background (thread started within lock released)
-        self.task_runner.submit(index_worker, name="index-current-file")
-
-    def _upload_file_for_rag(self):
-        """Upload a file (.txt, .md, .pdf) for RAG indexing."""
-        if not self.rag_system:
-            QMessageBox.warning(self, "RAG Unavailable", "RAG system not initialized.")
-            return
-
         path = self._open_file_dialog(
-            "Upload File for RAG indexing", 
-            "Allowed Files (*.txt *.pdf *.md);;Text Files (*.txt);;Markdown Files (*.md);;PDF Files (*.pdf);;All Files (*)"
+            f"Import Reference into {project.name}",
+            "Reference Files (*.md *.txt *.pdf);;Markdown (*.md);;Text (*.txt);;PDF (*.pdf)",
         )
         if not path:
             return
-
-        # Check if already indexing
-        with self._indexing_lock:
-            if self._indexing_in_progress:
-                QMessageBox.information(
-                    self, 
-                    "Indexing in Progress", 
-                    "Already indexing a file. Please wait."
-                )
-                return
-            self._indexing_in_progress = True
-
-        # Check file size (larger limit than CIN, maybe 1MB)
-        if not self._should_index_file(path, max_size_kb=1000):
-            with self._indexing_lock:
-                self._indexing_in_progress = False
+        if self.project_service.active_project != project:
+            QMessageBox.warning(self, "Import Reference", "The active project changed. Choose the reference again.")
             return
-
-        file_to_index = path
-        file_size_kb = os.path.getsize(file_to_index) / 1024
-
-        self._show_indexing_status(
-            os.path.basename(file_to_index),
-            "start",
-            file_size_kb
-        )
-
-        def index_worker():
-            try:
-                # Index the file
-                success = self.rag_system.index_file(file_to_index, force_reindex=False)
-                
-                if success:
-                    # Get stats
-                    stats = self.rag_system.get_stats()
-                    
-                    # Update UI on main thread
-                    QTimer.singleShot(0, lambda: self._show_indexing_status(
-                        os.path.basename(file_to_index),
-                        "success",
-                        total_chunks=stats['total_documents']
-                    ))
-                    # Also show success dialog as it's a manual upload
-                    QTimer.singleShot(0, lambda: QMessageBox.information(
-                        self, "RAG Indexing Success",
-                        f"File '{os.path.basename(file_to_index)}' has been indexed for RAG.\n"
-                        f"Total chunks in system: {stats['total_documents']}"
-                    ))
-                else:
-                    QTimer.singleShot(0, lambda: self._show_indexing_status(
-                        os.path.basename(file_to_index),
-                        "error"
-                    ))
-            except Exception as e:
-                logger.exception("Error indexing uploaded file %s", file_to_index)
-                QTimer.singleShot(0, lambda: self.statusBar().showMessage(
-                    f"✗ Error indexing: {str(e)}", 
-                    self.STATUS_ERROR
-                ))
-            finally:
-                # Release the lock
-                with self._indexing_lock:
-                    self._indexing_in_progress = False
-        
-        # Start indexing in background
-        self.task_runner.submit(index_worker, name="index-uploaded-file")
-
-    # Manage RAG index method
-    def _manage_rag_index(self):
-        """Open the legacy low-level index management dialog."""
-        if not self.rag_system:
-            QMessageBox.warning(self, "RAG Unavailable", "RAG system not initialized.")
+        try:
+            target = self.reference_importer.import_file(
+                project, path,
+                reserved_paths=(session.path for session in self.editor_workspace.sessions() if session.path),
+            )
+        except (OSError, ValueError) as error:
+            QMessageBox.warning(self, "Import Reference", str(error))
             return
-            
-        dialog = RAGFileManagementDialog(self.rag_system, self)
-        dialog.exec()
-        if self.context_engine is not None:
-            self.context_engine.invalidate_index_state()
+        relative_path = target.relative_to(project.root_path.resolve()).as_posix()
+        if self.context_engine is not None and self.rag_system is not None:
+            self._schedule_project_context_sync(project)
+            message = f"Reference ready: {relative_path}. Synchronizing project context…"
+        else:
+            message = f"Reference ready: {relative_path}. Context indexing is currently unavailable."
+        self.statusBar().showMessage(message, self.STATUS_NORMAL)
+
+    def _inspect_context_index(self) -> None:
+        if self.rag_system is None:
+            QMessageBox.warning(self, "Context Index Unavailable", "The context index is not initialized.")
+            return
+        ContextIndexDialog(self.rag_system, self.project_service, self).exec()
 
     def _clear_rag_index(self):
         """Reset the low-level index and rebuild the active project."""
@@ -3310,7 +3117,9 @@ class TextEditor(QMainWindow):
             self,
             "Reset Context Index",
             "This removes the complete local context index. The active "
-            "project will then be rebuilt automatically.\n\nContinue?",
+            "project will then be rebuilt automatically. Other projects rebuild "
+            "when reopened. Unassigned legacy entries cannot be restored "
+            "automatically. Your original files are not deleted.\n\nContinue?",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )
