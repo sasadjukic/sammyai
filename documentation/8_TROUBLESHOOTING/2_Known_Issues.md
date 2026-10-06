@@ -46,9 +46,23 @@ Persistent memory is only useful when saved facts are concise and durable.
 
 ### Edit Conflicts
 
-If a file changes after a change set is prepared, SammyAI may reject the apply step to prevent overwriting newer content.
+If a file changes after its request context is captured, SammyAI rejects a stale
+proposal. Files are checked again when a change set is applied.
 
 **What to try:** Reopen or refresh the file context, then ask the Editor agent to prepare a new change set.
+
+### Large-File Proposal Rejected
+
+A partial reference can authorize additions, but cannot authorize replacing or
+deleting the whole file. If the model returns a whole-file rewrite anyway, SammyAI
+reports that partial context was supplied and rejects the proposal.
+
+**What to try:** Ask explicitly to append only new material, or insert it before a
+unique heading/complete line. Include the `@file` reference in the current request.
+If an anchor is missing, ambiguous, or absent from context, name or quote a more
+specific source line. If a numbered scene already exists, request a revision rather
+than adding the same scene again. A new-text budget error concerns the size of the
+addition, so split that writing request into smaller additions.
 
 ### Unsupported Edit Targets
 

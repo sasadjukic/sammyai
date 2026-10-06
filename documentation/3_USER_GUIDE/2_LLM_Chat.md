@@ -47,7 +47,25 @@ Agents change how SammyAI handles the next message.
 * **Editor:** File-change proposals through reviewed change sets.
 * **Critic:** Read-only critique and feedback.
 
-Existing files require complete explicit file context before the Editor can modify them. If a filename is ambiguous, reference it by relative path.
+Reference an existing file explicitly with `@` before requesting a change. Brainstormer,
+Writer, and Editor can append new material or insert it at a unique source line even
+when the entire file is too large for context. Whole-file rewrites and deletion still
+require complete file context. If a filename is ambiguous, use its relative path.
+
+For example:
+
+* `Add Scene 20's breakdown to @scene_breakdown.md, keeping the existing scenes.`
+* `Insert a new interlude before the Scene 10 heading in @scene_breakdown.md.`
+
+For a precise insertion, name or quote a unique heading or complete source line.
+SammyAI supplies relevant excerpts, headings, and the file ending from large files.
+If the target is missing or ambiguous, clarify the location. The agent returns only
+new material; SammyAI combines it with the original file for inline review. It checks
+for duplicate section headings and numbered scenes before preparing the addition.
+
+Partial context may omit story facts, so provide relevant references or request a
+smaller task when continuity needs more context. Updating an existing passage in an
+oversized file remains a separate future feature; an insertion never replaces text.
 
 ## 5. Project Context
 

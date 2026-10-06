@@ -15,6 +15,7 @@ from typing import Any
 from .database import ProjectDatabase
 from .documents import DocumentService
 from .projects import Project, ProjectService
+from .file_edit_context import FileContextPolicy, FileEditSnapshot, estimate_tokens, select_file_context
 
 
 logger = logging.getLogger(__name__)
@@ -36,13 +37,6 @@ IGNORED_DIRECTORIES = frozenset(
 FILE_REFERENCE_PATTERN = re.compile(
     r"(?<![\w@])@(?:\"([^\"]+)\"|'([^']+)'|([^\s,;]+))"
 )
-
-
-def estimate_tokens(text: str) -> int:
-    """Return a deterministic, provider-neutral token estimate."""
-    if not text:
-        return 0
-    return max(1, (len(text) + 3) // 4)
 
 
 def _utc_now_text() -> str:
@@ -107,6 +101,7 @@ class ContextResult:
     complete_referenced_files: tuple[str, ...]
     memory_ids: tuple[str, ...] = ()
     summary_ids: tuple[str, ...] = ()
+    file_snapshots: tuple[FileEditSnapshot, ...] = ()
 
 
 class ProjectFileRepository:
@@ -245,6 +240,7 @@ class ProjectContextEngine:
         memory_service: Any | None = None,
         document_service: DocumentService | None = None,
         max_context_tokens: int = 4_000,
+        file_context_policy: FileContextPolicy | None = None,
     ):
         self.project_service = project_service
         self.file_repository = file_repository
@@ -252,6 +248,7 @@ class ProjectContextEngine:
         self.memory_service = memory_service
         self.document_service = document_service or DocumentService()
         self.max_context_tokens = max_context_tokens
+        self.file_context_policy = file_context_policy or FileContextPolicy()
         self._sync_lock = RLock()
 
     @property
@@ -511,18 +508,55 @@ class ProjectContextEngine:
         messages: list[str] = []
         referenced_files: list[str] = []
         complete_referenced_files: list[str] = []
+        file_snapshots: list[FileEditSnapshot] = []
         memory_ids: tuple[str, ...] = ()
         summary_ids: tuple[str, ...] = ()
 
-        for reference in references:
+        valid_references = [reference for reference in references if reference.path is not None and reference.relative_path is not None]
+        for index, reference in enumerate(valid_references):
             if reference.path is None or reference.relative_path is None:
                 continue
             try:
-                content = self.document_service.extract_context_text(reference.path)
+                if reference.path.suffix.lower() in REFERENCEABLE_EXTENSIONS:
+                    # Capture exact UTF-8 bytes for request-to-apply conflict checks
+                    # and preserve existing newlines during local reconstruction.
+                    with reference.path.open("rb") as source:
+                        raw = source.read(self.file_context_policy.max_snapshot_bytes + 1)
+                    if len(raw) > self.file_context_policy.max_snapshot_bytes:
+                        raise ValueError("File exceeds the configured local snapshot resource limit")
+                    content = raw.decode("utf-8")
+                else:
+                    content = self.document_service.extract_context_text(reference.path)
             except Exception as error:
                 notices += (
                     f"Unable to read @{reference.reference}: {error}",
                 )
+                continue
+            remaining = budget.max_tokens - budget.used_tokens
+            full_section_tokens = estimate_tokens(f"Explicit project file requested by the user: {reference.relative_path}\n\n{content}")
+            file_budget = remaining if full_section_tokens <= remaining else remaining // (len(valid_references) - index)
+            if reference.path.suffix.lower() in REFERENCEABLE_EXTENSIONS:
+                section, snapshot, partial = select_file_context(
+                    project.id, reference.relative_path, content, query,
+                    file_budget, self.file_context_policy,
+                )
+                if section:
+                    fitted = budget.add(section)
+                    if fitted == section:
+                        messages.append(section)
+                        referenced_files.append(reference.relative_path)
+                        if snapshot is not None:
+                            file_snapshots.append(snapshot)
+                            if snapshot.complete:
+                                complete_referenced_files.append(reference.relative_path)
+                if partial:
+                    budget.truncated = True
+                    notices += (
+                        f"@{reference.relative_path}: partial file context. " + (
+                            "Additions can use the supplied ending or a unique source line; whole-file replacement/deletion requires complete context."
+                            if snapshot is not None else "The budget is too small to authorize file edits."
+                        ),
+                    )
                 continue
             section = (
                 f"Explicit project file requested by the user: "
@@ -600,6 +634,7 @@ class ProjectContextEngine:
             complete_referenced_files=tuple(complete_referenced_files),
             memory_ids=memory_ids,
             summary_ids=summary_ids,
+            file_snapshots=tuple(file_snapshots),
         )
 
     def _scan_project(

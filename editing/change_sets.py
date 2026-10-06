@@ -82,22 +82,25 @@ class FileChangeRequest:
     kind: FileRequestKind
     content: str | None = None
     edits: tuple[TextEdit, ...] = ()
+    expected_hash: str | None = None
 
     @classmethod
-    def write(cls, relative_path: str, content: str) -> "FileChangeRequest":
-        return cls(relative_path, FileRequestKind.WRITE, content=content)
+    def write(cls, relative_path: str, content: str, *, expected_hash: str | None = None) -> "FileChangeRequest":
+        return cls(relative_path, FileRequestKind.WRITE, content=content, expected_hash=expected_hash)
 
     @classmethod
     def edit(
         cls,
         relative_path: str,
         edits: Iterable[TextEdit],
+        *,
+        expected_hash: str | None = None,
     ) -> "FileChangeRequest":
-        return cls(relative_path, FileRequestKind.EDIT, edits=tuple(edits))
+        return cls(relative_path, FileRequestKind.EDIT, edits=tuple(edits), expected_hash=expected_hash)
 
     @classmethod
-    def delete(cls, relative_path: str) -> "FileChangeRequest":
-        return cls(relative_path, FileRequestKind.DELETE)
+    def delete(cls, relative_path: str, *, expected_hash: str | None = None) -> "FileChangeRequest":
+        return cls(relative_path, FileRequestKind.DELETE, expected_hash=expected_hash)
 
     def __post_init__(self) -> None:
         if not self.relative_path.strip():

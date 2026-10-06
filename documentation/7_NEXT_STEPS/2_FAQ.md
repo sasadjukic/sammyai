@@ -59,6 +59,14 @@ New Chat starts a fresh session context. Use it when changing tasks, moving to a
 
 The Editor agent can propose file changes, but changes are reviewed as change sets before they are applied. Existing files require explicit file context before modification.
 
+### Can an agent add a scene to a file that is too large for full context?
+
+Yes. Reference the file and ask for an append or targeted insertion. The agent
+returns only the new material, and SammyAI preserves the rest of the file locally.
+For example, ask to add Scene 20 to `@scene_breakdown.md`, or to insert an interlude
+before a unique scene heading. Full-file rewrites and deletion still require
+complete context; selected-section replacement in large files is a later feature.
+
 ## 4. Creative Capabilities and Content
 
 ### What is the default language for SammyAI?

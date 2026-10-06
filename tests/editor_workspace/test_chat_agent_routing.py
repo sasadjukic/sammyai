@@ -11,6 +11,46 @@ from llm.chat_manager import MessageRole
 from sammyai_core.agent_workflows import AgentRunResult, AgentType
 
 
+@pytest.mark.parametrize("operation,anchor", [("append", None), ("insert_before", "## Scene 10")])
+def test_large_file_addition_from_chat_to_inline_review(review_window, monkeypatch, operation, anchor):
+    import json
+    from sammyai_core.context_engine import ProjectContextEngine, ProjectFileRepository
+    window, root = review_window
+    source = "".join(f"## Scene {i}\r\n" + "Existing material. " * 100 + "\r\n\r\n" for i in range(1, 20))
+    path = root / "scene_breakdown.md"
+    path.write_bytes(source.encode("utf-8"))
+    window._open_file_path(path)
+    window._create_chat_panel()
+    window.chat_panel.agent_combo.setCurrentIndex(window.chat_panel.agent_combo.findData("editor"))
+    engine = ProjectContextEngine(window.project_service, ProjectFileRepository(window.project_service.repository.database), None)
+    window.chat_manager.context_engine = engine
+    proposal = {"path": path.name, "operation": operation, "content": "## New scene\nA turning point.\n\n"}
+    if anchor:
+        proposal["anchor"] = anchor
+    model_messages = []
+    def complete(messages):
+        model_messages.extend(messages)
+        return "Ready to review.\n<sammyai_changes>" + json.dumps({"summary": "Add a scene", "files": [proposal]}) + "</sammyai_changes>"
+    window.llm_client = SimpleNamespace(system_prompt="base", chat=complete)
+    monkeypatch.setattr(window.task_runner, "submit", lambda fn, **kwargs: fn())
+    window._on_chat_message_sent("Add a new scene before Scene 10 in @scene_breakdown.md" if anchor else "Add a new scene to @scene_breakdown.md")
+
+    assert any("Partial file context" in message["content"] for message in model_messages)
+    batch = next(iter(window.review_controller.batches.values()))
+    view = window.editor_workspace.review_for_session(batch.reviews[0].target_document_id)
+    assert path.read_bytes() == source.encode("utf-8")
+    assert not view.apply_button.isEnabled()
+    view.accept_all_button.click()
+    view.apply_button.click()
+    addition = "## New scene\r\nA turning point.\r\n\r\n"
+    expected = source.replace(anchor, addition + anchor) if anchor else source + addition
+    assert path.read_bytes() == expected.encode("utf-8")
+    window._undo_last_change_set()
+    assert path.read_bytes() == source.encode("utf-8")
+    window._redo_last_change_set()
+    assert path.read_bytes() == expected.encode("utf-8")
+
+
 @pytest.mark.parametrize("agent", list(AgentType))
 def test_send_uses_selected_agent_without_implicit_editor_selection(review_window, monkeypatch, agent):
     window, _root = review_window

@@ -35,6 +35,8 @@ after acceptance. Do not merge or delete the feature branch automatically.
 
 The order is intentional. Later editor features depend on the document
 workspace and review infrastructure introduced by earlier releases.
+Request diagnostics precede selection actions so new AI workflows inherit
+durable failure records and traceable review outcomes.
 
 ## Proposed release sequence
 
@@ -45,11 +47,12 @@ workspace and review infrastructure introduced by earlier releases.
 | 2 | v0.5.1-alpha | Chat history | Expose and manage persisted conversations |
 | 3 | v0.5.2-alpha | US-English spell check | Shared editor/composer language tooling |
 | 4 | v0.6.0-alpha | Inline diff review | Major AI-edit review workflow change |
-| 5 | v0.6.1-alpha | Story-focused selection actions | Context-menu AI writing operations |
-| 6 | v0.7.0-alpha | Writer style profiles | Persistent, deterministic style preferences |
-| 7 | v0.8.0-alpha | Prose and screenplay modes | Format-aware editing and document semantics |
-| 8 | v0.8.1-alpha | PDF export | Format-aware, paginated output |
-| 9 | v0.9.0-beta | Integration hardening | No new features; prepare the combined system for beta |
+| 5 | v0.6.1-alpha | Chat and agent diagnostics | Persistent request traces, failure evidence, and review outcomes |
+| 6 | v0.6.2-alpha | Story-focused selection actions | Context-menu AI writing operations |
+| 7 | v0.7.0-alpha | Writer style profiles | Persistent, deterministic style preferences |
+| 8 | v0.8.0-alpha | Prose and screenplay modes | Format-aware editing and document semantics |
+| 9 | v0.8.1-alpha | PDF export | Format-aware, paginated output |
+| 10 | v0.9.0-beta | Integration hardening | No new features; prepare the combined system for beta |
 
 ## Cross-cutting architecture target
 
@@ -75,6 +78,10 @@ DocumentFormatRegistry -> prose/screenplay rendering -> PDF export
 ChatManager -> conversation list model -> chat history UI
 
 StyleProfileRepository -> style prompt layer -> writer/editor workflows
+
+RequestTraceService -> context / model calls / validation / review / file operations
+         |
+ persistent request timeline -> diagnostics viewer / export
 ```
 
 Recommended ownership boundaries:
@@ -379,7 +386,9 @@ See [the acceptance record](5_Inline_Diff_Review_Acceptance.md).
 
 The subsequent [manual indexing retirement](6_Manual_Indexing_Retirement.md)
 was tested and merged by the maintainer. [Legacy DBE retirement](7_Legacy_DBE_Retirement.md)
-is the next maintenance follow-up on its own temporary branch.
+has also been merged. [Scoped file additions](8_Scoped_File_Additions.md) now extend
+the existing review foundation on a separate temporary branch; maintainer acceptance
+is pending. This adds append/insertion support before the planned selection actions.
 
 ### Goal
 
@@ -466,7 +475,145 @@ because earlier decisions can shift later line ranges.
 
 ---
 
-## Release 5: v0.6.1-alpha — Story-focused selection actions
+## Release 5: v0.6.1-alpha — Chat and agent diagnostics
+
+**Status: PLANNED — requested by the maintainer on 2026-10-06; not implemented.**
+
+Schedule this after acceptance of the current scoped-file-additions work and
+before selection actions. The 2026-10-06 proposal-rejection investigation
+established the need: a filename typo, partial-context notice, and malformed
+JSON proposal appeared together, but the rejected proposal and notices were
+not retained with the saved conversation.
+
+### Goal
+
+Make each human-to-agent request explainable after completion, failure, or an
+application restart: what was requested, what context was supplied, which
+steps ran, what failed, what the user reviewed, and whether files changed.
+Support today's single-call and Writer draft/evaluate/revise workflows while
+leaving room for future models, retries, branching, and agent handoffs.
+
+### Scope and current gaps
+
+- Preserve caught chat exceptions and user-visible notices beyond the UI.
+- Retain diagnosable evidence for malformed proposals, including incomplete
+  directive envelopes that can currently pass through as ordinary prose.
+- Record request-specific context selection, model configuration, and call
+  outcomes; distinguish retrieval failure from an ordinary empty search.
+- Separate model-response completion from successful validation, pending
+  review, user rejection, application, cancellation, and failure.
+- Persist the relationship between agent runs, proposals, human review
+  decisions, applied changes, and subsequent undo/redo.
+- Carry request and conversation identity through progress, errors, and
+  completion signals, including when the active chat or project changes.
+
+This release adds diagnostics for existing workflows. It does not introduce
+automatic proposal repair, autonomous writes, new agent orchestration, or
+crash-resumable editing. Diagnostic replay must never apply file changes.
+
+### Recommended design
+
+Keep rotating application logs for general errors. Add a core-owned persistent
+request record and linked step/event records, for example through a
+`RequestTraceService` and versioned SQLite tables. The UI consumes these records;
+it must not be their only storage location.
+
+Capture at least:
+
+- stable request, message, conversation, project, run, step, and event IDs;
+- parent-step relationships and attempt numbers for future nested workflows;
+- timestamps, event ordering, durations, explicit outcomes, and stable error
+  codes with human-readable explanations;
+- app/build and prompt versions, provider/model identity, effective settings,
+  and provider request IDs, usage, and completion reasons when available;
+- context budgets, resolved/missing references, source hashes, supplied ranges,
+  truncation decisions, and selected retrieval/memory references;
+- source proposal, review, and applied change-set IDs, accepted/rejected hunk
+  decisions, conflict/rollback results, and undo/redo links.
+
+Unavailable provider metadata must remain explicitly unknown. Always retain
+bounded structural metadata; make prompt, response, draft, and failed-proposal
+content capture separately configurable, with clear local retention controls.
+Keep captured content separate from routine logs, never record credentials,
+and preview/redact diagnostic bundles before the user exports or shares them.
+Trace observable steps and outputs without depending on private model reasoning.
+
+Persist trace outcomes separately from conversation content so diagnostic
+messages are not accidentally fed back to models as user instructions. A trace
+can reconstruct app behavior without promising deterministic model replay.
+
+### Implementation steps
+
+1. Characterize the current chat, parser, context, review, and provider-error
+   paths before introducing the trace schema and persistence service.
+2. Create request identity at submission, before context assembly. Propagate
+   it through all worker signals and bind messages and errors to their origin.
+3. Persist context resolution and degradation events, including missing files,
+   partial views, retrieval failures, and effective policy limits.
+4. Instrument each model call and Writer stage independently. Preserve
+   available response metadata and captured evidence before parsing strips it.
+5. Detect malformed or incomplete proposals explicitly. Record caught
+   exceptions with tracebacks and stable error categories; distinguish user
+   input problems, provider failures, validation rejections, and app defects.
+6. Persist notices and truthful run outcomes. A failed proposal must not be
+   presented as a successfully completed edit or disappear from chat history.
+7. Link review creation, human decisions, accepted change sets, safe apply,
+   conflicts, rollback, and undo/redo without weakening existing safeguards.
+8. Record interrupted work on restart; do not infer success or replay writes.
+   Handle diagnostic-storage failures visibly without masking the original
+   error, claiming a complete trace, or disrupting safe file handling.
+9. Add a readable per-request timeline and diagnostic export with capture,
+   retention, deletion, and content-preview controls. Keep content excluded
+   from export unless the user chooses to include it.
+10. Document how to investigate a failed request, what evidence is retained,
+    which evidence was not captured, and how to remove diagnostic data.
+
+### Automated tests
+
+- Valid chat and Writer runs retain correctly linked steps after reload.
+- Context/provider exceptions, empty or truncated responses, malformed JSON,
+  and incomplete directive envelopes produce identifiable outcomes.
+- Missing references, partial context, empty retrieval, and failed retrieval
+  remain distinguishable in the saved record.
+- Chat/project switching cannot misattribute progress, failures, or reviews.
+- Accepted, partially accepted, rejected, canceled, conflicted, applied,
+  rolled-back, undone, and redone changes retain their causal links.
+- Restart preserves completed traces and marks unfinished work interrupted.
+- Schema migration preserves existing chats/projects; diagnostic write failures
+  do not hide the original failure or bypass file protections.
+- Capture settings, retention/deletion, credential exclusion, and export
+  content choices are enforced; diagnostics do not enter model prompts.
+- Captured proposal fixtures can exercise parsers and validators offline
+  without contacting a provider or modifying user files.
+
+### Manual acceptance
+
+1. Reproduce the October 6 scenario in a test project. The timeline must show
+   the typo, partial context, model-call outcome, proposal parsing failure,
+   absence of a review, and absence of applied file changes.
+2. Reopen the chat and restart the app. Confirm the failure and explanation
+   remain accessible, with the offending proposal available when capture is on.
+3. Exercise Writer's stages and a successful mixed-hunk review with undo/redo.
+   Follow the entire request through the timeline.
+4. Test a provider failure, stale file, retrieval failure, and interrupted run;
+   verify that each has a distinct, understandable outcome.
+5. Inspect an exported bundle and verify its content choices and retention/
+   deletion controls against the user documentation.
+
+### Definition of done
+
+- Supported chat and agent outcomes can be traced from request to final state
+  after restart, without relying on screenshots or remembered UI messages.
+- Diagnostic gaps and uncaptured content are explicit rather than guessed.
+- A successful model call cannot masquerade as a successfully applied edit.
+- Existing review, source validation, atomic apply, and undo/redo guarantees
+  remain intact; diagnostics grant no additional write authority.
+- Tracing, failure-path, migration, UI, packaging, and full-suite checks pass.
+- User documentation explains inspection, content capture, export, and deletion.
+
+---
+
+## Release 6: v0.6.2-alpha — Story-focused selection actions
 
 ### Goal
 
@@ -509,7 +656,8 @@ selection or an insertion at the cursor.
    and require regeneration.
 9. Add progress, cancellation, empty-result, malformed-result, and model-error
    states.
-10. Record agent and action metadata in the conversation for traceability.
+10. Record agent and action metadata in the conversation and link the request,
+    model calls, validation, and review to the persistent diagnostic trace.
 11. Document exactly what text and surrounding context each action sends to
     the configured model.
 
@@ -533,7 +681,7 @@ selection or an insertion at the cursor.
 
 ---
 
-## Release 6: v0.7.0-alpha — Writer style profiles
+## Release 7: v0.7.0-alpha — Writer style profiles
 
 ### Goal
 
@@ -584,7 +732,8 @@ profile should be injected deterministically through a named prompt layer.
 9. Prevent evaluator prompts from accidentally rewriting the style profile.
 10. Optionally offer a one-time conversion of existing approved style memories
     into profiles, with user confirmation and no deletion of the source memory.
-11. Add an inspectable “style used” entry to agent run metadata.
+11. Add an inspectable “style used” entry to agent run metadata and the request
+    trace, including profile identity and version/hash for every Writer stage.
 12. Document examples of effective style instructions and conflicting rules.
 
 ### Automated tests
@@ -607,7 +756,7 @@ profile should be injected deterministically through a named prompt layer.
 
 ---
 
-## Release 7: v0.8.0-alpha — Prose and screenplay modes
+## Release 8: v0.8.0-alpha — Prose and screenplay modes
 
 ### Goal
 
@@ -696,7 +845,7 @@ file-tool, file-dialog, and Project Explorer code with this registry.
 
 ---
 
-## Release 8: v0.8.1-alpha — PDF export
+## Release 9: v0.8.1-alpha — PDF export
 
 ### Goal
 
@@ -769,7 +918,7 @@ Render exported PDF pages to images and inspect at minimum:
 
 ---
 
-## Release 9: v0.9.0-beta — Integration hardening
+## Release 10: v0.9.0-beta — Integration hardening
 
 ### Goal
 
@@ -783,7 +932,9 @@ calling the application beta-quality.
    several simultaneously open documents.
 3. Exercise parallel states: model response in one chat, another chat visible,
    several tabs open, one dirty background tab, and a pending inline review.
-4. Test crash/restart behavior during editing, review, and export.
+4. Test crash/restart behavior during editing, review, and export. Confirm that
+   agent traces preserve failures and interrupted states without claiming that
+   pending reviews or writes succeeded.
 5. Test high-DPI displays, keyboard-only navigation, focus order, accessible
    labels, and light/dark theme assumptions.
 6. Profile project restoration, spell checking, large-document switching,
@@ -816,6 +967,8 @@ Use this checklist for every feature release:
       fixture.
 - [ ] No user document is overwritten without review or confirmation.
 - [ ] Background work captures stable document and conversation identities.
+- [ ] From the diagnostics release onward, AI workflows preserve linked request,
+      failure, and review/application records across restart.
 - [ ] The complete automated suite passes.
 - [ ] The Windows manual acceptance checklist passes.
 - [ ] Packaging is tested from a clean environment.

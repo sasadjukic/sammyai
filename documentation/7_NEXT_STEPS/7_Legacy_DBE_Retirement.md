@@ -1,9 +1,10 @@
 # Legacy DBE retirement — 2026-09-21
 
 Branch: `codex/retire-legacy-dbe`, based on `main` at `af882d8` after the
-maintainer tested and merged manual indexing retirement. Implementation and
-automated validation are complete; maintainer desktop testing and merge are
-pending. Package version remains `0.6.0a0` for this maintenance follow-up.
+maintainer tested and merged manual indexing retirement. The maintainer reported
+that DBE retirement was pushed and merged into `main` (`109bd18`); merge recorded
+on 2026-10-06. Individual checklist results were not supplied. Package version
+remains `0.6.0a0` for this maintenance follow-up.
 
 ## Behavior
 

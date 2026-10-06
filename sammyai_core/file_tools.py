@@ -106,6 +106,10 @@ class SafeFileTools:
 
             exists = target.exists()
             before = self._read_text(target) if exists else None
+            if request.expected_hash is not None and (before is None or content_hash(before) != request.expected_hash):
+                raise ChangeConflictError(
+                    f"Cannot change {relative_path}: content changed since the request context was captured. Request a new proposal."
+                )
 
             if request.kind == FileRequestKind.WRITE:
                 after = request.content

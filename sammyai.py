@@ -2129,13 +2129,16 @@ class TextEditor(QMainWindow):
         def worker():
             try:
                 if self.chat_manager:
-                    msgs = self.chat_manager.get_messages_for_llm_with_context(
+                    prepared_request = self.chat_manager.prepare_request(
                         query=message,
                         session_id=request_chat_session_id,
                         top_k=3,
                     )
+                    msgs = prepared_request.messages
+                    context_result = prepared_request.context_result
                 else:
                     msgs = [{"role": "user", "content": message}]
+                    context_result = None
 
                 def complete(
                     completion_messages: list[dict[str, str]],
@@ -2154,19 +2157,14 @@ class TextEditor(QMainWindow):
                     user_request=message,
                     messages=msgs,
                     complete=complete,
-                    authorized_files=(
-                        getattr(
-                            self.chat_manager.last_context_result,
-                            "complete_referenced_files",
-                            (),
-                        )
-                        if self.chat_manager.last_context_result is not None
-                        else ()
-                    ),
+                    file_snapshots=getattr(context_result, "file_snapshots", ()),
                     on_event=lambda event: self.agent_progress.emit(
                         event.message
                     ),
                 )
+
+                if context_result is not None:
+                    result = replace(result, notices=tuple(getattr(context_result, "notices", ())) + result.notices)
 
                 if result.change_set is not None and result.change_set.project_id != request_project_id:
                     result = replace(
