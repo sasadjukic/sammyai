@@ -48,7 +48,7 @@ not exist on disk until applied; their temporary tabs close when canceled or rej
   Project switches ask to cancel pending reviews. Review decisions are temporary
   and are not restored after restart; unapplied proposals never alter source files.
 
-## Manual comparisons and legacy DBE
+## Manual comparisons
 
 **Edit > Compare and Review** also provides:
 
@@ -59,9 +59,11 @@ not exist on disk until applied; their temporary tabs close when canceled or rej
 These tools use the same inline controls. For a clean file inside the active project,
 Apply saves through the project file tools. For a draft, the footer says **Apply to Draft**.
 
-**Advanced > Enable Legacy DBE Mode** still sends the selected editor context to
-the model. Its response now opens inline review attached to the originating document,
-even if you switched tabs or conversations while waiting.
+Legacy DBE mode has been retired. To request an AI edit, save the document in the
+active project, select the **Editor** agent, and reference the file explicitly,
+for example `Tighten the dialogue in @chapter.md`. Review the resulting proposal
+before applying it. Selecting text alone does not start an AI edit or supply
+editable context. Existing documents and conversation history are preserved.
 
 The previous popup remains a temporary compatibility fallback during Windows
 acceptance. To enable it for one PowerShell session before launching:

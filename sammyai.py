@@ -24,7 +24,7 @@ from llm.chat_manager import MessageRole
 # Chat UI
 from ui.chat_panel import ChatPanel
 
-# Diff-based editing
+# Diff comparison and change review
 from editing.diff_viewer import DiffViewerWidget
 from editing.diff_manager import DiffManager
 from editing.change_set_viewer import ChangeSetReviewDialog
@@ -199,7 +199,6 @@ class TextEditor(QMainWindow):
     # Signals for LLM communication
     llm_response_received = Signal(str)
     llm_error_occurred = Signal(str)
-    dbe_diff_ready = Signal(object)
     context_sync_finished = Signal(str, object, bool)
     agent_run_completed = Signal(object)
     agent_progress = Signal(str)
@@ -344,7 +343,6 @@ class TextEditor(QMainWindow):
         # Connect LLM signals
         self.llm_response_received.connect(self._handle_llm_response)
         self.llm_error_occurred.connect(self._handle_llm_error)
-        self.dbe_diff_ready.connect(self._show_dbe_diff)
         self.context_sync_finished.connect(self._on_context_sync_finished)
         self.agent_run_completed.connect(self._handle_agent_run_result)
         self.agent_progress.connect(self._handle_agent_progress)
@@ -355,9 +353,6 @@ class TextEditor(QMainWindow):
         self.chat_dock: QDockWidget | None = None
         self.chat_panel: ChatPanel | None = None
 
-        # Initialize DBE state
-        self.dbe_enabled = False
-        self.dbe_context_lines = 20  # Number of lines before/after cursor for context
         self.diff_manager = DiffManager()
 
         # Status message duration constants (in milliseconds)
@@ -1455,7 +1450,7 @@ class TextEditor(QMainWindow):
         )
         self.clear_cin_action.setEnabled(False)
 
-        # DBE (Diff-Based Editing) actions
+        # Manual comparisons and reviewed changes
         self.compare_file_action = QAction("Compare with File...", self)
         self.compare_file_action.setShortcut(QKeySequence("Ctrl+D"))
         self.compare_file_action.triggered.connect(self._compare_with_file)
@@ -1487,14 +1482,6 @@ class TextEditor(QMainWindow):
             self._redo_last_change_set
         )
         self.redo_change_set_action.setEnabled(False)
-
-        # Legacy DBE activation is retained only as an advanced fallback.
-        self.toggle_dbe_action = QAction("Enable Legacy DBE Mode", self)
-        self.toggle_dbe_action.setCheckable(True)
-        self.toggle_dbe_action.triggered.connect(self._toggle_dbe_mode)
-        self.toggle_dbe_action.setStatusTip(
-            "Legacy fallback: send chat replies through the original DBE workflow"
-        )
 
     def _load_icon(self, theme_name, fallback):
         icon = QIcon.fromTheme(theme_name)
@@ -1721,9 +1708,6 @@ class TextEditor(QMainWindow):
         )
         self.project_context_menu.addAction(self.rag_stats_action)
         self.project_context_menu.addAction(self.clear_rag_action)
-
-        self.advanced_menu.addSeparator()
-        self.advanced_menu.addAction(self.toggle_dbe_action)
 
     def create_statusbar(self):
         """Create status bar with line/column and word count indicators."""
@@ -2092,13 +2076,7 @@ class TextEditor(QMainWindow):
             self._chat_panel_safe("add_system_message", "LLM client not initialized. Configure API key or check environment.")
             return
 
-        # Check if DBE mode is enabled
-        if self.dbe_enabled:
-            # DBE mode: inject editor context and show diff
-            self._handle_dbe_request(message)
-        else:
-            # Agent workflows own normal chat behavior.
-            self._handle_normal_chat(message)
+        self._handle_normal_chat(message)
 
     def _on_conversation_selected(self, session_id: str) -> None:
         agent = self.chat_manager.get_session_metadata("agent_type", "general", session_id=session_id)
@@ -2219,181 +2197,7 @@ class TextEditor(QMainWindow):
             worker,
             name=f"agent-{selected_agent.value}",
         )
-    
-    def _handle_dbe_request(self, message: str):
-        """Handle DBE mode request with editor context."""
-        request_project_id = self._active_chat_project_id()
-        request_chat_session_id = self.chat_manager.active_session_id
-        request_session = self.editor_workspace.active_session()
-        if request_session is None:
-            self._chat_panel_safe("set_thinking", False)
-            return
-        request_session_id = request_session.session_id
-        request_document_path = request_session.normalized_path
-        # Get editor context
-        text, cursor_line, selection_start, selection_end = self._get_editor_context_for_dbe()
-        
-        if not text:
-            self._chat_panel_safe("set_thinking", False)
-            self._chat_panel_safe("add_system_message", "⚠️ Editor is empty. Please add some text before using DBE mode.")
-            return
-        
-        # Store original text for diff
-        original_text = text
-        original_lines = text.splitlines()
-        
-        # Prepare editor context - now returns tuple with line range info
-        context_result = self.chat_manager.prepare_dbe_context(
-            file_path=self.current_file,
-            text=text,
-            cursor_line=cursor_line,
-            selection_start=selection_start,
-            selection_end=selection_end,
-            context_lines=self.dbe_context_lines
-        )
-        
-        # Unpack the tuple with focus lines: (context_string, start_line, end_line, original_section_text, focus_start, focus_end)
-        editor_context, dbe_start_line, dbe_end_line, original_section, focus_start, focus_end = context_result
-        
-        # Run LLM query in background thread
-        def worker():
-            try:
-                # Get messages with DBE context
-                from llm.dbe_system_prompt import get_dbe_system_prompt
-                
-                # Get messages with editor context
-                msgs = self.chat_manager.get_messages_for_llm_with_dbe_context(
-                    query=message,
-                    editor_context=editor_context,
-                    session_id=request_chat_session_id,
-                )
 
-                # Serialize access while the legacy client prompt is overridden.
-                with self._llm_lock:
-                    original_prompt = self.llm_client.system_prompt
-                    try:
-                        self.llm_client.system_prompt = get_dbe_system_prompt()
-                        reply = self.llm_client.chat(msgs)
-                    finally:
-                        self.llm_client.system_prompt = original_prompt
-                
-                # Extract revised section from LLM response
-                revised_section = self._extract_text_from_llm_response(reply)
-                
-                # Reconstruct the full document by splicing revised section
-                # into the original at the correct position
-                revised_section_lines = revised_section.splitlines()
-                
-                # Build the reconstructed full document:
-                # - Lines before the DBE section (1 to start_line-1)
-                # - The revised section from LLM
-                # - Lines after the DBE section (end_line+1 to end)
-                reconstructed_lines = []
-                
-                # Add lines before DBE section
-                # Add lines before FOCUS section
-                if focus_start > 1:
-                    reconstructed_lines.extend(original_lines[:focus_start - 1])
-                
-                # Add revised section
-                reconstructed_lines.extend(revised_section_lines)
-                
-                # Add lines after FOCUS section
-                if focus_end < len(original_lines):
-                    reconstructed_lines.extend(original_lines[focus_end:])
-                
-                reconstructed_text = "\n".join(reconstructed_lines)
-                
-                # Add assistant message to session
-                try:
-                    response_metadata = {}
-                    if request_project_id is not None:
-                        response_metadata["project_id"] = request_project_id
-                    self.chat_manager.add_message(
-                        MessageRole.ASSISTANT,
-                        reply,
-                        session_id=request_chat_session_id,
-                        metadata=response_metadata,
-                    )
-                except Exception:
-                    pass
-                
-                # Emit signal to show diff on main thread
-                # Now comparing full original vs full reconstructed document
-                self.dbe_diff_ready.emit(
-                    {
-                        "session_id": request_session_id,
-                        "original": original_text,
-                        "modified": reconstructed_text,
-                        "user_request": message,
-                        "chat_session_id": request_chat_session_id,
-                        "document_path": request_document_path,
-                    }
-                )
-                
-            except Exception as e:
-                self.llm_error_occurred.emit(str(e))
-        
-        self.task_runner.submit(worker, name="dbe")
-    
-    @Slot(object)
-    def _show_dbe_diff(self, payload):
-        """Show DBE diff in viewer (called on main thread)."""
-        self._chat_panel_safe("set_thinking", False)
-        self._chat_panel_safe("load_session", self.chat_manager.get_active_session())
-        session_id = payload["session_id"]
-        original = payload["original"]
-        modified = payload["modified"]
-        user_request = payload["user_request"]
-        session = self.editor_workspace.session(session_id)
-        if session is None:
-            self._chat_panel_safe(
-                "add_system_message",
-                "The document used for this DBE request is no longer open; "
-                "the suggestion was not applied.",
-            )
-            return
-
-        if "document_path" in payload and session.normalized_path != payload["document_path"]:
-            self._chat_panel_safe("add_system_message", "The document path changed while DBE was running. Request a new proposal.")
-            return
-        if not self.popup_review_fallback:
-            self._start_editor_review(
-                original, modified, f"DBE suggestion: {user_request}",
-                session_id=session_id, chat_session_id=payload.get("chat_session_id"),
-                agent_id="legacy-dbe",
-            )
-            return
-        
-        # Create diff dialog
-        dialog = self._create_diff_dialog()
-        dialog.setWindowTitle(
-            f"Legacy DBE Suggestion - {user_request[:50]}..."
-        )
-        
-        # Load diff
-        dialog.diff_viewer.load_diff(
-            original, modified,
-            session.display_name, "llm_suggestion"
-        )
-        
-        # Show dialog
-        if dialog.exec() == QDialog.Accepted:
-            # User approved - apply changes
-            modified_text = dialog.diff_viewer.get_modified_text()
-            if self._apply_reviewed_editor_change(
-                original,
-                modified_text,
-                session_id=session_id,
-            ):
-                self._chat_panel_safe("add_system_message", "✓ Changes applied successfully!")
-                self.statusBar().showMessage("✓ DBE changes applied", self.STATUS_NORMAL)
-        else:
-            # User rejected
-            self._chat_panel_safe("add_system_message", "✗ Changes rejected")
-            self.statusBar().showMessage("✗ DBE changes rejected", self.STATUS_NORMAL)
-
-    
     @Slot(str)
     def _handle_llm_response(self, reply: str):
         """Handle successful LLM response on main thread."""
@@ -3417,7 +3221,7 @@ class TextEditor(QMainWindow):
             "The temporary reference has been removed from this conversation.",
         )
 
-    # --- DBE (Diff-Based Editing) methods ---
+    # --- Manual comparisons and diff review ---
     def _compare_with_file(self):
         """Compare current text with another file using diff viewer."""
         # Get current text
@@ -3543,7 +3347,7 @@ class TextEditor(QMainWindow):
     def _create_diff_dialog(self):
         """Create a diff viewer dialog."""
         dialog = QDialog(self)
-        dialog.setWindowTitle("Diff Viewer - DBE")
+        dialog.setWindowTitle("Diff Viewer")
         dialog.setGeometry(100, 100, 900, 600)
         
         layout = QVBoxLayout(dialog)
@@ -3559,82 +3363,6 @@ class TextEditor(QMainWindow):
         diff_viewer.diff_rejected.connect(dialog.reject)
         
         return dialog
-
-    def _toggle_dbe_mode(self):
-        """Toggle the legacy DBE chat workflow on or off."""
-        self.dbe_enabled = self.toggle_dbe_action.isChecked()
-        
-        if self.dbe_enabled:
-            self.statusBar().showMessage(
-                "Legacy DBE mode enabled",
-                self.STATUS_NORMAL,
-            )
-            self._chat_panel_safe(
-                "add_system_message",
-                "Legacy DBE mode enabled. Chat suggestions will be routed "
-                "through the original single-document diff workflow.",
-            )
-        else:
-            self.statusBar().showMessage(
-                "Legacy DBE mode disabled",
-                self.STATUS_NORMAL,
-            )
-            self._chat_panel_safe(
-                "add_system_message",
-                "Legacy DBE mode disabled. Returning to normal chat.",
-            )
-    
-    def _get_editor_context_for_dbe(self) -> tuple[str, int, Optional[int], Optional[int]]:
-        """
-        Get editor context for DBE mode.
-        
-        Returns:
-            Tuple of (text, cursor_line, selection_start, selection_end)
-        """
-        text = self.editor.toPlainText()
-        cursor = self.editor.textCursor()
-        
-        # Get cursor line (1-indexed)
-        cursor_line = cursor.blockNumber() + 1
-        
-        # Check if there's a selection
-        if cursor.hasSelection():
-            # Get selection start and end blocks
-            start_block = self.editor.document().findBlock(cursor.selectionStart())
-            end_block = self.editor.document().findBlock(cursor.selectionEnd())
-            
-            selection_start = start_block.blockNumber() + 1
-            selection_end = end_block.blockNumber() + 1
-        else:
-            selection_start = None
-            selection_end = None
-        
-        return text, cursor_line, selection_start, selection_end
-    
-    def _extract_text_from_llm_response(self, response: str) -> str:
-        """
-        Extract revised text from LLM response.
-        
-        For now, we assume the LLM returns clean text.
-        In the future, we could add parsing for markdown code blocks.
-        
-        Args:
-            response: LLM response
-            
-        Returns:
-            Extracted text
-        """
-        # Remove common markdown code block wrappers if present
-        text = response.strip()
-        
-        # Check for markdown code blocks
-        if text.startswith("```") and text.endswith("```"):
-            lines = text.split("\n")
-            # Remove first and last lines (the ``` markers)
-            if len(lines) > 2:
-                text = "\n".join(lines[1:-1])
-        
-        return text.strip()
 
 
 def load_stylesheet(app: QApplication, path: str | Path) -> None:

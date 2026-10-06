@@ -13,6 +13,7 @@ import zipfile
 
 wheel = Path(sys.argv[1]).resolve()
 with zipfile.ZipFile(wheel) as archive:
+    assert "llm/dbe_system_prompt.py" not in archive.namelist(), "Retired DBE prompt must not ship"
     for name in ("editing/review_session.py", "ui/inline_review.py", "ui/review_controller.py"):
         assert name in archive.namelist(), name
 
@@ -25,6 +26,7 @@ with tempfile.TemporaryDirectory(prefix="sammyai-review-package-") as temporary:
 import socket
 import sys
 from pathlib import Path
+from llm.chat_manager import ChatManager, MessageRole
 import editing.review_session
 from editing.review_session import HunkState, ReviewSession
 from editing.change_sets import ChangeSet, FileChangeRequest
@@ -35,6 +37,12 @@ from sammyai_core.projects import ProjectRepository, ProjectService
 from sammyai_core.resources import asset_path
 socket.socket.connect = lambda *args: (_ for _ in ()).throw(AssertionError("Network forbidden"))
 assert Path(editing.review_session.__file__).is_relative_to(Path(sys.prefix))
+chat = ChatManager(storage_dir="chats", autosave=True)
+chat.create_session("existing-conversation")
+chat.add_message(MessageRole.USER, "Continue this conversation")
+restored = ChatManager(storage_dir="chats")
+restored.load_all_sessions()
+assert restored.get_active_session().messages[0].content == "Continue this conversation"
 paths = AppPaths(config_dir=Path("config"), data_dir=Path("data"), cache_dir=Path("cache"), log_dir=Path("logs")).ensure_created()
 database = ProjectDatabase(paths.project_database_path)
 database.migrate()
@@ -58,6 +66,6 @@ assert path.read_bytes() == b"new\r\nextra\r\nkeep\r\nlast\r\n"
 theme = asset_path("ui", "styles", "dark_theme.qss")
 assert theme.is_file() and "QLabel#reviewAddition" in theme.read_text(encoding="utf-8")
 database.close()
-print("PASS: isolated wheel review synthesis, CRLF, safe apply/undo/redo, theme; network blocked")
+print("PASS: isolated wheel chat persistence, review synthesis, CRLF, safe apply/undo/redo, theme; retired DBE absent, network blocked")
 '''
     subprocess.run([str(python), "-I", "-c", code], cwd=root, check=True)

@@ -15,7 +15,7 @@ The wheel builds and passes an isolated offline core/asset installation check.
   and text labels. Find and Copy operate on the read-only review surface.
 - Multi-file decisions synthesize one change set using original snapshots and
   hashes, preserving SafeFileTools validation, atomic writes, rollback, and history.
-- Clean project DBE proposals use file-tool history; unsaved/out-of-project drafts
+- Clean project comparisons use file-tool history; unsaved/out-of-project drafts
   retain one-step editor undo and an explicit Save afterward.
 - Buffer revisions, file contents, project identity, and originating document/chat
   identity protect against stale and wrong-target application.
@@ -42,7 +42,7 @@ fallback. It is not used by default.
 See the [acceptance record](documentation/7_NEXT_STEPS/5_Inline_Diff_Review_Acceptance.md)
 and [user guide](documentation/3_USER_GUIDE/5_Diff_Edits_Menu_Options.md).
 
-## Unreleased follow-up — Manual indexing retirement
+## Accepted follow-up — Manual indexing retirement
 
 - Removed the Legacy Manual Indexing menu and its indexing/management handlers.
 - Project Context now offers **Import Reference File...**, which preserves the
@@ -52,7 +52,23 @@ and [user guide](documentation/3_USER_GUIDE/5_Diff_Edits_Menu_Options.md).
   legacy entries, including source paths and chunk counts.
 - Existing index entries are preserved. No automatic migration or purge occurs.
   The global reset confirmation now explains its effect on legacy entries.
-- Legacy DBE remains available.
+- Legacy DBE remained available at this stage.
 
-Branch: `codex/retire-manual-indexing`; maintainer testing and merge are pending.
+The maintainer confirmed manual testing and merged `codex/retire-manual-indexing`
+into `main`; acceptance recorded on 2026-09-21.
 See the [validation and acceptance guide](documentation/7_NEXT_STEPS/6_Manual_Indexing_Retirement.md).
+
+## Unreleased follow-up — Legacy DBE retirement
+
+- Removed **Enable Legacy DBE Mode** and the separate DBE request, context, prompt,
+  and response-splicing code. Advanced now contains Persistent Memory and Project Context.
+- Chat requests use the selected agent. For AI file edits, save the file in the
+  project, choose Editor, and reference the file explicitly in the request.
+- Inline review, manual file/clipboard/patch comparisons, safe application,
+  conflict protection, and undo/redo remain available.
+- Existing documents, projects, and conversations need no migration. Selecting
+  editor text no longer supplies implicit context through a separate DBE mode;
+  story-focused selection actions remain on the roadmap.
+
+Branch: `codex/retire-legacy-dbe`; maintainer testing and merge are pending.
+See the [validation and acceptance guide](documentation/7_NEXT_STEPS/7_Legacy_DBE_Retirement.md).

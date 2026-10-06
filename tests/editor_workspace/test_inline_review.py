@@ -29,6 +29,8 @@ def review_window(tmp_path, monkeypatch):
     window.review_controller.cancel_all()
     for session in window.editor_workspace.dirty_sessions():
         window.editor_workspace.mark_clean(session.session_id)
+    # Deliver queued chat scrolling while its transcript widget still exists.
+    app.processEvents()
     window.close()
     window.deleteLater()
     QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
@@ -162,11 +164,12 @@ def test_cancel_and_reject_all_remove_only_unwritten_create_tabs(review_window):
     assert (root / "one.md").read_bytes() == b"old"
 
 
-def test_dbe_draft_review_retains_qt_undo_and_checks_external_file(review_window):
+def test_clipboard_draft_review_retains_qt_undo(review_window):
     window, root = review_window
     window.editor.insertPlainText("Original draft")
     origin = window.editor_workspace.active_session()
-    window._show_dbe_diff({"session_id": origin.session_id, "original": "Original draft", "modified": "Revised draft", "user_request": "Revise", "chat_session_id": "chat"})
+    QApplication.clipboard().setText("Revised draft")
+    window._compare_with_clipboard()
     view = window.editor_workspace.review_for_session(origin.session_id)
     assert view is not None
     assert view.apply_button.text() == "Apply to Draft"
@@ -179,19 +182,22 @@ def test_dbe_draft_review_retains_qt_undo_and_checks_external_file(review_window
     assert window.editor.toPlainText() == "Revised draft"
 
 
-def test_saved_dbe_uses_safe_file_history_and_origin_after_switch(review_window):
+def test_saved_comparison_uses_safe_file_history_and_origin_after_switch(review_window):
     window, root = review_window
     (root / "one.md").write_bytes(b"old\r\n")
     window._open_file_path(root / "one.md")
     origin = window.editor_workspace.active_session()
-    window.editor_workspace.new_document()
-    window._show_dbe_diff({"session_id": origin.session_id, "original": "old\n", "modified": "new\n", "user_request": "Revise"})
+    QApplication.clipboard().setText("new\n")
+    window._compare_with_clipboard()
+    other = window.editor_workspace.new_document()
     batch = window.review_controller.batch_for_document(origin.session_id)
     assert batch.change_set is not None
     batch.reviews[0].decide_all(HunkState.ACCEPTED)
     assert window.review_controller.apply(batch.id)
     assert (root / "one.md").read_bytes() == b"new\r\n"
     assert window.file_tools.can_undo
+    assert window.editor_workspace.active_session() is other
+    assert window.editor.toPlainText() == ""
 
 
 def test_save_replace_close_and_history_are_guarded_while_reviewing(review_window):
@@ -328,17 +334,19 @@ def test_cancel_then_reopen_has_no_proposal_markers_or_pending_decisions(review_
     assert "@@" not in window.editor.toPlainText()
 
 
-def test_dbe_result_does_not_follow_save_as_during_model_request(review_window):
+def test_draft_review_blocks_document_path_changes(review_window):
     window, root = review_window
     window.editor.insertPlainText("Draft")
     session = window.editor_workspace.active_session()
-    window.editor_workspace.assign_path(session.session_id, root / "renamed.md")
-    window._show_dbe_diff({
-        "session_id": session.session_id, "original": "Draft", "modified": "New",
-        "user_request": "Revise", "document_path": None,
-    })
-    assert not window.review_controller.batches
+    QApplication.clipboard().setText("New")
+    window._compare_with_clipboard()
+    batch = window.review_controller.batch_for_document(session.session_id)
+    with pytest.raises(ValueError, match="review"):
+        window.editor_workspace.assign_path(session.session_id, root / "renamed.md")
+    assert session.path is None
+    assert batch.pending_count > 0
     assert window.editor.toPlainText() == "Draft"
+    assert not (root / "renamed.md").exists()
 
 
 def test_cancel_crlf_review_does_not_make_undo_to_clean_dirty(review_window):

@@ -113,7 +113,7 @@ class ReviewController(QObject):
                 raw_original = self.file_tools.read_text(relative_path)
                 if display_text(raw_original) != original:
                     raise FileToolError("The file changed on disk; reopen it and request a new proposal")
-                # Preserve the source newline convention when DBE started from Qt text.
+                # Preserve the source newline convention for comparisons from Qt text.
                 disk_proposed = proposed.replace("\n", "\r\n") if "\r\n" in raw_original and "\r" not in proposed else proposed
                 source = self.file_tools.prepare_change_set(
                     [FileChangeRequest.write(relative_path, disk_proposed)], description=description,
