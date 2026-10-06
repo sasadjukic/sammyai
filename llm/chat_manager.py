@@ -11,7 +11,6 @@ import json
 import os
 import logging
 from pathlib import Path
-from llm.dbe_system_prompt import get_dbe_system_prompt
 
 
 logger = logging.getLogger(__name__)
@@ -707,134 +706,7 @@ class ChatManager:
     def _autosave_session(self, session_id: str) -> None:
         if self.autosave and self.storage_dir:
             self.save_session(session_id)
-    
-    # --- DBE (Diff-Based Editing) methods ---
-    
-    def prepare_dbe_context(self, 
-                           file_path: Optional[str],
-                           text: str,
-                           cursor_line: int,
-                           selection_start: Optional[int] = None,
-                           selection_end: Optional[int] = None,
-                           context_lines: int = 20) -> tuple:
-        """
-        Prepare editor context for DBE mode.
-        
-        Args:
-            file_path: Path to the current file (optional)
-            text: Full text content
-            cursor_line: Current cursor line (1-indexed)
-            selection_start: Start line of selection (1-indexed, optional)
-            selection_end: End line of selection (1-indexed, optional)
-            context_lines: Number of lines before/after to include
-            
-        Returns:
-            Tuple of (context_string, start_line, end_line, original_section_text)
-            - context_string: Formatted context for LLM with line numbers
-            - start_line: 1-indexed start line of included section
-            - end_line: 1-indexed end line of included section
-            - original_section_text: Raw text of the included section (for reconstruction)
-            - focus_start: 1-indexed start line of focus area
-            - focus_end: 1-indexed end line of focus area
-        """
-        lines = text.splitlines()
-        total_lines = len(lines)
-        
-        # Determine the range to include
-        if selection_start is not None and selection_end is not None:
-            # User has selected text
-            start_line = max(1, selection_start - context_lines)
-            end_line = min(total_lines, selection_end + context_lines)
-            focus_start = selection_start
-            focus_end = selection_end
-        else:
-            # No selection, use cursor position
-            start_line = max(1, cursor_line - context_lines)
-            end_line = min(total_lines, cursor_line + context_lines)
-            focus_start = cursor_line
-            focus_end = cursor_line
-        
-        # Extract the original section text (for later reconstruction)
-        original_section_lines = lines[start_line - 1:end_line]
-        original_section_text = "\n".join(original_section_lines)
-        
-        # Build context string
-        context_parts = []
-        
-        if file_path:
-            context_parts.append(f"File: {file_path}")
-        
-        context_parts.append(f"Total lines: {total_lines}")
-        context_parts.append(f"Showing lines {start_line}-{end_line}")
-        
-        if selection_start is not None and selection_end is not None:
-            context_parts.append(f"Selected lines: {selection_start}-{selection_end}")
-        else:
-            context_parts.append(f"Cursor at line: {cursor_line}")
-        
-        context_parts.append("\n--- Text Content ---")
-        
-        # Add line-numbered text
-        for i in range(start_line - 1, end_line):
-            line_num = i + 1
-            line_content = lines[i] if i < len(lines) else ""
-            
-            # Mark focus area
-            if focus_start <= line_num <= focus_end:
-                marker = "→ "
-            else:
-                marker = "  "
-            
-            context_parts.append(f"{marker}{line_num:4d}: {line_content}")
-        
-        
-        context_string = "\n".join(context_parts)
-        return (context_string, start_line, end_line, original_section_text, focus_start, focus_end)
-    
-    def get_messages_for_llm_with_dbe_context(self,
-                                              query: str,
-                                              editor_context: str,
-                                              session_id: Optional[str] = None,
-                                              include_system: bool = True) -> List[Dict[str, str]]:
-        """
-        Get messages in LLM format with DBE editor context injected.
-        
-        Args:
-            query: The user's query
-            editor_context: Formatted editor context from prepare_dbe_context
-            session_id: Session ID (uses active session if not provided)
-            include_system: Whether to include system messages
-            
-        Returns:
-            List of messages in LLM format with DBE context
-        """
-        # Get base messages
-        messages = self.get_messages_for_llm(session_id, include_system)
-        
-        # Calculate line count for explicit instruction
-        section_line_count = editor_context.count('\n') - editor_context.count('--- ')  # Approximate
-        
-        # Create DBE context message
-        dbe_context_message = {
-            "role": "system",
-            "content": f"""{get_dbe_system_prompt()}
 
-EDITOR CONTEXT:
-{editor_context}"""
-        }
-        
-        # Insert DBE context after system messages
-        insert_pos = 0
-        for i, msg in enumerate(messages):
-            if msg.get("role") == "system":
-                insert_pos = i + 1
-            else:
-                break
-        
-        messages.insert(insert_pos, dbe_context_message)
-        
-        return messages
-    
     def _generate_session_id(self) -> str:
         """Generate a unique session ID."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

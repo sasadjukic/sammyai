@@ -76,8 +76,6 @@ def test_editor_accepts_injected_runtime_services(tmp_path):
     assert [action.text() for action in editor.advanced_menu.actions()] == [
         "Persistent Memory",
         "Project Context",
-        "",
-        "Enable Legacy DBE Mode",
     ]
     assert [
         action.text() for action in editor.persistent_memory_menu.actions()

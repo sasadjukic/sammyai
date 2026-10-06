@@ -4,6 +4,8 @@ Branch: `codex/inline-diff-review`. Target version: `0.6.0a0`.
 The maintainer confirmed that testing passed and that inline diff review was
 merged into `main`. Acceptance recorded on 2026-09-20. The checklist below is
 retained for repeat testing; individual checklist results were not supplied.
+DBE-specific items below describe the original release. For current behavior
+after DBE retirement, use the [current review guide](../3_USER_GUIDE/5_Diff_Edits_Menu_Options.md).
 
 ## Scope
 

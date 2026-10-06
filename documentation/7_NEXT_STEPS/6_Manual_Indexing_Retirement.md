@@ -1,9 +1,11 @@
 # Manual indexing retirement — 2026-09-20
 
 Branch: `codex/retire-manual-indexing`, based on accepted inline diff review in
-`main` (`54de7f3`). Implementation and automated validation are complete;
-maintainer desktop testing and merge are pending. This is an unreleased
-maintenance follow-up; package version remains `0.6.0a0`.
+`main` (`54de7f3`). The maintainer confirmed manual testing and merged this update
+into `main` (`af882d8`). Acceptance recorded on 2026-09-21; package version remains
+`0.6.0a0`. The checklist below is retained as the original acceptance plan;
+individual results were not supplied. Legacy DBE was still available at this
+stage and is retired in the [next maintenance step](7_Legacy_DBE_Retirement.md).
 
 ## Behavior
 

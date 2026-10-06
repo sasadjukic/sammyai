@@ -94,46 +94,39 @@ def test_response_uses_origin_even_if_active_session_changes(tmp_path):
     from sammyai import TextEditor
     from sammyai_core.agent_workflows import AgentRunResult, AgentType
 
-    for mode in ("normal", "dbe"):
-        manager = ChatManager(str(tmp_path / mode), autosave=True)
-        manager.create_session("a")
-        manager.add_message(MessageRole.USER, "Question from A")
-        manager.create_session("b")
-        manager.add_message(MessageRole.USER, "Question from B", session_id="b")
-        queued, contexts, errors, results = [], [], [], []
-        def complete(messages):
-            contexts.extend(messages)
-            return "Answer for A"
-        def run(agent, **kwargs):
-            response = kwargs["complete"](kwargs["messages"], "Test prompt")
-            return AgentRunResult("run", agent, response, (), 1)
-        target = SimpleNamespace(
-            chat_manager=manager, active_agent_type=AgentType.GENERAL,
-            llm_client=SimpleNamespace(system_prompt="base", chat=complete),
-            _active_chat_project_id=lambda: None,
-            task_runner=SimpleNamespace(submit=lambda fn, **kwargs: queued.append(fn)),
-            _llm_lock=Lock(), agent_workflows=SimpleNamespace(run=run),
-            agent_progress=SimpleNamespace(emit=lambda value: None),
-            agent_run_completed=SimpleNamespace(emit=results.append),
-            llm_error_occurred=SimpleNamespace(emit=errors.append),
-            editor_workspace=SimpleNamespace(active_session=lambda: SimpleNamespace(session_id="document", normalized_path=None)),
-            _get_editor_context_for_dbe=lambda: ("Original line", 1, None, None),
-            current_file=None, dbe_context_lines=20,
-            _extract_text_from_llm_response=lambda reply: reply,
-            dbe_diff_ready=SimpleNamespace(emit=results.append),
-        )
-        handler = TextEditor._handle_normal_chat if mode == "normal" else TextEditor._handle_dbe_request
-        handler(target, "Question from A")
-        manager.set_active_session("b")
-        queued.pop()()
-        assert errors == []
-        assert results
-        assert any(m["content"] == "Question from A" for m in contexts)
-        assert not any(m["content"] == "Question from B" for m in contexts)
-        reloaded = ChatManager(str(tmp_path / mode))
-        reloaded.load_all_sessions()
-        assert reloaded.get_session("a").messages[-1].content == "Answer for A"
-        assert len(reloaded.get_session("b").messages) == 1
+    manager = ChatManager(str(tmp_path), autosave=True)
+    manager.create_session("a")
+    manager.add_message(MessageRole.USER, "Question from A")
+    manager.create_session("b")
+    manager.add_message(MessageRole.USER, "Question from B", session_id="b")
+    queued, contexts, errors, results = [], [], [], []
+    def complete(messages):
+        contexts.extend(messages)
+        return "Answer for A"
+    def run(agent, **kwargs):
+        response = kwargs["complete"](kwargs["messages"], "Test prompt")
+        return AgentRunResult("run", agent, response, (), 1)
+    target = SimpleNamespace(
+        chat_manager=manager, active_agent_type=AgentType.GENERAL,
+        llm_client=SimpleNamespace(system_prompt="base", chat=complete),
+        _active_chat_project_id=lambda: None,
+        task_runner=SimpleNamespace(submit=lambda fn, **kwargs: queued.append(fn)),
+        _llm_lock=Lock(), agent_workflows=SimpleNamespace(run=run),
+        agent_progress=SimpleNamespace(emit=lambda value: None),
+        agent_run_completed=SimpleNamespace(emit=results.append),
+        llm_error_occurred=SimpleNamespace(emit=errors.append),
+    )
+    TextEditor._handle_normal_chat(target, "Question from A")
+    manager.set_active_session("b")
+    queued.pop()()
+    assert errors == []
+    assert results[0].originating_session_id == "a"
+    assert any(m["content"] == "Question from A" for m in contexts)
+    assert not any(m["content"] == "Question from B" for m in contexts)
+    reloaded = ChatManager(str(tmp_path))
+    reloaded.load_all_sessions()
+    assert reloaded.get_session("a").messages[-1].content == "Answer for A"
+    assert len(reloaded.get_session("b").messages) == 1
 
 
 def test_failed_delete_keeps_conversation_in_memory(tmp_path, monkeypatch):

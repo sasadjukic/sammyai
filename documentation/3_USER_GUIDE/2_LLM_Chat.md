@@ -86,7 +86,7 @@ timestamp and saved agent metadata.
 
 While a response is running, you can browse the list but cannot switch, rename,
 delete, or start another conversation. These controls become available when the
-response completes or fails. This also applies to legacy DBE requests.
+response completes or fails.
 
 If a saved file cannot be read, the history list shows a notice and continues
 loading other conversations. Unreadable files are preserved. Removing a project
@@ -99,3 +99,9 @@ Collapsing the chat panel does not end the current session. Use **New Chat** whe
 
 > [!TIP]
 > For file edits, first reference the exact file, then ask the Editor agent for a specific change. Review the proposed change set before applying it.
+
+Legacy DBE mode has been retired. Chat requests use the selected agent. Selecting
+text or placing the cursor in the editor does not automatically send that passage
+as editable context. Save the document in a project and reference its exact path
+in your request, such as `Revise the dialogue in @chapter.md`. Story-focused
+selection actions remain a planned feature.

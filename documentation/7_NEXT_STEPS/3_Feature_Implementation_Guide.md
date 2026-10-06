@@ -144,7 +144,7 @@ losing unsaved text or confusing editor, project, RAG, or agent state.
 - Closing a dirty tab or quitting with dirty tabs asks the user to save,
   discard, or cancel.
 - The active tab drives Save, Save As, search, word count, cursor position,
-  selection operations, and legacy DBE context.
+  selection operations, and manual comparisons.
 - Open tabs and the active tab are restored per project where practical.
 
 ### Recommended design
@@ -181,7 +181,7 @@ as:
 ### Implementation steps
 
 1. Add characterization tests for the existing single-document open, save,
-   rename, delete, RAG-active-file, DBE, search, and status-bar behavior.
+   rename, delete, RAG-active-file, manual comparison, search, and status-bar behavior.
 2. Add `DocumentSession` and test path normalization, untitled IDs, clean/dirty
    transitions, and clean snapshot updates.
 3. Extract `CodeEditor` without changing its visible behavior.
@@ -235,7 +235,7 @@ as:
 - All document-related tests and the full suite pass.
 - The manual test project can keep at least ten documents open and switch,
   edit, save, close, rename, and restore them reliably.
-- No known wrong-document bug remains in asynchronous chat or DBE workflows.
+- No known wrong-document bug remains in asynchronous chat or agent edit workflows.
 
 ---
 
@@ -378,7 +378,8 @@ The maintainer confirmed testing and merged inline diff review into `main`.
 See [the acceptance record](5_Inline_Diff_Review_Acceptance.md).
 
 The subsequent [manual indexing retirement](6_Manual_Indexing_Retirement.md)
-is an unreleased maintenance follow-up on its own temporary branch.
+was tested and merged by the maintainer. [Legacy DBE retirement](7_Legacy_DBE_Retirement.md)
+is the next maintenance follow-up on its own temporary branch.
 
 ### Goal
 
@@ -437,10 +438,10 @@ because earlier decisions can shift later line ranges.
     by opening or locating the corresponding tabs.
 11. Keep the current popup review available behind a temporary fallback until
     inline review passes all compatibility tests.
-12. Route legacy DBE and structured agent change sets through the same review
+12. Route manual comparisons and structured agent change sets through the same review
     controller.
 13. Remove the fallback only after feature parity is verified.
-14. Update screenshots and Diff-Based Editing documentation.
+14. Update screenshots and inline diff review documentation.
 
 ### Automated tests
 
