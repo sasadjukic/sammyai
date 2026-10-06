@@ -58,7 +58,7 @@ The maintainer confirmed manual testing and merged `codex/retire-manual-indexing
 into `main`; acceptance recorded on 2026-09-21.
 See the [validation and acceptance guide](documentation/7_NEXT_STEPS/6_Manual_Indexing_Retirement.md).
 
-## Unreleased follow-up — Legacy DBE retirement
+## Merged follow-up — Legacy DBE retirement
 
 - Removed **Enable Legacy DBE Mode** and the separate DBE request, context, prompt,
   and response-splicing code. Advanced now contains Persistent Memory and Project Context.
@@ -70,5 +70,24 @@ See the [validation and acceptance guide](documentation/7_NEXT_STEPS/6_Manual_In
   editor text no longer supplies implicit context through a separate DBE mode;
   story-focused selection actions remain on the roadmap.
 
-Branch: `codex/retire-legacy-dbe`; maintainer testing and merge are pending.
+The maintainer reported merging `codex/retire-legacy-dbe` into `main`;
+merge recorded on 2026-10-06.
 See the [validation and acceptance guide](documentation/7_NEXT_STEPS/7_Legacy_DBE_Retirement.md).
+
+## Unreleased follow-up — Scoped file additions
+
+- Brainstormer, Writer, and Editor can append or insert new material into an
+  explicitly referenced `.md`/`.txt` file without generating its entire contents.
+- Large-file context supplies headings, query-relevant excerpts, and the ending.
+  Insertion requires a unique complete source line supplied in that context.
+- Immutable request snapshots preserve unchanged text and catch source changes
+  during generation, including all Writer stages. Normal review/apply conflict
+  checks, atomic writes, and undo/redo remain in force.
+- Context selection and new-text limits are independent policies, with optional
+  per-run addition limits for future model/workflow integrations. Default additions
+  share a 4,000 estimated-token allowance for new text across the proposal.
+- Whole-file replacement/deletion still requires complete context. Partial-file
+  replacement and selection actions remain future work. Existing data needs no migration.
+
+Branch: `codex/scoped-file-additions`; maintainer testing and merge are pending.
+See the [implementation and acceptance guide](documentation/7_NEXT_STEPS/8_Scoped_File_Additions.md).

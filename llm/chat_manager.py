@@ -16,6 +16,14 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True)
+class PreparedChatRequest:
+    """Messages and their file evidence travel together through one agent run."""
+
+    messages: List[Dict[str, str]]
+    context_result: Any | None = None
+
+
 class MessageRole(Enum):
     """Enum for message roles in a conversation."""
     SYSTEM = "system"
@@ -492,8 +500,17 @@ class ChatManager:
                                          session_id: Optional[str] = None, 
                                          include_system: bool = True,
                                          top_k: int = 3) -> List[Dict[str, str]]:
+        request = self.prepare_request(query, session_id, include_system, top_k)
+        self.last_context_result = request.context_result
+        return request.messages
+
+    def prepare_request(self,
+                        query: str,
+                        session_id: Optional[str] = None,
+                        include_system: bool = True,
+                        top_k: int = 3) -> PreparedChatRequest:
         """
-        Get messages in LLM format with RAG context injected.
+        Prepare LLM messages together with their request-local file evidence.
         
         Args:
             query: The user's query (used for context retrieval)
@@ -502,13 +519,13 @@ class ChatManager:
             top_k: Number of context chunks to retrieve from RAG
             
         Returns:
-            List of messages in LLM format with context prepended
+            Messages with context prepended and their associated context result
         """
         # Get base messages
         messages = self.get_messages_for_llm(session_id, include_system)
 
         if self.context_engine is not None:
-            self.last_context_result = self.context_engine.build_context(
+            context_result = self.context_engine.build_context(
                 query,
                 cin_context=self.cin_context,
                 top_k=top_k,
@@ -521,10 +538,10 @@ class ChatManager:
                     break
             context_messages = [
                 {"role": "system", "content": content}
-                for content in self.last_context_result.system_messages
+                for content in context_result.system_messages
             ]
             messages[insert_pos:insert_pos] = context_messages
-            return messages
+            return PreparedChatRequest(messages, context_result)
         
         # If RAG system is available, retrieve and inject context
         if self.rag_system and query:
@@ -571,7 +588,7 @@ class ChatManager:
                     break
             messages.insert(insert_pos, cin_message)
         
-        return messages
+        return PreparedChatRequest(messages)
 
     
     def clear_session(self, session_id: Optional[str] = None, keep_system: bool = True) -> bool:

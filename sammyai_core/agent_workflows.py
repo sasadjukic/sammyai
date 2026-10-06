@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 import json
 import logging
+import os
+from pathlib import PurePosixPath
 import re
 from typing import Callable, Iterable
 from uuid import uuid4
@@ -24,6 +26,7 @@ from llm.prompt_layers import (
 from llm.system_prompt import SYSTEM_PROMPT
 
 from .file_tools import FileToolError, SafeFileTools
+from .file_edit_context import AdditionPolicy, FileEditSnapshot, estimate_tokens
 
 
 logger = logging.getLogger(__name__)
@@ -32,7 +35,10 @@ CHANGE_DIRECTIVE_PATTERN = re.compile(
     r"<sammyai_changes>\s*(\{.*?\})\s*</sammyai_changes>",
     re.DOTALL,
 )
-MAX_CHANGE_FILES = 20
+
+
+def _file_key(path: str) -> str:
+    return os.path.normcase(PurePosixPath(path.replace("\\", "/")).as_posix())
 
 
 class AgentType(str, Enum):
@@ -138,8 +144,9 @@ AGENT_DEFINITIONS = {
         workflow_prompt=(
             "Diagnose the text before editing. Make the smallest changes that "
             "solve the requested problem. Explain material editorial decisions. "
-            "When asked to edit a project file, return the complete resulting "
-            "file through a structured change directive for diff review."
+            "When asked to change a project file, propose the smallest supported "
+            "operation through a structured change directive for diff review. "
+            "For additions, return only the new material."
         ),
         can_propose_file_changes=True,
     ),
@@ -160,7 +167,7 @@ AGENT_DEFINITIONS = {
     ),
 }
 
-CHANGE_OUTPUT_PROMPT = """
+CHANGE_OUTPUT_PROMPT = r"""
 Normal prose belongs outside the directive.
 
 Only when the user explicitly requests a project file creation, update, or
@@ -172,10 +179,32 @@ deletion, append exactly one directive in this form:
 ]}
 </sammyai_changes>
 
-Allowed operations are "write" and "delete". Use only project-relative .md or
-.txt paths. "write" must contain the complete resulting file, not a patch.
-Existing files may be changed only when their complete contents were supplied
-through explicit @file context; otherwise ask the user to reference the file.
+Use only explicitly requested project-relative .md or .txt paths.
+Allowed operations:
+- "write": complete resulting file content. Create a file, or replace an
+  existing file ONLY when its COMPLETE contents were supplied as explicit @file
+  context. Never use write to add a small section to a partially supplied file.
+- "delete": remove a file ONLY with complete explicit @file context.
+- "append": content contains ONLY the new material to add at the file ending.
+  Requires explicit @file context including the ending, not the entire file.
+- "insert_before" / "insert_after": content contains ONLY new material;
+  "anchor" is an exact, unique, complete source line shown in the supplied file
+  context. Insertion is immediately before/after that LINE. To add a scene after
+  another scene's body, insert_before the NEXT scene heading, or append at EOF.
+  Do not invent line numbers, anchors, or omitted source text. If the location is
+  unclear, ask the user to name or quote a unique target line.
+
+Example addition:
+<sammyai_changes>
+{"summary":"Add Scene 20","files":[
+  {"path":"scene_breakdown.md","operation":"append","content":"\n\n## Scene 20\nNew breakdown.\n"}
+]}
+</sammyai_changes>
+
+Keep existing material out of addition content. Include intentional spacing.
+Check supplied headings for duplicate scenes/sections. Headings and excerpts
+may omit relevant story context: ask for more context when continuity requires
+it. Reading a file is not permission to change unrelated parts of it.
 Never claim the change has been applied; SammyAI will show a diff for approval.
 """
 
@@ -196,16 +225,18 @@ REVISION_PROMPT = """
 Revise the draft using the evaluator's brief. Preserve strong material, correct
 the identified problems, and satisfy the original request. Return the final
 user-facing response. If the original request explicitly asked for a file
-change, include the structured change directive using the complete revised
-file content.
+change, keep its operation and target scope in the structured change directive.
+Append/insert directives contain ONLY the final new material, never a complete
+replacement file. The same supplied file context applies to every stage.
 """
 
 
 class AgentWorkflowService:
     """Execute selected agents and convert file proposals into change sets."""
 
-    def __init__(self, file_tools: SafeFileTools | None):
+    def __init__(self, file_tools: SafeFileTools | None, *, addition_policy: AdditionPolicy | None = None):
         self.file_tools = file_tools
+        self.addition_policy = addition_policy or AdditionPolicy()
         self.prompt_composer = PromptComposer()
 
     @staticmethod
@@ -220,10 +251,31 @@ class AgentWorkflowService:
         messages: list[dict[str, str]],
         complete: LLMCompletion,
         authorized_files: Iterable[str] = (),
+        file_snapshots: Iterable[FileEditSnapshot] = (),
+        addition_policy: AdditionPolicy | None = None,
         on_event: AgentEventCallback | None = None,
     ) -> AgentRunResult:
         selected = AgentType(agent_type)
         definition = AGENT_DEFINITIONS[selected]
+        # Immutable request evidence survives arbitrary draft/review stages.
+        # Legacy trusted callers may still authorize complete files by name;
+        # capture their sources BEFORE invoking the model, never afterward.
+        snapshots = tuple(file_snapshots)
+        if not snapshots and self.file_tools is not None:
+            project = self.file_tools.project_service.active_project
+            if project is not None:
+                snapshots = tuple(
+                    FileEditSnapshot(project.id, path, self.file_tools.read_text(path), (), True)
+                    for path in authorized_files
+                )
+        policy = addition_policy or self.addition_policy
+        messages = [dict(message) for message in messages]
+        if definition.can_propose_file_changes:
+            messages.insert(0, {"role": "system", "content": (
+                f"Addition budget for this request: at most {policy.max_added_tokens} estimated tokens "
+                "of new append/insert text across all files (approximately four characters per token). "
+                "Unchanged destination text does not count. Use a smaller addition or ask to split a larger request."
+            )})
         run_id = str(uuid4())
         events: list[AgentRunEvent] = []
 
@@ -275,7 +327,8 @@ class AgentWorkflowService:
                 try:
                     change_set = self._prepare_change_set(
                         directive,
-                        authorized_files=authorized_files,
+                        file_snapshots=snapshots,
+                        policy=policy,
                     )
                     preview = self.file_tools.preview(change_set)
                     record(
@@ -419,7 +472,8 @@ class AgentWorkflowService:
         self,
         directive: dict,
         *,
-        authorized_files: Iterable[str],
+        file_snapshots: tuple[FileEditSnapshot, ...],
+        policy: AdditionPolicy,
     ) -> ChangeSet:
         if not isinstance(directive, dict):
             raise ValueError("Change directive must be a JSON object")
@@ -429,12 +483,19 @@ class AgentWorkflowService:
             raise ValueError("Change directive requires a summary")
         if not isinstance(files, list) or not files:
             raise ValueError("Change directive requires at least one file")
-        if len(files) > MAX_CHANGE_FILES:
+        if len(files) > policy.max_files:
             raise ValueError(
-                f"Change directive exceeds the {MAX_CHANGE_FILES}-file limit"
+                f"Change directive exceeds the {policy.max_files}-file limit"
             )
 
+        if self.file_tools is None:
+            raise FileToolError("Project file tools are unavailable")
+        project = self.file_tools.project_service.active_project
+        if project is None:
+            raise FileToolError("File changes require an open project")
+        snapshots = {_file_key(snapshot.relative_path): snapshot for snapshot in file_snapshots}
         requests: list[FileChangeRequest] = []
+        added_tokens = 0
         for item in files:
             if not isinstance(item, dict):
                 raise ValueError("Each file change must be an object")
@@ -442,31 +503,56 @@ class AgentWorkflowService:
             operation = item.get("operation")
             if not isinstance(path, str):
                 raise ValueError("Each file change requires a path")
+            if not isinstance(operation, str):
+                raise ValueError(f"File operation for {path} must be a string")
+            snapshot = snapshots.get(_file_key(path))
+            if snapshot is not None and snapshot.project_id != project.id:
+                raise FileToolError("The project changed since file context was captured. Request a new proposal.")
+            expected_hash = snapshot.source_hash if snapshot else None
+            if snapshot is not None and not snapshot.complete and operation in {"write", "delete"}:
+                raise FileToolError(
+                    f"@{path} was referenced but only partial context fit. Whole-file replacement/deletion is blocked; "
+                    "use append or insertion for new material, or provide complete context for a rewrite."
+                )
             if operation == "write":
                 content = item.get("content")
                 if not isinstance(content, str):
                     raise ValueError(f"Write for {path} requires string content")
-                requests.append(FileChangeRequest.write(path, content))
+                requests.append(FileChangeRequest.write(path, content, expected_hash=expected_hash))
             elif operation == "delete":
-                requests.append(FileChangeRequest.delete(path))
+                requests.append(FileChangeRequest.delete(path, expected_hash=expected_hash))
+            elif operation in {"append", "insert_before", "insert_after"}:
+                allowed_fields = {"path", "operation", "content"}
+                if operation != "append":
+                    allowed_fields.add("anchor")
+                if set(item) - allowed_fields:
+                    raise ValueError(f"Unsupported addition fields for {path}: {', '.join(sorted(set(item) - allowed_fields))}")
+                if snapshot is None:
+                    raise FileToolError(f"Additions require current explicit @file context: {path}")
+                content = item.get("content")
+                edit = snapshot.addition(operation, content, item.get("anchor"))
+                added_tokens += estimate_tokens(edit.replacement)
+                if added_tokens > policy.max_added_tokens:
+                    raise FileToolError(
+                        f"New material exceeds the {policy.max_added_tokens}-token addition budget; "
+                        "request a smaller addition. The destination file size is not the cause."
+                    )
+                requests.append(FileChangeRequest.edit(path, (edit,), expected_hash=expected_hash))
             else:
                 raise ValueError(f"Unsupported operation for {path}: {operation}")
 
-        if self.file_tools is None:
-            raise FileToolError("Project file tools are unavailable")
         change_set = self.file_tools.prepare_change_set(
             requests,
             description=summary,
         )
-        authorized = {
-            path.replace("\\", "/").casefold()
-            for path in authorized_files
-        }
+        if change_set.project_id != project.id:
+            raise FileToolError("The project changed while preparing the proposal. Request a new proposal.")
+        authorized = set(snapshots)
         unauthorized = [
             change.relative_path
             for change in change_set.changes
             if change.kind != FileChangeKind.CREATE
-            and change.relative_path.casefold() not in authorized
+            and _file_key(change.relative_path) not in authorized
         ]
         if unauthorized:
             paths = ", ".join(unauthorized)

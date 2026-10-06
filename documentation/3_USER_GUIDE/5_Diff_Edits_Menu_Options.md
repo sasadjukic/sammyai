@@ -29,6 +29,29 @@ generation responsive; accepting or rejecting it still preserves the exact snaps
 normal editing. It does not modify your draft or files. Newly proposed files do
 not exist on disk until applied; their temporary tabs close when canceled or rejected.
 
+## Additions to large files
+
+Ask Brainstormer, Writer, or Editor to append or insert material using an explicit
+file reference. A request such as `Add Scene 20 to @scene_breakdown.md` can produce
+a small addition even when the full breakdown exceeds the file-context allowance.
+For insertion between scenes, name the next scene heading: `Insert an interlude
+before Scene 10 in @scene_breakdown.md`.
+
+The model supplies only the new text. SammyAI finds the insertion point in its
+captured source, keeps the existing content intact, and opens the normal inline
+review. An insertion anchor must be a unique complete source line included in the
+supplied context. “After” an anchor means after that line; to insert after a whole
+scene, target the next scene's heading or append at the end of the file.
+
+Request a new proposal if the source changes while the agent is working or while
+review is open. SammyAI does not silently move an addition to a changed file.
+Existing section headings and numbered scenes are checked for obvious duplicates
+within the same parent section;
+review remains necessary to catch narrative or semantic duplication.
+
+This release supports additions to large files. Replacing a selected section of
+an oversized file is not yet supported by the agent contract.
+
 ## Drafts, conflicts, and undo
 
 - Structured project proposals require clean buffers for every affected file,

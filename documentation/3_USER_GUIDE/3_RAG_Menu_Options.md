@@ -52,11 +52,23 @@ Use explicit file references when SammyAI must rely on a specific file.
 
 * Reference the exact file before asking for edits.
 * Use relative paths when two files share the same name.
-* Existing files require complete explicit file context before agent-driven modification.
+* Appending or inserting new material requires explicit file context with the ending or a unique target line. The entire file need not fit.
+* Whole-file replacement and deletion require complete explicit file context.
 
 ## 6. Context Budget
 
 Explicit file context, attached references, persistent memory, and retrieved RAG chunks share the same bounded prompt budget. If a response misses important context, narrow the prompt, reference fewer files, or summarize older material into persistent memory.
+
+Large text files use a partial view containing the ending, relevant excerpts, and
+headings. SammyAI keeps an exact local snapshot for conflict checks and preserves
+the omitted text when applying an addition. Partial context is identified in chat;
+it does not authorize a whole-file rewrite.
+
+The default file/context allowance is 4,000 estimated tokens. Append and insertion
+requests have a separate 4,000 estimated-token allowance for **new material across
+the proposal**, independent of existing file length. Both are service policies that
+can be tuned separately as model support evolves. These estimates do not describe
+the model's total context window or include all conversation/workflow messages.
 
 > [!IMPORTANT]
 > RAG is persistent across sessions, but it is project-scoped. Switching projects changes the retrieval namespace.
