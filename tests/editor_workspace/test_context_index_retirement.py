@@ -25,7 +25,7 @@ def window(tmp_path, monkeypatch):
 def test_context_menu_and_action_states(window):
     editor, project = window
     assert [action.text() for action in editor.advanced_menu.actions()] == [
-        "Persistent Memory", "Project Context",
+        "Chat and Agent Diagnostics…", "Persistent Memory", "Project Context",
     ]
     assert [action.text() for action in editor.project_context_menu.actions()] == [
         "Import Reference File...", "Indexed Files...", "",

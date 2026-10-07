@@ -723,6 +723,17 @@ class ChatPanel(QWidget):
                 details = [message.timestamp.strftime("%d %b %Y, %H:%M")]
                 details.extend(f"{key}: {value}" for key, value in message.metadata.items())
                 widget.setToolTip("\n".join(details))
+            trace = getattr(self._history_manager, "trace_service", None)
+            if trace:
+                try:
+                    seen = set()
+                    for notice in trace.conversation_notices(session.session_id):
+                        key = (notice["request_id"], notice["message"])
+                        if key not in seen:
+                            self.chat_display.add_message("system", f"Request {notice['request_id'][:8]}: {notice['message']}", copyable=False)
+                            seen.add(key)
+                except Exception:
+                    self.chat_display.add_message("system", "Request diagnostics could not be read. The saved conversation is still available.", copyable=False)
         self.set_status("")
 
     def _rename_conversation(self) -> None:

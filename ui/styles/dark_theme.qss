@@ -2,6 +2,7 @@
 QMainWindow {
     background-color: #1e1e1e;
 }
+
 /* Inline review semantic tokens, also read by the diff highlighter. */
 QLabel#reviewAddition { color: #b6e3c2; background-color: #193c2b; }
 QLabel#reviewDeletion { color: #f2b8bd; background-color: #48262d; }
@@ -961,4 +962,41 @@ QDialog#appSettingsDialog QPushButton:hover {
 }
 QDialog#appSettingsDialog QPushButton:focus {
     border-color: #65c0e0;
+}
+
+/* Local diagnostic timeline and editable export preview. */
+QDialog#diagnosticsDialog { background-color: #1e1e1e; }
+#diagnosticsDialog QLabel, #diagnosticsDialog QCheckBox {
+    color: #dddddd;
+    font-size: 10pt;
+}
+#diagnosticsDialog QPlainTextEdit {
+    color: #dddddd;
+    background-color: #252526;
+    font-size: 10pt;
+    border: 1px solid #414955;
+    padding: 8px;
+}
+#diagnosticsDialog QListWidget {
+    color: #dddddd;
+    background-color: #252526;
+    border: 1px solid #414955;
+    font-size: 10pt;
+}
+#diagnosticsDialog QListWidget::item { padding: 10px 6px; }
+#diagnosticsDialog QListWidget::item:selected {
+    color: #ffffff;
+    background-color: #34485f;
+}
+#diagnosticsDialog QPushButton, #diagnosticsDialog QSpinBox {
+    color: #dddddd;
+    background-color: #292e36;
+    border: 1px solid #414955;
+    border-radius: 4px;
+    padding: 6px;
+    font-size: 9pt;
+}
+#diagnosticsDialog QPushButton:hover { background-color: #363f4b; }
+#diagnosticsDialog QPushButton:focus, #diagnosticsDialog QSpinBox:focus {
+    border: 1px solid #65c0e0;
 }

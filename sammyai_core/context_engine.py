@@ -13,6 +13,7 @@ from threading import RLock
 from typing import Any
 
 from .database import ProjectDatabase
+from .diagnostics import exception_evidence
 from .documents import DocumentService
 from .projects import Project, ProjectService
 from .file_edit_context import FileContextPolicy, FileEditSnapshot, estimate_tokens, select_file_context
@@ -102,6 +103,11 @@ class ContextResult:
     memory_ids: tuple[str, ...] = ()
     summary_ids: tuple[str, ...] = ()
     file_snapshots: tuple[FileEditSnapshot, ...] = ()
+    references: tuple[FileReference, ...] = ()
+    retrieval_status: str = "unknown"
+    retrieval_sources: tuple[dict, ...] = ()
+    retrieval_error: str | None = None
+    diagnostic_errors: tuple[dict, ...] = ()
 
 
 class ProjectFileRepository:
@@ -402,13 +408,13 @@ class ProjectContextEngine:
     def resolve_file_references(
         self,
         query: str,
-        project: Project | None = None,
+        project=...,
     ) -> list[FileReference]:
         references = self._extract_reference_names(query)
         if not references:
             return []
 
-        selected_project = project or self.active_project
+        selected_project = self.active_project if project is ... else project
         if selected_project is None:
             return [
                 FileReference(
@@ -498,10 +504,11 @@ class ProjectContextEngine:
         *,
         cin_context: str | None = None,
         top_k: int = 3,
+        project=...,
     ) -> ContextResult:
         """Build explicit-file, injected, and RAG context within one budget."""
-        project = self.active_project
-        sync_report = self.sync_active_project()
+        project = self.active_project if project is ... else project
+        sync_report = self.sync_project(project) if project else SyncReport(None)
         references = self.resolve_file_references(query, project)
         notices = tuple(reference.error for reference in references if reference.error)
         budget = _ContextBudget(self.max_context_tokens)
@@ -511,6 +518,10 @@ class ProjectContextEngine:
         file_snapshots: list[FileEditSnapshot] = []
         memory_ids: tuple[str, ...] = ()
         summary_ids: tuple[str, ...] = ()
+        retrieval_status = "unavailable" if self.rag_system is None else "not_requested"
+        retrieval_sources = ()
+        retrieval_error = None
+        diagnostic_errors = []
 
         valid_references = [reference for reference in references if reference.path is not None and reference.relative_path is not None]
         for index, reference in enumerate(valid_references):
@@ -528,6 +539,7 @@ class ProjectContextEngine:
                 else:
                     content = self.document_service.extract_context_text(reference.path)
             except Exception as error:
+                diagnostic_errors.append({"code": "context.read_failed", "reference": reference.reference, **exception_evidence(error)})
                 notices += (
                     f"Unable to read @{reference.reference}: {error}",
                 )
@@ -593,6 +605,7 @@ class ProjectContextEngine:
                 memory_context = self.memory_service.build_context(
                     query,
                     max_tokens=memory_budget,
+                    project=project,
                 )
                 if memory_context.text:
                     fitted = budget.add(
@@ -613,15 +626,31 @@ class ProjectContextEngine:
                 if project is not None:
                     kwargs["project_id"] = project.id
                 context = self.rag_system.get_context(query, **kwargs)
+                retrieval_status = "empty"
                 if context and context.chunks:
+                    retrieval_status = "selected"
+                    retrieval_sources = tuple({
+                        "chunk_id": getattr(chunk, "chunk_id", None),
+                        "source": {key: getattr(chunk, "metadata", {}).get(key) for key in
+                                   ("relative_path", "file_path", "content_hash", "start_line", "end_line")},
+                        "score": getattr(chunk, "score", None),
+                    } for chunk in context.chunks)
                     fitted = budget.add(
                         "Relevant context retrieved from project files:\n\n"
                         f"{context.format_for_llm()}"
                     )
                     if fitted is not None:
                         messages.append(fitted)
-            except Exception:
-                logger.exception("Project RAG context retrieval failed")
+                        if getattr(context, "truncated", False) or fitted.endswith("[Context truncated to fit the configured budget.]"):
+                            retrieval_status = "partial"
+                    else:
+                        retrieval_status = "omitted_budget"
+            except Exception as error:
+                logger.warning("Project RAG context retrieval failed: %s", type(error).__name__)
+                diagnostic_errors.append({"code": "context.retrieval_failed", **exception_evidence(error)})
+                retrieval_status = "failed"
+                retrieval_error = f"{type(error).__name__}: {error}"
+                notices += ("Project retrieval failed; this request continued without retrieved context.",)
 
         return ContextResult(
             system_messages=tuple(messages),
@@ -635,6 +664,11 @@ class ProjectContextEngine:
             memory_ids=memory_ids,
             summary_ids=summary_ids,
             file_snapshots=tuple(file_snapshots),
+            references=references,
+            retrieval_status=retrieval_status,
+            retrieval_sources=retrieval_sources,
+            retrieval_error=retrieval_error,
+            diagnostic_errors=tuple(diagnostic_errors),
         )
 
     def _scan_project(

@@ -792,8 +792,9 @@ class ProjectMemoryService:
         *,
         max_tokens: int = 800,
         limit: int = 12,
+        project=...,
     ) -> MemoryContext:
-        project = self.active_project
+        project = self.active_project if project is ... else project
         if project is None or max_tokens <= 0:
             return MemoryContext("", 0, (), ())
         memories = self.repository.list_memories(

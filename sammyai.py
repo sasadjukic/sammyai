@@ -3,9 +3,12 @@ import re
 import os
 import logging
 import shutil
+import time
+import json
 from dataclasses import replace
 from pathlib import Path
 from threading import Lock
+from uuid import uuid4
 from typing import Optional
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QPlainTextEdit, QFileDialog, QMessageBox, QToolBar,
@@ -54,6 +57,7 @@ from sammyai_core.logging_config import configure_logging, install_exception_hoo
 from sammyai_core.paths import AppPaths, get_app_paths, migrate_legacy_runtime_data
 from sammyai_core.resources import asset_path, source_root
 from sammyai_core.tasks import BackgroundTaskRunner
+from sammyai_core.diagnostics import RequestTraceService, RequestUpdate
 from sammyai_core.projects import Project, ProjectError
 from sammyai_core.project_references import ProjectReferenceImporter
 from sammyai_core.agent_workflows import (
@@ -198,10 +202,10 @@ class SearchWidget(QWidget):
 class TextEditor(QMainWindow):
     # Signals for LLM communication
     llm_response_received = Signal(str)
-    llm_error_occurred = Signal(str)
+    llm_error_occurred = Signal(object)
     context_sync_finished = Signal(str, object, bool)
     agent_run_completed = Signal(object)
-    agent_progress = Signal(str)
+    agent_progress = Signal(object)
     memory_summary_ready = Signal(object)
     memory_summary_failed = Signal(str)
     
@@ -285,9 +289,17 @@ class TextEditor(QMainWindow):
             None,
         )
         self.file_tools = getattr(self.runtime_services, "file_tools", None)
+        self.trace_service = getattr(self.runtime_services, "trace_service", None) or RequestTraceService(
+            getattr(getattr(self.project_service, "repository", None), "database", None))
+        self.chat_manager.trace_service = self.trace_service
+        if self.file_tools is not None:
+            self.file_tools.trace_service = self.trace_service
+        self._active_request_id = None
         self.review_controller = ReviewController(self.editor_workspace, self.file_tools, self)
+        self.review_controller.trace_service = self.trace_service
         self.review_controller.applied.connect(self._on_inline_review_applied)
         self.review_controller.finished.connect(self._on_inline_review_finished)
+        self.review_controller.diagnostic_warning.connect(lambda message: self.statusBar().showMessage(message))
         self.editor_workspace.review_changed.connect(self._on_review_changed)
         self.editor_workspace.review_text_changed.connect(self._on_review_text_changed)
         # Temporary compatibility switch while Windows acceptance is in progress.
@@ -1691,6 +1703,8 @@ class TextEditor(QMainWindow):
         view_menu.addAction(self.toggle_project_explorer_action)
 
         self.advanced_menu = menubar.addMenu("Advanced")
+        self.diagnostics_action = self.advanced_menu.addAction("Chat and Agent Diagnostics…")
+        self.diagnostics_action.triggered.connect(self._show_diagnostics)
         self.persistent_memory_menu = self.advanced_menu.addMenu(
             "Persistent Memory"
         )
@@ -2049,6 +2063,14 @@ class TextEditor(QMainWindow):
 
         if self.chat_manager.get_active_session() is None:
             self._on_new_chat_requested()
+        self.trace_service.register_secret(getattr(self.llm_client, "api_key", None))
+        identity = self.trace_service.begin(
+            self.chat_manager.active_session_id, self._active_chat_project_id(),
+            agent=self.active_agent_type.value,
+            model={"provider": getattr(self.llm_client, "provider", None), "name": getattr(self.llm_client, "model_name", None)},
+        )
+        self._active_request_id = identity.request_id
+        self.trace_service.capture(identity.request_id, "prompts", json.dumps({"user_request": message}, ensure_ascii=False))
         # Immediately show user message in UI FIRST
         if self.chat_panel:
             self.chat_panel.add_user_message(message)
@@ -2056,7 +2078,8 @@ class TextEditor(QMainWindow):
 
         # Then add user message to session
         try:
-            message_metadata = {"agent_type": self.active_agent_type.value}
+            message_metadata = {"agent_type": self.active_agent_type.value,
+                                "request_id": identity.request_id, "message_id": identity.message_id}
             project_id = self._active_chat_project_id()
             if project_id is not None:
                 message_metadata["project_id"] = project_id
@@ -2066,17 +2089,22 @@ class TextEditor(QMainWindow):
                 metadata=message_metadata,
             )
         except Exception as e:
-            logger.exception("Failed to add user message to session")
+            self.trace_service.exception(identity.request_id, "error.chat_persistence", e)
 
         self._chat_panel_safe("refresh_history")
 
+        if self.trace_service.storage_error:
+            self._chat_panel_safe("add_system_message", self.trace_service.storage_error)
+
         # If LLM not available, inform the user
         if not self.llm_client:
+            self.trace_service.event(identity.request_id, "error.provider_unavailable", "LLM client not initialized. Configure API key or check environment.")
+            self.trace_service.finish(identity.request_id, "provider_unavailable")
             self._chat_panel_safe("set_thinking", False)
             self._chat_panel_safe("add_system_message", "LLM client not initialized. Configure API key or check environment.")
             return
 
-        self._handle_normal_chat(message)
+        self._handle_normal_chat(message, identity=identity)
 
     def _on_conversation_selected(self, session_id: str) -> None:
         agent = self.chat_manager.get_session_metadata("agent_type", "general", session_id=session_id)
@@ -2119,36 +2147,58 @@ class TextEditor(QMainWindow):
         )
         return project.id if project is not None else None
     
-    def _handle_normal_chat(self, message: str):
+    def _handle_normal_chat(self, message: str, *, identity=None):
         """Run the selected agent workflow outside the UI thread."""
         selected_agent = self.active_agent_type
         client = self.llm_client
         request_project_id = self._active_chat_project_id()
         request_chat_session_id = self.chat_manager.active_session_id
+        trace = getattr(self, "trace_service", None)
+        if identity is None and trace:
+            identity = trace.begin(request_chat_session_id, request_project_id, agent=selected_agent.value)
+        request_id = identity.request_id if identity else None
+        project_service = getattr(self, "project_service", None)
+        request_project = project_service.active_project if project_service else None
+        base_messages = self.chat_manager.get_messages_for_llm(request_chat_session_id)
+        injected = self.chat_manager.cin_context
+        if identity:
+            self._active_request_id = request_id
 
         def worker():
+            phase = "context"
+            step = trace.start_step(request_id, "context") if trace else None
+            started = time.monotonic()
             try:
                 if self.chat_manager:
                     prepared_request = self.chat_manager.prepare_request(
                         query=message,
                         session_id=request_chat_session_id,
                         top_k=3,
+                        project=request_project, base_messages=base_messages, cin_context=injected,
                     )
                     msgs = prepared_request.messages
                     context_result = prepared_request.context_result
                 else:
                     msgs = [{"role": "user", "content": message}]
                     context_result = None
+                if trace:
+                    trace.record_context(identity, prepared_request, step_id=step, engine=self.chat_manager.context_engine)
+                    trace.end_step(step, "prepared", (time.monotonic() - started) * 1000)
+                phase = "workflow"
+                call_metadata = {}
 
                 def complete(
                     completion_messages: list[dict[str, str]],
                     system_prompt: str,
                 ) -> str:
+                    nonlocal call_metadata
                     with self._llm_lock:
                         original_prompt = client.system_prompt
                         try:
                             client.system_prompt = system_prompt
-                            return client.chat(completion_messages)
+                            reply = client.chat(completion_messages)
+                            call_metadata = dict(getattr(client, "last_response_metadata", {}) or {})
+                            return reply
                         finally:
                             client.system_prompt = original_prompt
 
@@ -2158,17 +2208,24 @@ class TextEditor(QMainWindow):
                     messages=msgs,
                     complete=complete,
                     file_snapshots=getattr(context_result, "file_snapshots", ()),
+                    trace=trace, identity=identity, response_metadata=lambda: call_metadata,
                     on_event=lambda event: self.agent_progress.emit(
-                        event.message
+                        RequestUpdate(identity, event.message) if identity else event.message
                     ),
                 )
 
                 if context_result is not None:
                     result = replace(result, notices=tuple(getattr(context_result, "notices", ())) + result.notices)
+                elif prepared_request.retrieval_status == "failed":
+                    result = replace(result, notices=("Retrieval failed; continuing without retrieved context.",) + result.notices)
 
-                if result.change_set is not None and result.change_set.project_id != request_project_id:
+                if result.change_set is not None and (result.change_set.project_id != request_project_id or self._active_chat_project_id() != request_project_id):
+                    if trace:
+                        trace.event(request_id, "notice.project_changed", "Project changed during the request; the proposal cannot be reviewed here.")
+                        trace.finish(request_id, "conflicted")
                     result = replace(
                         result, change_set=None, change_preview=None,
+                        outcome="conflicted",
                         notices=result.notices + (
                             "The project changed while this request was running. Request a new proposal in the intended project.",
                         ),
@@ -2178,23 +2235,44 @@ class TextEditor(QMainWindow):
                     "agent_type": result.agent_type.value,
                     "agent_run_id": result.run_id,
                     "model_calls": result.model_calls,
+                    "request_id": request_id,
+                    "message_id": str(uuid4()),
                 }
                 if request_project_id is not None:
                     response_metadata["project_id"] = request_project_id
-                self.chat_manager.add_message(
+                phase = "chat_persistence"
+                saved_response = self.chat_manager.add_message(
                     MessageRole.ASSISTANT,
                     result.response,
                     session_id=request_chat_session_id,
                     metadata=response_metadata,
                 )
-                self.agent_run_completed.emit(replace(result, originating_session_id=request_chat_session_id))
+                if saved_response is None:
+                    raise ValueError("The originating conversation no longer exists; this response could not be saved to chat.")
+                if trace:
+                    trace.link(request_id, response_metadata["message_id"], "assistant_message")
+                self.agent_run_completed.emit(replace(result, originating_session_id=request_chat_session_id,
+                                                      request_id=request_id, originating_project_id=request_project_id))
             except Exception as e:
-                self.llm_error_occurred.emit(str(e))
+                if trace:
+                    trace.exception(request_id, "error." + phase, e, step_id=step if phase == "context" else None)
+                    if phase == "context":
+                        trace.end_step(step, "failed", (time.monotonic() - started) * 1000)
+                    # A model exception has already set its precise provider outcome.
+                    if phase != "workflow":
+                        trace.finish(request_id, phase + "_failed")
+                    else:
+                        trace.fail_unfinished(request_id)
+                error_message = trace.redact(str(e)) if trace else str(e)
+                self.llm_error_occurred.emit(RequestUpdate(identity, error_message) if identity else error_message)
 
-        self.task_runner.submit(
-            worker,
-            name=f"agent-{selected_agent.value}",
-        )
+        try:
+            self.task_runner.submit(worker, name=f"agent-{selected_agent.value}")
+        except Exception as error:
+            if trace:
+                trace.exception(request_id, "error.task_submission", error)
+                trace.finish(request_id, "app_failed")
+            self.llm_error_occurred.emit(RequestUpdate(identity, trace.redact(error)) if identity else str(error))
 
     @Slot(str)
     def _handle_llm_response(self, reply: str):
@@ -2205,17 +2283,21 @@ class TextEditor(QMainWindow):
     @Slot(object)
     def _handle_agent_run_result(self, result: AgentRunResult) -> None:
         """Render one agent result and review any proposed file changes."""
-        self._chat_panel_safe("set_thinking", False)
-        if result.originating_session_id is None or result.originating_session_id == self.chat_manager.active_session_id:
+        visible = result.originating_session_id is None or result.originating_session_id == self.chat_manager.active_session_id
+        current = not result.request_id or result.request_id == self._active_request_id
+        if visible and current:
+            self._chat_panel_safe("set_thinking", False)
+        if visible:
             self._chat_panel_safe("add_assistant_message", result.response)
-        self._chat_panel_safe(
-            "set_status",
-            f"{result.agent_type.display_name} completed "
-            f"({result.model_calls} model call"
-            f"{'s' if result.model_calls != 1 else ''})",
-        )
-        for notice in result.notices:
-            self._chat_panel_safe("add_system_message", notice)
+            if current:
+                self._chat_panel_safe("set_status", f"{result.agent_type.display_name}: {result.outcome.replace('_', ' ')} ({result.model_calls} model calls)")
+            for notice in result.notices:
+                self._chat_panel_safe("add_system_message", self.trace_service.redact(notice))
+        if self.trace_service.storage_error:
+            self.statusBar().showMessage(self.trace_service.storage_error)
+            if visible:
+                self._chat_panel_safe("add_system_message", self.trace_service.storage_error)
+        self._chat_panel_safe("refresh_history")
 
         if (
             result.change_set is None
@@ -2226,17 +2308,25 @@ class TextEditor(QMainWindow):
 
         if not self.popup_review_fallback:
             try:
+                if result.originating_project_id is not None and result.originating_project_id != self._active_chat_project_id():
+                    raise FileToolError("The originating project is no longer active. Request a new proposal.")
                 self.review_controller.start_change_set(
                     result.change_set, agent_id=result.run_id,
                     chat_session_id=result.originating_session_id,
+                    request_id=result.request_id,
                 )
                 self._close_search()
             except (FileToolError, OSError, ValueError) as error:
+                self.trace_service.exception(result.request_id, "error.review_conflict", error)
+                self.trace_service.finish(result.request_id, "conflicted")
                 QMessageBox.warning(self, "Cannot Start Review", str(error))
             return
 
         dialog = ChangeSetReviewDialog(result.change_preview, self)
+        self.trace_service.event(result.request_id, "review.created", "Popup review opened.", details={"proposal_id": result.change_set.id})
         if dialog.exec() != QDialog.Accepted:
+            self.trace_service.event(result.request_id, "review.rejected", "Proposal rejected; no files changed.", details={"proposal_id": result.change_set.id})
+            self.trace_service.finish(result.request_id, "rejected")
             self._chat_panel_safe(
                 "add_system_message",
                 "Proposed file changes rejected; no files were modified.",
@@ -2244,6 +2334,8 @@ class TextEditor(QMainWindow):
             return
 
         if self._current_document_conflicts_with(result.change_set):
+            self.trace_service.event(result.request_id, "notice.review_conflict", "Open document has unsaved changes; proposal was not applied.")
+            self.trace_service.finish(result.request_id, "conflicted")
             QMessageBox.warning(
                 self,
                 "Unsaved Document Conflict",
@@ -2259,6 +2351,7 @@ class TextEditor(QMainWindow):
             return
 
         try:
+            self.trace_service.event(result.request_id, "review.accepted", "All popup review changes accepted.", details={"proposal_id": result.change_set.id})
             applied = self.file_tools.apply(result.change_set)
         except FileToolError as error:
             QMessageBox.critical(self, "Change Set Conflict", str(error))
@@ -2277,8 +2370,12 @@ class TextEditor(QMainWindow):
             "The change set can be undone through the file-tool history.",
         )
 
-    @Slot(str)
-    def _handle_agent_progress(self, message: str) -> None:
+    @Slot(object)
+    def _handle_agent_progress(self, message) -> None:
+        if isinstance(message, RequestUpdate):
+            if message.identity.conversation_id != self.chat_manager.active_session_id or message.identity.request_id != self._active_request_id:
+                return
+            message = message.message
         self._chat_panel_safe("set_status", message)
 
     def _update_change_set_history_actions(self) -> None:
@@ -2297,6 +2394,8 @@ class TextEditor(QMainWindow):
         self._persist_active_project_workspace()
 
     def _on_inline_review_finished(self, message) -> None:
+        if self.trace_service.storage_error:
+            message += " " + self.trace_service.storage_error
         self.statusBar().showMessage(message, self.STATUS_NORMAL)
 
     def _on_review_changed(self, session_id) -> None:
@@ -2344,6 +2443,7 @@ class TextEditor(QMainWindow):
             self._update_change_set_history_actions()
             return
         if self._current_document_conflicts_with(change_set):
+            self.trace_service.event(self.trace_service.request_for(change_set.id), "notice.undo_conflict", "Undo blocked by unsaved changes in an open document.")
             QMessageBox.warning(
                 self,
                 "Unsaved Document Conflict",
@@ -2360,7 +2460,7 @@ class TextEditor(QMainWindow):
         self._reload_current_file_if_changed(applied.changed_paths)
         self._sync_after_file_tool_change()
         self.statusBar().showMessage(
-            "Last applied change set undone",
+            "Last applied change set undone. " + (self.trace_service.storage_error or ""),
             self.STATUS_NORMAL,
         )
 
@@ -2372,6 +2472,7 @@ class TextEditor(QMainWindow):
             self._update_change_set_history_actions()
             return
         if self._current_document_conflicts_with(change_set):
+            self.trace_service.event(self.trace_service.request_for(change_set.id), "notice.redo_conflict", "Redo blocked by unsaved changes in an open document.")
             QMessageBox.warning(
                 self,
                 "Unsaved Document Conflict",
@@ -2388,7 +2489,7 @@ class TextEditor(QMainWindow):
         self._reload_current_file_if_changed(applied.changed_paths)
         self._sync_after_file_tool_change()
         self.statusBar().showMessage(
-            "Change set reapplied",
+            "Change set reapplied. " + (self.trace_service.storage_error or ""),
             self.STATUS_NORMAL,
         )
 
@@ -2401,11 +2502,22 @@ class TextEditor(QMainWindow):
         if project is not None:
             self._schedule_project_context_sync(project)
             
-    @Slot(str)
-    def _handle_llm_error(self, error_msg: str):
+    @Slot(object)
+    def _handle_llm_error(self, error_msg):
         """Handle LLM error on main thread."""
+        if isinstance(error_msg, RequestUpdate):
+            if error_msg.identity.conversation_id != self.chat_manager.active_session_id or error_msg.identity.request_id != self._active_request_id:
+                return
+            error_msg = error_msg.message
         self._chat_panel_safe("set_thinking", False)
-        self._chat_panel_safe("add_system_message", f"LLM error: {error_msg}")
+        self._chat_panel_safe("add_system_message", f"Request failed: {error_msg}")
+        if self.trace_service.storage_error:
+            self._chat_panel_safe("add_system_message", self.trace_service.storage_error)
+
+    def _show_diagnostics(self):
+        from ui.diagnostics import DiagnosticsDialog
+        dialog = DiagnosticsDialog(self.trace_service, self.chat_manager.active_session_id, self)
+        dialog.exec()
 
     def _on_agent_selected(self, agent_value: str) -> None:
         try:

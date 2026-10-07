@@ -231,6 +231,15 @@ class LLMClient:
         Returns:
             Complete response text
         """
+        self.last_response_metadata = {
+            "provider_request_id": None, "response_id": None, "usage": None, "finish_reason": None,
+            "effective_settings": {
+                "temperature": temperature if temperature is not None else self.temperature,
+                "top_p": (top_p if top_p is not None else self.top_p) if self.provider != "anthropic" else None,
+                "seed": (seed if seed is not None else self.seed) if self.provider != "anthropic" else None,
+                "max_tokens": (max_tokens or 4096) if self.provider == "anthropic" else max_tokens,
+            },
+        }
         if self.provider == "google":
             return self._chat_google(messages, max_tokens, temperature, top_p, seed, include_system)
         elif self.provider == "anthropic":
@@ -277,6 +286,7 @@ class LLMClient:
                 options=options
             )
             
+            self._record_response_metadata(response, "ollama")
             return response["message"]["content"]
         
         except Exception as e:
@@ -318,6 +328,7 @@ class LLMClient:
                 google_messages["last_message"]
             )
             
+            self._record_response_metadata(response, "google")
             return response.text
         
         except Exception as e:
@@ -344,6 +355,7 @@ class LLMClient:
                 system=system_prompt,
                 messages=decomposed["other_messages"]
             )
+            self._record_response_metadata(response, "anthropic")
             return response.content[0].text
         except Exception as e:
             raise RuntimeError(f"Error during Anthropic chat: {e}")
@@ -368,11 +380,43 @@ class LLMClient:
                 top_p=top_p if top_p is not None else self.top_p,
                 seed=seed if seed is not None else self.seed
             )
+            self._record_response_metadata(response, "openai")
             return response.choices[0].message.content
         except Exception as e:
             raise RuntimeError(f"Error during OpenAI chat: {e}")
 
     
+    def _record_response_metadata(self, response, provider):
+        """Allowlist provider metadata; never retain raw SDK objects/headers."""
+        def get(obj, key):
+            return obj.get(key) if isinstance(obj, dict) else getattr(obj, key, None)
+        def scalar(value):
+            value = getattr(value, "value", value)
+            return value if isinstance(value, (str, int, float, bool)) else None
+        metadata = getattr(self, "last_response_metadata", {}).copy()
+        metadata.update(provider_request_id=scalar(get(response, "_request_id")), response_id=scalar(get(response, "id")))
+        usage = get(response, "usage") or get(response, "usage_metadata")
+        metadata["usage"] = {name: scalar(get(usage, name)) for name in (
+            "input_tokens", "output_tokens", "prompt_tokens", "completion_tokens", "total_tokens",
+            "prompt_token_count", "candidates_token_count", "total_token_count",
+        )} if usage else None
+        reason = None
+        if provider == "openai":
+            choices = get(response, "choices") or []
+            reason = get(choices[0], "finish_reason") if choices else None
+        elif provider == "google":
+            candidates = get(response, "candidates") or []
+            reason = get(candidates[0], "finish_reason") if candidates else None
+            reason = getattr(reason, "value", reason)
+            metadata["response_id"] = scalar(get(response, "response_id"))
+        elif provider == "anthropic":
+            reason = get(response, "stop_reason")
+        else:
+            reason = get(response, "done_reason")
+            metadata["usage"] = {"input_tokens": scalar(get(response, "prompt_eval_count")), "output_tokens": scalar(get(response, "eval_count"))}
+        metadata["finish_reason"] = scalar(reason)
+        self.last_response_metadata = metadata
+
     def _convert_to_google_format(
         self, 
         messages: List[Dict[str, str]], 

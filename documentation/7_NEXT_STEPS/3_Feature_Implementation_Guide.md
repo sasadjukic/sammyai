@@ -477,7 +477,9 @@ because earlier decisions can shift later line ranges.
 
 ## Release 5: v0.6.1-alpha — Chat and agent diagnostics
 
-**Status: PLANNED — requested by the maintainer on 2026-10-06; not implemented.**
+**Status: IN PROGRESS — 2026-10-07; implemented on `codex/chat-agent-diagnostics`, manual acceptance pending.**
+
+See [implementation and acceptance](9_Chat_Agent_Diagnostics.md).
 
 Schedule this after acceptance of the current scoped-file-additions work and
 before selection actions. The 2026-10-06 proposal-rejection investigation

@@ -7,6 +7,7 @@ import os
 from pathlib import Path, PurePosixPath, PureWindowsPath
 import shutil
 import tempfile
+import time
 from typing import Iterable
 
 from editing.change_sets import (
@@ -72,6 +73,7 @@ class SafeFileTools:
         self.project_service = project_service
         self.max_file_bytes = max_file_bytes
         self.diff_manager = DiffManager()
+        self.trace_service = None
         self._undo_stack: list[AppliedChangeSet] = []
         self._redo_stack: list[AppliedChangeSet] = []
 
@@ -216,7 +218,9 @@ class SafeFileTools:
             raise FileToolError("There is no applied change set to undo")
         applied = self._undo_stack[-1]
         inverse = self._inverse(applied.change_set, prefix="Undo")
-        self._apply(inverse)
+        if self.trace_service:
+            self.trace_service.link(self.trace_service.request_for(applied.change_set.id), inverse.id, "undo_change_set")
+        self._apply(inverse, operation="undo")
         self._undo_stack.pop()
         self._redo_stack.append(applied)
         return applied
@@ -225,21 +229,25 @@ class SafeFileTools:
         if not self._redo_stack:
             raise FileToolError("There is no change set to redo")
         applied = self._redo_stack[-1]
-        result = self._apply(applied.change_set)
+        result = self._apply(applied.change_set, operation="redo")
         self._redo_stack.pop()
         self._undo_stack.append(applied)
         return result
 
-    def _apply(self, change_set: ChangeSet) -> AppliedChangeSet:
-        project = self._require_project()
-        if change_set.project_id != project.id:
-            raise ChangeConflictError(
-                "The change set belongs to a different project"
-            )
-
+    def _apply(self, change_set: ChangeSet, *, operation="apply") -> AppliedChangeSet:
+        started = time.monotonic()
+        trace = self.trace_service
+        request_id = trace.request_for(change_set.id) if trace else None
+        step = trace.start_step(request_id, "files." + operation) if trace and request_id else None
+        if trace and request_id:
+            trace.event(request_id, "files.started", f"Validating {operation}; no success is assumed.", step_id=step, details={"change_set_id": change_set.id, "operation": operation})
+            trace.finish(request_id, "applying")
         staged: list[_StagedFile] = []
         created_directories: list[Path] = []
         try:
+            project = self._require_project()
+            if change_set.project_id != project.id:
+                raise ChangeConflictError("The change set belongs to a different project")
             resolved = self.validate(change_set)
 
             for change, target in resolved:
@@ -268,15 +276,43 @@ class SafeFileTools:
                     item.staged_path = None
                 item.applied = True
         except Exception as error:
+            wrote_files = any(item.applied for item in staged)
             rollback_error = self._rollback(staged)
-            self._cleanup(staged, preserve_backups=bool(rollback_error))
-            self._cleanup_directories(created_directories)
+            if trace and request_id:
+                outcome = "rollback_failed" if rollback_error else "rolled_back" if wrote_files else "conflicted" if isinstance(error, ChangeConflictError) else "apply_failed"
+                trace.exception(request_id, "error.files_" + operation, error, step_id=step)
+                trace.event(request_id, "files." + outcome, f"File operation {outcome.replace('_', ' ')}.", step_id=step,
+                            details={"change_set_id": change_set.id, "operation": operation, "rollback_error": str(rollback_error) if rollback_error else None})
+                trace.end_step(step, outcome, (time.monotonic() - started) * 1000)
+                trace.finish(request_id, outcome)
+            try:
+                self._cleanup(staged, preserve_backups=bool(rollback_error))
+                self._cleanup_directories(created_directories)
+            except Exception as cleanup_error:
+                if trace and request_id:
+                    trace.exception(request_id, "error.files_cleanup", cleanup_error, step_id=step)
+                raise ChangeApplyError(f"Unable to apply change set: {error}; cleanup failed: {cleanup_error}") from error
             if isinstance(error, FileToolError) and not rollback_error:
                 raise
             detail = f"; rollback failed: {rollback_error}" if rollback_error else ""
             raise ChangeApplyError(f"Unable to apply change set: {error}{detail}") from error
 
-        self._cleanup(staged)
+        try:
+            self._cleanup(staged)
+        except Exception as error:
+            if trace and request_id:
+                trace.exception(request_id, "error.files_cleanup", error, step_id=step)
+                trace.event(request_id, "files.applied_cleanup_failed", "Files changed, but cleanup failed. Inspect files before retrying.",
+                            step_id=step, details={"change_set_id": change_set.id, "files_changed": True})
+                trace.end_step(step, "applied_cleanup_failed", (time.monotonic() - started) * 1000)
+                trace.finish(request_id, "applied_cleanup_failed")
+            raise
+        if trace and request_id:
+            outcome = {"apply": "applied", "undo": "undone", "redo": "redone"}[operation]
+            trace.event(request_id, "files." + outcome, f"File changes {outcome}.", step_id=step, details={
+                "change_set_id": change_set.id, "paths": [item.relative_path for item in change_set.changes]})
+            trace.end_step(step, outcome, (time.monotonic() - started) * 1000)
+            trace.finish(request_id, outcome)
         return AppliedChangeSet(
             change_set=change_set,
             changed_paths=tuple(change.relative_path for change in change_set.changes),

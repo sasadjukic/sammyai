@@ -167,6 +167,44 @@ MIGRATIONS = (
     ),
 )
 
+MIGRATIONS += (
+    Migration(5, "create_request_diagnostics", (
+        """CREATE TABLE diagnostic_requests (
+            id TEXT PRIMARY KEY, conversation_id TEXT, project_id TEXT,
+            message_id TEXT NOT NULL, run_id TEXT NOT NULL,
+            created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+            outcome TEXT NOT NULL, incomplete INTEGER NOT NULL DEFAULT 0,
+            metadata_json TEXT NOT NULL
+        )""",
+        """CREATE TABLE diagnostic_steps (
+            id TEXT PRIMARY KEY, request_id TEXT NOT NULL,
+            parent_step_id TEXT, name TEXT NOT NULL, attempt INTEGER NOT NULL,
+            started_at TEXT NOT NULL, ended_at TEXT, duration_ms REAL,
+            outcome TEXT NOT NULL,
+            FOREIGN KEY(request_id) REFERENCES diagnostic_requests(id) ON DELETE CASCADE
+        )""",
+        """CREATE TABLE diagnostic_events (
+            sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE,
+            request_id TEXT NOT NULL, step_id TEXT, created_at TEXT NOT NULL,
+            code TEXT NOT NULL, message TEXT NOT NULL, details_json TEXT NOT NULL,
+            FOREIGN KEY(request_id) REFERENCES diagnostic_requests(id) ON DELETE CASCADE
+        )""",
+        """CREATE TABLE diagnostic_content (
+            id TEXT PRIMARY KEY, request_id TEXT NOT NULL, step_id TEXT,
+            kind TEXT NOT NULL, captured INTEGER NOT NULL,
+            truncated INTEGER NOT NULL, char_count INTEGER NOT NULL,
+            text TEXT,
+            FOREIGN KEY(request_id) REFERENCES diagnostic_requests(id) ON DELETE CASCADE
+        )""",
+        """CREATE TABLE diagnostic_links (
+            entity_id TEXT PRIMARY KEY, request_id TEXT NOT NULL, kind TEXT NOT NULL,
+            FOREIGN KEY(request_id) REFERENCES diagnostic_requests(id) ON DELETE CASCADE
+        )""",
+        "CREATE INDEX diagnostic_conversation_idx ON diagnostic_requests(conversation_id, created_at)",
+        "CREATE INDEX diagnostic_events_request_idx ON diagnostic_events(request_id, sequence)",
+    )),
+)
+
 LATEST_SCHEMA_VERSION = MIGRATIONS[-1].version
 
 

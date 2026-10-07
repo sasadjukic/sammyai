@@ -9,7 +9,7 @@
 
 # SammyAI
 
-**Current version: [v0.6.0-alpha](RELEASE_NOTES_v0.6.0-alpha.md)**
+**Development version: [v0.6.1-alpha](RELEASE_NOTES_v0.6.1-alpha.md) — manual acceptance pending**
 
 
 https://github.com/user-attachments/assets/67d9f084-840f-433b-a37e-4b3e80dbc69d
@@ -38,6 +38,7 @@ https://github.com/user-attachments/assets/67d9f084-840f-433b-a37e-4b3e80dbc69d
 ## Key Features
 
 - **Agent Workflows**: SammyAI supports multiple writing agents: Assistant, Brainstormer, Writer, Editor, and Critic. 
+- **Chat and Agent Diagnostics**: Inspect persistent request timelines, context warnings, rejected proposals, review decisions, and file history. Optional local content capture and editable export previews help investigate failures. See [Diagnostics](documentation/3_USER_GUIDE/9_Chat_Agent_Diagnostics.md).
 - **Set up Your Own LLM's**: Install and run your own LLM's locally using Ollama or choose your favorite cloud LLM provider and their latest releases.
 - **Offline US English Spell Check**: Optional spelling feedback and undoable corrections in every document tab and the chat composer. See [Writing settings](documentation/3_USER_GUIDE/8_Spell_Check.md).
 - **Change LLM Settings**: Change LLM settings such as temperature, top-p and seed to tailor assistance to your specific needs.

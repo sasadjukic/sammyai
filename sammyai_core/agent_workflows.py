@@ -9,6 +9,8 @@ import logging
 import os
 from pathlib import PurePosixPath
 import re
+import time
+import hashlib
 from typing import Callable, Iterable
 from uuid import uuid4
 
@@ -84,6 +86,9 @@ class AgentRunResult:
     change_preview: ChangeSetPreview | None = None
     notices: tuple[str, ...] = ()
     originating_session_id: str | None = None
+    request_id: str | None = None
+    outcome: str = "responded"
+    originating_project_id: str | None = None
 
 
 LLMCompletion = Callable[[list[dict[str, str]], str], str]
@@ -254,6 +259,9 @@ class AgentWorkflowService:
         file_snapshots: Iterable[FileEditSnapshot] = (),
         addition_policy: AdditionPolicy | None = None,
         on_event: AgentEventCallback | None = None,
+        trace=None,
+        identity=None,
+        response_metadata: Callable[[], dict] | None = None,
     ) -> AgentRunResult:
         selected = AgentType(agent_type)
         definition = AGENT_DEFINITIONS[selected]
@@ -276,12 +284,51 @@ class AgentWorkflowService:
                 "of new append/insert text across all files (approximately four characters per token). "
                 "Unchanged destination text does not count. Use a smaller addition or ask to split a larger request."
             )})
-        run_id = str(uuid4())
+        run_id = identity.run_id if identity else str(uuid4())
+        request_id = identity.request_id if identity else None
         events: list[AgentRunEvent] = []
+        provider_complete = complete
+        call_number = 0
+        incomplete_response = False
+
+        def complete(call_messages, prompt):
+            nonlocal call_number, incomplete_response
+            stage = ("draft", "evaluation", "revision")[call_number] if selected == AgentType.WRITER else "response"
+            call_number += 1
+            step = trace.start_step(request_id, f"model.{stage}") if trace else None
+            started = time.monotonic()
+            if trace:
+                trace.event(request_id, "model.started", f"Model call: {stage}", step_id=step,
+                            details={"prompt_hash": hashlib.sha256(prompt.encode()).hexdigest(), "call_number": call_number})
+                trace.capture(request_id, "prompts", json.dumps({"system_prompt": prompt, "messages": call_messages}, ensure_ascii=False), step_id=step)
+            try:
+                text = provider_complete(call_messages, prompt) or ""
+            except Exception as error:
+                if trace:
+                    trace.exception(request_id, "error.provider", error, step_id=step)
+                    trace.end_step(step, "provider_failed", (time.monotonic() - started) * 1000)
+                    trace.finish(request_id, "provider_failed")
+                raise
+            metadata = (response_metadata() or {}) if response_metadata else {}
+            reason = str(metadata.get("finish_reason") or "unknown").lower()
+            truncated = reason in {"length", "max_tokens", "max_output_tokens"}
+            outcome = "truncated" if truncated else "empty" if not text.strip() else "responded"
+            incomplete_response |= outcome in {"truncated", "empty"}
+            if trace:
+                trace.capture(request_id, "drafts" if stage in {"draft", "evaluation"} else "responses", text, step_id=step)
+                trace.event(request_id, "model." + outcome, f"Model call {stage}: {outcome}", step_id=step, details={
+                    "provider_request_id": metadata.get("provider_request_id"), "usage": metadata.get("usage"),
+                    "finish_reason": metadata.get("finish_reason"), "response_id": metadata.get("response_id"),
+                    "effective_settings": metadata.get("effective_settings"),
+                })
+                trace.end_step(step, outcome, (time.monotonic() - started) * 1000)
+            return text
 
         def record(stage: str, message: str) -> None:
             event = AgentRunEvent(stage, message)
             events.append(event)
+            if trace:
+                trace.event(request_id, "agent." + stage, message)
             if on_event is not None:
                 on_event(event)
 
@@ -303,15 +350,23 @@ class AgentWorkflowService:
             record("completed", f"{selected.display_name} responded")
 
         notices: list[str] = []
+        validation_step = trace.start_step(request_id, "proposal.validation") if trace else None
+        validation_started = time.monotonic()
         try:
             response, directive = self._extract_change_directive(raw_response)
         except (ValueError, json.JSONDecodeError) as error:
-            logger.warning("Invalid agent change directive: %s", error)
-            response = CHANGE_DIRECTIVE_PATTERN.sub("", raw_response).strip()
+            logger.warning("Invalid agent change directive: %s", type(error).__name__)
+            response = re.split(r"<\s*/?\s*sammyai_changes\b", raw_response, maxsplit=1, flags=re.IGNORECASE)[0].strip()
             directive = None
             notices.append(f"File proposal rejected: {error}")
+            if trace:
+                trace.exception(request_id, "error.proposal_parse", error, step_id=validation_step)
         change_set = None
         preview = None
+
+        if incomplete_response:
+            notices.append("The model returned an empty or truncated stage. No file proposal will be applied; retry the request or adjust model limits.")
+            directive = None
 
         if directive is not None:
             if not definition.can_propose_file_changes:
@@ -336,16 +391,34 @@ class AgentWorkflowService:
                         f"Prepared {len(change_set.changes)} file change(s)",
                     )
                 except (ValueError, FileToolError, json.JSONDecodeError) as error:
-                    logger.warning("Agent file directive rejected: %s", error)
+                    logger.warning("Agent file directive rejected: %s", type(error).__name__)
                     notices.append(f"File proposal rejected: {error}")
+                    if trace:
+                        trace.exception(request_id, "error.proposal_validation", error, step_id=validation_step)
+
+        outcome = "pending_review" if change_set else "proposal_rejected" if notices else "responded"
+        if incomplete_response:
+            outcome = "incomplete_response"
+        if trace:
+            trace.event(request_id, "proposal.validation", "Validating proposal against request evidence and edit policy.", step_id=validation_step,
+                        details={"max_added_tokens": policy.max_added_tokens, "max_files": policy.max_files})
+            for notice in notices:
+                trace.event(request_id, "notice.proposal", notice, step_id=validation_step)
+            if notices:
+                trace.capture(request_id, "failed_proposals", raw_response, step_id=validation_step)
+            if change_set:
+                trace.link(request_id, change_set.id, "proposal")
+                trace.event(request_id, "proposal.prepared", "File proposal validated; awaiting review.", step_id=validation_step, details={"proposal_id": change_set.id})
+            trace.end_step(validation_step, outcome, (time.monotonic() - validation_started) * 1000)
+            trace.finish(request_id, outcome)
 
         visible_response = response.strip()
         if not visible_response and change_set is not None:
             visible_response = "I prepared the requested file changes for review."
         elif not visible_response:
             visible_response = (
-                "SammyAI completed the workflow, but the model did not return "
-                "displayable text. Please try again or switch models."
+                "The proposal was rejected; no files were changed. See request diagnostics for details."
+                if notices else "The model did not return displayable text. Please try again or switch models."
             )
 
         return AgentRunResult(
@@ -357,6 +430,9 @@ class AgentWorkflowService:
             change_set=change_set,
             change_preview=preview,
             notices=tuple(notices),
+            request_id=request_id,
+            outcome=outcome,
+            originating_project_id=identity.project_id if identity else None,
         )
 
     def _run_writer(
@@ -567,12 +643,17 @@ class AgentWorkflowService:
         response: str,
     ) -> tuple[str, dict | None]:
         matches = list(CHANGE_DIRECTIVE_PATTERN.finditer(response))
+        markers = re.findall(r"<\s*/?\s*sammyai_changes\b", response, re.IGNORECASE)
+        if markers and (len(matches) != 1 or len(markers) != 2):
+            raise ValueError("Incomplete or malformed change directive envelope")
         if not matches:
             return response, None
         if len(matches) > 1:
             raise ValueError("Agent returned multiple change directives")
         match = matches[0]
         directive = json.loads(match.group(1))
+        if not isinstance(directive, dict) or not isinstance(directive.get("files"), list):
+            raise ValueError("Change directive requires an object with a files list")
         visible_response = (
             response[:match.start()] + response[match.end():]
         ).strip()

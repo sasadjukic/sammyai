@@ -33,7 +33,7 @@ class FakeRAG:
 
 
 class FakeMemory:
-    def build_context(self, query, max_tokens):
+    def build_context(self, query, max_tokens, *, project=...):
         assert query == "What does Mara fear?"
         assert max_tokens <= 800
         return SimpleNamespace(
