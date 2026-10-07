@@ -159,3 +159,26 @@ def test_offline_parser_never_applies_a_valid_write(tmp_path):
     source = '<sammyai_changes>' + json.dumps({"files": [{"path": str(target), "operation": "write", "content": "bad"}]}) + '</sammyai_changes>'
     assert inspect_proposal(source) == {"outcome": "parsed", "file_count": 1}
     assert not target.exists()
+
+
+@pytest.mark.parametrize("error_code", ["error.proposal_parse", "error.proposal_validation"])
+def test_restored_chat_prefers_friendly_notice_but_preserves_technical_evidence(trace, error_code):
+    first = trace.begin("chat", None, agent="editor")
+    step = trace.start_step(first.request_id, "proposal.validation")
+    trace.exception(first.request_id, error_code, ValueError("bad proposal"), step_id=step)
+    trace.event(first.request_id, "notice.proposal", "File proposal rejected: bad proposal", step_id=step)
+    # An unrelated error, another validation step and another request must stay
+    # visible even when a friendly rejection exists elsewhere in the chat.
+    trace.exception(first.request_id, "error.provider", TimeoutError("provider timeout"), step_id=step)
+    other_step = trace.start_step(first.request_id, "proposal.validation")
+    trace.exception(first.request_id, error_code, ValueError("other step"), step_id=other_step)
+    second = trace.begin("chat", None, agent="editor")
+    trace.exception(second.request_id, error_code, ValueError("unsaved notice"))
+    restored = RequestTraceService(trace.database)
+    notices = restored.conversation_notices("chat")
+    assert [n["message"] for n in notices] == [
+        "File proposal rejected: bad proposal", "TimeoutError: provider timeout",
+        "ValueError: other step", "ValueError: unsaved notice",
+    ]
+    assert any(e["code"] == error_code and e["step_id"] == step
+               for e in restored.detail(first.request_id)["events"])

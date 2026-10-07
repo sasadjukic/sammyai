@@ -15,6 +15,8 @@ import re
 import traceback
 from uuid import uuid4
 
+from .proposal_protocol import PROMPT_VERSION
+
 logger = logging.getLogger(__name__)
 CONTENT_LIMIT = 128_000
 COLLECTION_LIMIT = 200
@@ -34,6 +36,13 @@ def exception_evidence(error, depth=0):
         value = getattr(error, name, None)
         if isinstance(value, (str, int)):
             evidence[name] = value
+    if isinstance(error, json.JSONDecodeError):
+        # Keep structural evidence even when content capture is disabled. Never
+        # persist error.doc here: the proposal has its own opt-in capture policy.
+        evidence["json_error"] = {
+            "message": error.msg, "line": error.lineno,
+            "column": error.colno, "position": error.pos,
+        }
     cause = error.__cause__ or error.__context__
     if cause is not None and cause is not error and depth < 3:
         evidence["caused_by"] = exception_evidence(cause, depth + 1)
@@ -148,7 +157,7 @@ class RequestTraceService:
         except PackageNotFoundError:
             app_version = "unknown"
         metadata = {"agent": agent, "model": model, "app_version": app_version,
-                    "build": "unknown", "prompt_version": "agent-prompts-v1",
+                    "build": "unknown", "prompt_version": PROMPT_VERSION,
                     "capture_settings": asdict(self.settings)}
         with self.database.transaction() as db:
             db.execute("INSERT INTO diagnostic_requests VALUES (?,?,?,?,?,?,?,?,?,?)", (
@@ -301,7 +310,16 @@ class RequestTraceService:
         with self.database.read() as db:
             rows = db.execute("""SELECT e.* FROM diagnostic_events e JOIN diagnostic_requests r ON r.id=e.request_id
                 WHERE r.conversation_id=? ORDER BY e.sequence""", (conversation_id,)).fetchall()
-        return [dict(row) for row in rows if row["code"].startswith(("notice.", "error.", "request.interrupted"))]
+        proposal_notices = {
+            (row["request_id"], row["step_id"]) for row in rows
+            if row["code"] == "notice.proposal" and row["message"].startswith("File proposal rejected:")
+        }
+        # Chat restores the user-facing rejection once. Technical errors remain
+        # in the full timeline, or in chat if their friendly notice was not saved.
+        return [dict(row) for row in rows
+                if row["code"].startswith(("notice.", "error.", "request.interrupted"))
+                and not (row["code"] in {"error.proposal_parse", "error.proposal_validation"}
+                         and (row["request_id"], row["step_id"]) in proposal_notices)]
 
     @best_effort
     def record_context(self, identity, prepared, *, step_id=None, engine=None):

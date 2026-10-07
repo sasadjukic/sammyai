@@ -285,3 +285,63 @@ def test_malformed_agent_directive_does_not_crash_run(workflow_service):
 
     assert result.change_set is None
     assert "File proposal rejected" in result.notices[0]
+
+
+def missing_brace_proposal(path="chapter.md"):
+    body = json.dumps({"summary": "Rewrite chapter", "files": [
+        {"path": path, "operation": "write", "content": "New chapter.\n"},
+    ]})
+    return '<sammyai_changes>' + body[:-3] + '\n]}</sammyai_changes>'
+
+
+def test_recovered_proposal_still_requires_diff_approval(workflow_service):
+    root, service = workflow_service
+    path = root / "chapter.md"
+    path.write_text("Original chapter.\n", encoding="utf-8")
+    result = service.run("brainstormer", user_request="Rewrite @chapter.md", messages=[],
+                         complete=lambda *_: missing_brace_proposal(), authorized_files=("chapter.md",))
+    assert result.outcome == "pending_review"
+    assert result.model_calls == 1
+    assert result.change_set is not None and result.change_preview is not None
+    assert "formatting corrected" in result.notices[0]
+    assert result.change_set.changes[0].after_content == "New chapter.\n"
+    assert path.read_text(encoding="utf-8") == "Original chapter.\n"
+
+
+@pytest.mark.parametrize("agent,metadata,authorized", [
+    ("critic", {}, True),
+    ("brainstormer", {"finish_reason": "length"}, True),
+    ("brainstormer", {}, False),
+])
+def test_recovery_cannot_bypass_agent_truncation_or_file_authorization(workflow_service, agent, metadata, authorized):
+    root, service = workflow_service
+    path = root / "chapter.md"
+    path.write_text("Original chapter.\n", encoding="utf-8")
+    result = service.run(agent, user_request="Rewrite @chapter.md", messages=[],
+                         complete=lambda *_: missing_brace_proposal(),
+                         authorized_files=("chapter.md",) if authorized else (),
+                         response_metadata=lambda: metadata)
+    assert result.change_set is None
+    assert result.outcome == ("incomplete_response" if metadata else "proposal_rejected")
+    assert not any("formatting corrected" in notice for notice in result.notices)
+    assert path.read_text(encoding="utf-8") == "Original chapter.\n"
+
+
+def test_recovery_cannot_bypass_path_safety(workflow_service):
+    root, service = workflow_service
+    result = service.run("brainstormer", user_request="Write a chapter", messages=[],
+                         complete=lambda *_: missing_brace_proposal("../outside.md"))
+    assert result.change_set is None
+    assert result.outcome == "proposal_rejected"
+    assert not (root.parent / "outside.md").exists()
+
+
+def test_incomplete_writer_draft_prevents_final_proposal_recovery(workflow_service):
+    _root, service = workflow_service
+    replies = iter(["", "Evaluation", missing_brace_proposal()])
+    result = service.run("writer", user_request="Create a chapter", messages=[],
+                         complete=lambda *_: next(replies))
+    assert result.model_calls == 3
+    assert result.outcome == "incomplete_response"
+    assert result.change_set is None
+    assert not any("formatting corrected" in notice for notice in result.notices)

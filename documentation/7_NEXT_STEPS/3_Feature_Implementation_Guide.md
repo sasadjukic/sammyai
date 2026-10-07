@@ -481,6 +481,9 @@ because earlier decisions can shift later line ranges.
 
 See [implementation and acceptance](9_Chat_Agent_Diagnostics.md).
 
+The subsequent user-requested automated-editing follow-up is tracked separately
+in [targeted replacements and plain-text proposals](10_Reliable_Agent_Editing.md).
+
 Schedule this after acceptance of the current scoped-file-additions work and
 before selection actions. The 2026-10-06 proposal-rejection investigation
 established the need: a filename typo, partial-context notice, and malformed

@@ -29,6 +29,21 @@ def test_writer_stages_and_configurable_evidence_survive_reload(trace):
             assert event["details"]["finish_reason"] is None
 
 
+def test_normal_prose_is_not_labeled_as_a_json_proposal(trace):
+    _, data = run(trace, ["Some writing advice."])
+    validation = next(e for e in data["events"] if e["code"] == "proposal.validation")["details"]
+    assert validation["proposal_format"] is None and validation["operations"] == []
+
+
+@pytest.mark.parametrize("operation", ["PRIVATE STORY", {"text": "PRIVATE STORY"}])
+def test_invalid_operations_do_not_bypass_capture_settings_in_metadata(trace, operation):
+    raw = '<sammyai_changes>' + json.dumps({"files": [{"path": "chapter.md", "operation": operation}]}) + '</sammyai_changes>'
+    _, data = run(trace, [raw], agent="editor")
+    assert "PRIVATE STORY" not in json.dumps(data)
+    validation = next(e for e in data["events"] if e["code"] == "proposal.validation")["details"]
+    assert validation["operations"] == ["unsupported"]
+
+
 @pytest.mark.parametrize("source", [
     '<sammyai_changes>{"files": broken}</sammyai_changes>',
     '<sammyai_changes>{"files":[]}',
@@ -41,6 +56,26 @@ def test_failed_proposals_have_captured_original_and_truthful_outcome(trace, sou
     assert data["request"]["outcome"] == "proposal_rejected"
     assert any(e["code"] == "error.proposal_parse" and e["details"]["traceback"] for e in data["events"])
     assert next(c for c in data["content"] if c["kind"] == "failed_proposals")["text"] == source
+
+
+def test_malformed_json_ending_retains_location_without_capturing_content(trace):
+    body = '{"files":[\n  {"path":"chapter.md","content":"PRIVATE STORY"' + r'\n]}"\n'
+    with pytest.raises(json.JSONDecodeError) as expected:
+        json.loads(body)
+    result, data = run(trace, ['<sammyai_changes>' + body + '</sammyai_changes>'], agent="editor")
+    assert result.outcome == "proposal_rejected"
+    assert result.change_set is None and result.change_preview is None
+    assert result.model_calls == 1
+    assert "Invalid JSON in change directive" in result.notices[0]
+    assert f"line {expected.value.lineno}, column {expected.value.colno}" in result.notices[0]
+    assert "PRIVATE STORY" not in result.response
+    assert "PRIVATE STORY" not in json.dumps(data)
+    error = next(e for e in data["events"] if e["code"] == "error.proposal_parse")
+    assert error["details"]["exception_type"] == "JSONDecodeError"
+    assert error["details"]["json_error"] == {
+        "message": expected.value.msg, "line": expected.value.lineno,
+        "column": expected.value.colno, "position": expected.value.pos,
+    }
 
 
 @pytest.mark.parametrize("text,metadata,event", [
