@@ -68,19 +68,19 @@ To preview the inspector with sample data and no access to the live index:
 
 ## Desktop acceptance checklist
 
-- [] Open Advanced and confirm the legacy manual indexing submenu is gone,
+- [X] Open Advanced and confirm the legacy manual indexing submenu is gone,
   while Legacy DBE is available. With no project open, importing is disabled.
-- [] Open a test project and import an external Markdown, text, or PDF reference.
+- [X] Open a test project and import an external Markdown, text, or PDF reference.
   Confirm it appears in `References`, the source remains unchanged, and normal
   sync attributes its chunks to the active project in **Indexed Files...**.
-- [ ] Import the same filename again. Confirm a numbered copy appears and the
+- [X] Import the same filename again. Confirm a numbered copy appears and the
   existing project copy is unchanged. Cancel an import and confirm no copy appears.
-- [ ] In the inspector, test each scope, select a file, copy its source path,
+- [X] In the inspector, test each scope, select a file, copy its source path,
   and refresh. If legacy entries exist, confirm they remain visible as unassigned.
-- [ ] Save an edit to a project reference and verify context updates. Remove a
+- [X] Save an edit to a project reference and verify context updates. Remove a
   test reference and rebuild; confirm its project index entry disappears while
   the original external file remains.
-- [ ] Switch projects and confirm retrieval stays scoped to the active project.
+- [X] Switch projects and confirm retrieval stays scoped to the active project.
   Verify ordinary chat, inline review, and Legacy DBE still work.
 
 Use [the user guide](../3_USER_GUIDE/3_RAG_Menu_Options.md) for menu details and
