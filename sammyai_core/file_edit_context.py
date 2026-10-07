@@ -5,6 +5,7 @@ return additions; the application resolves their insertion points in that snapsh
 """
 
 from dataclasses import dataclass
+from bisect import bisect_left
 import re
 
 from editing.change_sets import TextEdit, content_hash
@@ -52,6 +53,40 @@ class FileEditSnapshot:
     @property
     def source_hash(self) -> str:
         return content_hash(self.content)
+
+    def replacements(self, replacements: list[dict]) -> tuple[TextEdit, ...]:
+        """Resolve exact passages against this snapshot, tolerating line endings only."""
+        if not isinstance(replacements, list) or not replacements:
+            raise ValueError("Replace requires a nonempty list of replacement pairs")
+        normalized = self.content.replace("\r\n", "\n").replace("\r", "\n")
+        # Map normalized offsets back to original bytes/characters without
+        # rewriting any untouched text. Each CRLF removes one character.
+        crlf_positions = [match.start() - index for index, match in enumerate(re.finditer("\r\n", self.content))]
+        newline = "\r\n" if "\r\n" in self.content else "\r" if "\r" in self.content and "\n" not in self.content else "\n"
+        edits = []
+        for index, pair in enumerate(replacements, 1):
+            if not isinstance(pair, dict) or set(pair) != {"old_text", "new_text"}:
+                raise ValueError(f"Replacement {index} requires only old_text and new_text")
+            old, new = pair["old_text"], pair["new_text"]
+            if not isinstance(old, str) or not old.strip() or not isinstance(new, str):
+                raise ValueError(f"Replacement {index} requires nonempty search text and string replacement text")
+            search = old.replace("\r\n", "\n").replace("\r", "\n")
+            start = normalized.find(search)
+            if start < 0:
+                raise ValueError(f"Replacement {index} search text was not found; copy an exact supplied passage")
+            if normalized.find(search, start + 1) >= 0:
+                raise ValueError(f"Replacement {index} search text is ambiguous; include more surrounding text")
+            end = start + len(search)
+            start += bisect_left(crlf_positions, start)
+            end += bisect_left(crlf_positions, end)
+            if not self.complete and not any(left <= start and end <= right for left, right in self.visible_ranges):
+                raise ValueError(f"Replacement {index} targets text outside supplied file context")
+            replacement = new.replace("\r\n", "\n").replace("\r", "\n").replace("\n", newline)
+            edits.append(TextEdit(start, end, replacement, expected_text=self.content[start:end]))
+        ordered = sorted(edits, key=lambda edit: (edit.start, edit.end))
+        if any(right.start < left.end for left, right in zip(ordered, ordered[1:])):
+            raise ValueError("Replacement passages overlap; use separate, non-overlapping source passages")
+        return tuple(ordered)
 
     def addition(self, operation: str, content: str, anchor: str | None = None) -> TextEdit:
         if not isinstance(content, str) or not content.strip():

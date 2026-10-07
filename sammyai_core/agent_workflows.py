@@ -16,6 +16,7 @@ from uuid import uuid4
 
 from editing.change_sets import (
     ChangeSet,
+    ChangeSetError,
     ChangeSetPreview,
     FileChangeKind,
     FileChangeRequest,
@@ -29,12 +30,21 @@ from llm.system_prompt import SYSTEM_PROMPT
 
 from .file_tools import FileToolError, SafeFileTools
 from .file_edit_context import AdditionPolicy, FileEditSnapshot, estimate_tokens
+from .proposal_protocol import (
+    OPERATIONS,
+    PROPOSAL_MARKER_PATTERN,
+    TEXT_MARKER_PATTERN,
+    TEXT_OPEN_PATTERN,
+    TEXT_OUTPUT_PROMPT,
+    ProposalFormatError,
+    extract_text_proposal,
+)
 
 
 logger = logging.getLogger(__name__)
 
 CHANGE_DIRECTIVE_PATTERN = re.compile(
-    r"<sammyai_changes>\s*(\{.*?\})\s*</sammyai_changes>",
+    r"<sammyai_changes>(.*?)</sammyai_changes>",
     re.DOTALL,
 )
 
@@ -172,46 +182,7 @@ AGENT_DEFINITIONS = {
     ),
 }
 
-CHANGE_OUTPUT_PROMPT = r"""
-Normal prose belongs outside the directive.
-
-Only when the user explicitly requests a project file creation, update, or
-deletion, append exactly one directive in this form:
-
-<sammyai_changes>
-{"summary":"Short description","files":[
-  {"path":"project-relative.md","operation":"write","content":"complete UTF-8 file content"}
-]}
-</sammyai_changes>
-
-Use only explicitly requested project-relative .md or .txt paths.
-Allowed operations:
-- "write": complete resulting file content. Create a file, or replace an
-  existing file ONLY when its COMPLETE contents were supplied as explicit @file
-  context. Never use write to add a small section to a partially supplied file.
-- "delete": remove a file ONLY with complete explicit @file context.
-- "append": content contains ONLY the new material to add at the file ending.
-  Requires explicit @file context including the ending, not the entire file.
-- "insert_before" / "insert_after": content contains ONLY new material;
-  "anchor" is an exact, unique, complete source line shown in the supplied file
-  context. Insertion is immediately before/after that LINE. To add a scene after
-  another scene's body, insert_before the NEXT scene heading, or append at EOF.
-  Do not invent line numbers, anchors, or omitted source text. If the location is
-  unclear, ask the user to name or quote a unique target line.
-
-Example addition:
-<sammyai_changes>
-{"summary":"Add Scene 20","files":[
-  {"path":"scene_breakdown.md","operation":"append","content":"\n\n## Scene 20\nNew breakdown.\n"}
-]}
-</sammyai_changes>
-
-Keep existing material out of addition content. Include intentional spacing.
-Check supplied headings for duplicate scenes/sections. Headings and excerpts
-may omit relevant story context: ask for more context when continuity requires
-it. Reading a file is not permission to change unrelated parts of it.
-Never claim the change has been applied; SammyAI will show a diff for approval.
-"""
+CHANGE_OUTPUT_PROMPT = TEXT_OUTPUT_PROMPT
 
 READ_ONLY_OUTPUT_PROMPT = """
 Return only the user-facing response. Do not emit tool calls, XML directives,
@@ -232,7 +203,9 @@ the identified problems, and satisfy the original request. Return the final
 user-facing response. If the original request explicitly asked for a file
 change, keep its operation and target scope in the structured change directive.
 Append/insert directives contain ONLY the final new material, never a complete
-replacement file. The same supplied file context applies to every stage.
+replacement file. Replacement SEARCH blocks refer to the original supplied
+file, not the draft. Use the plain-text <sammyai_edits> format for the final
+proposal. The same supplied file context applies to every stage.
 """
 
 
@@ -352,13 +325,40 @@ class AgentWorkflowService:
         notices: list[str] = []
         validation_step = trace.start_step(request_id, "proposal.validation") if trace else None
         validation_started = time.monotonic()
+        recovered_syntax = False
         try:
-            response, directive = self._extract_change_directive(raw_response)
+            try:
+                response, directive = self._extract_change_directive(raw_response)
+            except json.JSONDecodeError as error:
+                repaired = self._recover_missing_file_brace(raw_response, error) if (
+                    definition.can_propose_file_changes and not incomplete_response
+                ) else None
+                if repaired is None:
+                    raise
+                response, directive = self._extract_change_directive(repaired)
+                recovered_syntax = True
+                if trace:
+                    trace.exception(request_id, "proposal.syntax_error", error, step_id=validation_step)
+                    trace.event(request_id, "proposal.syntax_recovered",
+                                "Inserted one missing file-object closing brace; all supplied values are unchanged.",
+                                step_id=validation_step, details={
+                                    "kind": "missing_file_object_brace", "inserted": "}",
+                                    "line": error.lineno, "column": error.colno, "position": error.pos,
+                                    "original_hash": hashlib.sha256(raw_response.encode()).hexdigest(),
+                                    "recovered_hash": hashlib.sha256(repaired.encode()).hexdigest(),
+                                })
         except (ValueError, json.JSONDecodeError) as error:
             logger.warning("Invalid agent change directive: %s", type(error).__name__)
-            response = re.split(r"<\s*/?\s*sammyai_changes\b", raw_response, maxsplit=1, flags=re.IGNORECASE)[0].strip()
+            response = PROPOSAL_MARKER_PATTERN.split(raw_response, maxsplit=1)[0].strip()
             directive = None
-            notices.append(f"File proposal rejected: {error}")
+            if isinstance(error, json.JSONDecodeError):
+                notices.append(
+                    "File proposal rejected: Invalid JSON in change directive "
+                    f"at line {error.lineno}, column {error.colno}: {error.msg}. "
+                    "No files were changed. Ask the agent to regenerate the proposal with valid JSON."
+                )
+            else:
+                notices.append(f"File proposal rejected: {error}")
             if trace:
                 trace.exception(request_id, "error.proposal_parse", error, step_id=validation_step)
         change_set = None
@@ -380,17 +380,18 @@ class AgentWorkflowService:
                 )
             else:
                 try:
-                    change_set = self._prepare_change_set(
+                    prepared_change_set = self._prepare_change_set(
                         directive,
                         file_snapshots=snapshots,
                         policy=policy,
                     )
-                    preview = self.file_tools.preview(change_set)
+                    preview = self.file_tools.preview(prepared_change_set)
+                    change_set = prepared_change_set
                     record(
                         "review",
                         f"Prepared {len(change_set.changes)} file change(s)",
                     )
-                except (ValueError, FileToolError, json.JSONDecodeError) as error:
+                except (ValueError, FileToolError, ChangeSetError) as error:
                     logger.warning("Agent file directive rejected: %s", type(error).__name__)
                     notices.append(f"File proposal rejected: {error}")
                     if trace:
@@ -399,12 +400,26 @@ class AgentWorkflowService:
         outcome = "pending_review" if change_set else "proposal_rejected" if notices else "responded"
         if incomplete_response:
             outcome = "incomplete_response"
+        if recovered_syntax and change_set is not None:
+            notices.append(
+                "File proposal formatting corrected: restored one missing closing brace. "
+                "The proposed file content is unchanged; review the diff before applying."
+            )
         if trace:
+            proposal_marker = PROPOSAL_MARKER_PATTERN.search(raw_response)
+            proposal_format = None if proposal_marker is None else (
+                "text-v2" if proposal_marker.group().lower().endswith("edits") else "json-v1"
+            )
+            operations = []
+            for item in directive["files"] if directive else []:
+                operation = item.get("operation") if isinstance(item, dict) else None
+                operations.append(operation if isinstance(operation, str) and operation in OPERATIONS else "unsupported")
             trace.event(request_id, "proposal.validation", "Validating proposal against request evidence and edit policy.", step_id=validation_step,
-                        details={"max_added_tokens": policy.max_added_tokens, "max_files": policy.max_files})
+                        details={"max_added_tokens": policy.max_added_tokens, "max_files": policy.max_files,
+                                 "proposal_format": proposal_format, "operations": operations})
             for notice in notices:
                 trace.event(request_id, "notice.proposal", notice, step_id=validation_step)
-            if notices:
+            if notices or recovered_syntax:
                 trace.capture(request_id, "failed_proposals", raw_response, step_id=validation_step)
             if change_set:
                 trace.link(request_id, change_set.id, "proposal")
@@ -590,7 +605,14 @@ class AgentWorkflowService:
                     f"@{path} was referenced but only partial context fit. Whole-file replacement/deletion is blocked; "
                     "use append or insertion for new material, or provide complete context for a rewrite."
                 )
-            if operation == "write":
+            if operation == "replace":
+                if set(item) != {"path", "operation", "replacements"}:
+                    raise ValueError("Replace requires only path, operation and replacements")
+                if snapshot is None:
+                    raise FileToolError(f"Replacements require current explicit @file context: {path}")
+                edits = snapshot.replacements(item["replacements"])
+                requests.append(FileChangeRequest.edit(path, edits, expected_hash=expected_hash))
+            elif operation == "write":
                 content = item.get("content")
                 if not isinstance(content, str):
                     raise ValueError(f"Write for {path} requires string content")
@@ -639,18 +661,62 @@ class AgentWorkflowService:
         return change_set
 
     @staticmethod
+    def _recover_missing_file_brace(response: str, error: json.JSONDecodeError) -> str | None:
+        """Recover only a missing final file-object brace, never text or values.
+
+        Both envelope tags and the remaining array/root closers must already
+        exist. One insertion must make the whole body parse; no truncation,
+        quote/escape fixing, inferred fields, or repeated repair is permitted.
+        The caller still performs all authorization and file-policy checks.
+        """
+        if error.msg != "Expecting ',' delimiter" or not re.fullmatch(r"\]\s*\}\s*", error.doc[error.pos:]):
+            return None
+        body = error.doc[:error.pos] + "}" + error.doc[error.pos:]
+        try:
+            directive = json.loads(body)
+        except json.JSONDecodeError:
+            return None
+        if not isinstance(directive, dict) or set(directive) - {"summary", "files"}:
+            return None
+        # Requiring files last and a flat final file object ensures the inserted
+        # brace closes that file, not an unrelated nested object or metadata.
+        files = directive.get("files")
+        if list(directive)[-1:] != ["files"] or not isinstance(files, list) or not files:
+            return None
+        last_file = files[-1]
+        if (not isinstance(last_file, dict)
+                or set(last_file) - {"path", "operation", "content", "anchor"}
+                or not all(isinstance(value, str) for value in last_file.values())
+                or not {"path", "operation", "content"} <= set(last_file)):
+            return None
+        matches = list(CHANGE_DIRECTIVE_PATTERN.finditer(response))
+        markers = re.findall(r"<\s*/?\s*sammyai_changes\b", response, re.IGNORECASE)
+        if len(matches) != 1 or len(markers) != 2 or matches[0].group(1) != error.doc:
+            return None
+        match = matches[0]
+        return response[:match.start(1)] + body + response[match.end(1):]
+
+    @staticmethod
     def _extract_change_directive(
         response: str,
     ) -> tuple[str, dict | None]:
+        if TEXT_OPEN_PATTERN.search(response):
+            return extract_text_proposal(response)
         matches = list(CHANGE_DIRECTIVE_PATTERN.finditer(response))
         markers = re.findall(r"<\s*/?\s*sammyai_changes\b", response, re.IGNORECASE)
+        if len(matches) > 1:
+            raise ValueError("Agent returned multiple change directives")
         if markers and (len(matches) != 1 or len(markers) != 2):
             raise ValueError("Incomplete or malformed change directive envelope")
         if not matches:
+            if TEXT_MARKER_PATTERN.search(response):
+                raise ProposalFormatError("Incomplete or malformed text edit directive envelope")
             return response, None
-        if len(matches) > 1:
-            raise ValueError("Agent returned multiple change directives")
         match = matches[0]
+        if TEXT_MARKER_PATTERN.search(response[:match.start()] + response[match.end():]):
+            raise ProposalFormatError("Agent returned multiple or mixed change directives")
+        # Validate the envelope independently of its contents so malformed JSON
+        # endings retain the decoder's actual error and location.
         directive = json.loads(match.group(1))
         if not isinstance(directive, dict) or not isinstance(directive.get("files"), list):
             raise ValueError("Change directive requires an object with a files list")

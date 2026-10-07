@@ -9,7 +9,7 @@ import zipfile
 
 wheel = Path(sys.argv[1]).resolve()
 with zipfile.ZipFile(wheel) as archive:
-    for name in ("sammyai_core/diagnostics.py", "ui/diagnostics.py"):
+    for name in ("sammyai_core/diagnostics.py", "sammyai_core/proposal_protocol.py", "ui/diagnostics.py"):
         assert name in archive.namelist(), name
 
 with tempfile.TemporaryDirectory(prefix="sammyai-diagnostics-package-") as temporary:
@@ -55,6 +55,40 @@ assert database.connection.execute("SELECT value FROM application_state WHERE ke
 trace.delete()
 assert not trace.list_requests()
 database.close()
-print("Packaged diagnostics migration, persistence, capture, parser and deletion passed")
+from sammyai_core.paths import AppPaths
+from sammyai_core.projects import ProjectRepository, ProjectService
+from sammyai_core.file_tools import SafeFileTools
+from sammyai_core.file_edit_context import FileEditSnapshot
+paths = AppPaths(Path('config'), Path('data'), Path('cache'), Path('logs')).ensure_created()
+projects = ProjectService(ProjectRepository(database), paths)
+Path('novel').mkdir()
+project = projects.open_project(Path('novel'))
+path = project.root_path / 'chapter.md'
+original = 'First old passage.\r\nUnchanged.\r\nSecond old passage.\r\n'
+path.write_bytes(original.encode())
+source = r"""<sammyai_edits>
+summary: Two revisions
+file: chapter.md
+operation: replace
+<<<SAMMYAI_SEARCH>>>
+First old passage.
+<<<SAMMYAI_REPLACEMENT>>>
+First "new" passage.
+<<<SAMMYAI_END>>>
+<<<SAMMYAI_SEARCH>>>
+Second old passage.
+<<<SAMMYAI_REPLACEMENT>>>
+Second new passage with literal \n and backslashes.
+<<<SAMMYAI_END>>>
+</sammyai_edits>"""
+assert inspect_proposal(source) == {'outcome': 'parsed', 'file_count': 1}
+file_tools = SafeFileTools(projects)
+result = AgentWorkflowService(file_tools).run('editor', user_request='Revise @chapter.md', messages=[],
+    file_snapshots=(FileEditSnapshot(project.id, path.name, original, (), True),), complete=lambda *_: source)
+assert result.outcome == 'pending_review', result.notices
+assert path.read_bytes() == original.encode()
+assert result.change_set.changes[0].after_content == original.replace('First old', 'First "new"').replace('Second old passage.', r'Second new passage with literal \n and backslashes.')
+database.close()
+print("Packaged diagnostics and raw-text multi-passage review preparation passed; network blocked")
 '''
     subprocess.run([str(python), "-I", "-c", code], cwd=root, check=True)

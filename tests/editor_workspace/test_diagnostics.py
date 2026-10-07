@@ -54,8 +54,97 @@ def test_october_6_failure_retains_typo_partial_context_and_malformed_proposal(r
     window.chat_panel.load_session(session)
     rendered = window.chat_panel.chat_display.toPlainText()
     assert "scnes.md" in rendered and "partial file context" in rendered
-    assert "File proposal rejected" in rendered
+    assert rendered.count("File proposal rejected") == 1
+    assert "JSONDecodeError:" not in rendered
+    assert "Invalid JSON in change directive" in rendered
     assert all("File proposal rejected" not in m["content"] for m in window.chat_manager.get_messages_for_llm())
+
+
+@pytest.mark.parametrize("capture", [False, True])
+def test_missing_brace_recovery_retains_original_evidence_and_requires_review(review_window, monkeypatch, capture):
+    window, root = review_window
+    path = root / "chapter.md"
+    path.write_text("Original chapter.\n", encoding="utf-8")
+    body = json.dumps({"summary": "Rewrite chapter", "files": [
+        {"path": "chapter.md", "operation": "write", "content": "PRIVATE NEW CHAPTER\n"},
+    ]})
+    raw = '<sammyai_changes>' + body[:-3] + '\n]}</sammyai_changes>'
+    setup_chat(window, monkeypatch, raw)
+    window.trace_service.save_settings(replace(window.trace_service.settings, failed_proposals=capture))
+    window._on_chat_message_sent("Rewrite @chapter.md")
+    data = window.trace_service.detail(window.trace_service.list_requests()[0]["id"], include_content=True)
+    assert data["request"]["outcome"] == "pending_review"
+    assert window.review_controller.batches
+    assert path.read_text(encoding="utf-8") == "Original chapter.\n"
+    events = data["events"]
+    assert sum(e["code"] == "model.started" for e in events) == 1
+    assert any(e["code"] == "proposal.syntax_error" and e["details"]["json_error"] for e in events)
+    recovery = next(e for e in events if e["code"] == "proposal.syntax_recovered")
+    assert recovery["details"]["inserted"] == "}"
+    assert recovery["details"]["original_hash"] != recovery["details"]["recovered_hash"]
+    assert not any(e["code"].startswith("files.") for e in events)
+    captured = next(c for c in data["content"] if c["kind"] == "failed_proposals")
+    assert captured["captured"] == capture
+    assert captured["text"] == (raw if capture else None)
+    assert "PRIVATE NEW CHAPTER" not in json.dumps(events)
+    window.chat_panel.load_session(window.chat_manager.get_active_session())
+    rendered = window.chat_panel.chat_display.toPlainText()
+    assert rendered.count("File proposal formatting corrected") == 1
+    assert "JSONDecodeError:" not in rendered
+
+
+def test_raw_four_part_replacement_supports_partial_review_and_durable_diagnostics(review_window, monkeypatch):
+    window, root = review_window
+    source = ''.join(f'Old part {i}.\r\n' + 'Unchanged context.\r\n' * 8 for i in range(4))
+    path = root / 'chapter.md'
+    path.write_bytes(source.encode())
+    raw = '<sammyai_edits>\nsummary: Revise four passages\nfile: chapter.md\noperation: replace\n'
+    for i in range(4):
+        raw += f'<<<SAMMYAI_SEARCH>>>\nOld part {i}.\n<<<SAMMYAI_REPLACEMENT>>>\nNew "part" {i}.\n<<<SAMMYAI_END>>>\n'
+    raw += '</sammyai_edits>'
+    setup_chat(window, monkeypatch, raw)
+    window._on_chat_message_sent('Revise the four passages in @chapter.md')
+    row = window.trace_service.list_requests()[0]
+    assert row['outcome'] == 'pending_review'
+    assert path.read_bytes() == source.encode()
+    batch = next(iter(window.review_controller.batches.values()))
+    review = batch.reviews[0]
+    assert len(batch.reviews) == 1 and len(review.hunks) == 4
+    for index, hunk in enumerate(review.hunks):
+        review.decide(hunk.id, HunkState.ACCEPTED if index % 2 == 0 else HunkState.REJECTED)
+    assert window.review_controller.apply(batch.id)
+    expected = source.replace('Old part 0.', 'New "part" 0.').replace('Old part 2.', 'New "part" 2.')
+    assert path.read_bytes() == expected.encode()
+    window._undo_last_change_set()
+    assert path.read_bytes() == source.encode()
+    window._redo_last_change_set()
+    assert path.read_bytes() == expected.encode()
+    data = window.trace_service.detail(row['id'], include_content=True)
+    assert data['request']['outcome'] == 'redone'
+    assert data['request']['metadata']['prompt_version'] == 'agent-prompts-v2-text-edits'
+    validation = next(e for e in data['events'] if e['code'] == 'proposal.validation')['details']
+    assert validation['proposal_format'] == 'text-v2' and validation['operations'] == ['replace']
+    assert 'SAMMYAI_SEARCH' not in window.chat_panel.chat_display.toPlainText()
+    assert 'Old part' not in json.dumps(data)
+    assert all('SAMMYAI_SEARCH' not in m['content'] for m in window.chat_manager.get_messages_for_llm())
+
+
+@pytest.mark.parametrize('capture', [False, True])
+def test_malformed_text_proposal_keeps_opt_in_evidence_and_no_writes(review_window, monkeypatch, capture):
+    window, root = review_window
+    path = root / 'chapter.md'
+    path.write_bytes(b'Original')
+    raw = '<sammyai_edits>\nsummary: Rewrite\nfile: chapter.md\noperation: write\n<<<SAMMYAI_CONTENT>>>\nPRIVATE NEW TEXT\n</sammyai_edits>'
+    setup_chat(window, monkeypatch, raw)
+    window.trace_service.save_settings(replace(window.trace_service.settings, failed_proposals=capture))
+    window._on_chat_message_sent('Rewrite @chapter.md')
+    data = window.trace_service.detail(window.trace_service.list_requests()[0]['id'], include_content=True)
+    assert data['request']['outcome'] == 'proposal_rejected'
+    assert not window.review_controller.batches and path.read_bytes() == b'Original'
+    assert 'PRIVATE NEW TEXT' not in window.chat_panel.chat_display.toPlainText()
+    assert 'PRIVATE NEW TEXT' not in json.dumps(data['events'])
+    evidence = next(c for c in data['content'] if c['kind'] == 'failed_proposals')
+    assert evidence['text'] == (raw if capture else None)
 
 
 def traced_review(window, root):
