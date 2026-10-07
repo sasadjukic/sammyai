@@ -22,6 +22,8 @@ class PreparedChatRequest:
 
     messages: List[Dict[str, str]]
     context_result: Any | None = None
+    retrieval_status: str = "unknown"
+    retrieval_error: str | None = None
 
 
 class MessageRole(Enum):
@@ -508,7 +510,8 @@ class ChatManager:
                         query: str,
                         session_id: Optional[str] = None,
                         include_system: bool = True,
-                        top_k: int = 3) -> PreparedChatRequest:
+                        top_k: int = 3, *, project=..., base_messages=None,
+                        cin_context=...) -> PreparedChatRequest:
         """
         Prepare LLM messages together with their request-local file evidence.
         
@@ -522,13 +525,16 @@ class ChatManager:
             Messages with context prepended and their associated context result
         """
         # Get base messages
-        messages = self.get_messages_for_llm(session_id, include_system)
+        messages = self.get_messages_for_llm(session_id, include_system) if base_messages is None else [dict(m) for m in base_messages]
+        injected = self.cin_context if cin_context is ... else cin_context
 
         if self.context_engine is not None:
+            scope = {} if project is ... else {"project": project}
             context_result = self.context_engine.build_context(
                 query,
-                cin_context=self.cin_context,
+                cin_context=injected,
                 top_k=top_k,
+                **scope,
             )
             insert_pos = 0
             for i, message in enumerate(messages):
@@ -544,10 +550,14 @@ class ChatManager:
             return PreparedChatRequest(messages, context_result)
         
         # If RAG system is available, retrieve and inject context
+        retrieval_status = "unavailable" if self.rag_system is None else "not_requested"
+        retrieval_error = None
         if self.rag_system and query:
             try:
                 # Retrieve relevant context
-                context = self.rag_system.get_context(query, top_k=top_k, boost_active_files=True)
+                scope = {"project_id": project.id} if project is not ... and project is not None else {}
+                context = self.rag_system.get_context(query, top_k=top_k, boost_active_files=True, **scope)
+                retrieval_status = "selected" if context and context.chunks else "empty"
                 
                 # Format context for LLM
                 if context and context.chunks:
@@ -571,13 +581,15 @@ class ChatManager:
                     messages.insert(insert_pos, context_message)
             except Exception as e:
                 # If RAG fails, continue without context
-                logger.exception("RAG context retrieval failed")
+                logger.warning("RAG context retrieval failed: %s", type(e).__name__)
+                retrieval_status = "failed"
+                retrieval_error = f"{type(e).__name__}: {e}"
 
         # If CIN context is available, retrieve and inject context
-        if self.cin_context:
+        if injected:
             cin_message = {
                 "role": "system",
-                "content": f"Here is an injected file context (via CIN):\n\n{self.cin_context}\n\nUse this context if relevant to the user query."
+                "content": f"Here is an injected file context (via CIN):\n\n{injected}\n\nUse this context if relevant to the user query."
             }
             # Insert CIN context after system messages
             insert_pos = 0
@@ -588,7 +600,7 @@ class ChatManager:
                     break
             messages.insert(insert_pos, cin_message)
         
-        return PreparedChatRequest(messages)
+        return PreparedChatRequest(messages, retrieval_status=retrieval_status, retrieval_error=retrieval_error)
 
     
     def clear_session(self, session_id: Optional[str] = None, keep_system: bool = True) -> bool:

@@ -123,3 +123,13 @@ text or placing the cursor in the editor does not automatically send that passag
 as editable context. Save the document in a project and reference its exact path
 in your request, such as `Revise the dialogue in @chapter.md`. Story-focused
 selection actions remain a planned feature.
+
+## 8. Investigating a Failed Request
+
+Open **Advanced > Chat and Agent Diagnostics…** to inspect the current
+conversation's requests, or choose **All conversations and projects**. Context
+warnings and failures remain available when reopening a conversation. Model
+completion, proposal rejection, pending review, file application and undo/redo
+are recorded separately. Enable **Failed proposals** before reproducing a parser
+failure when its exact source is needed. See the [diagnostics guide](9_Chat_Agent_Diagnostics.md)
+for capture, export and deletion controls.

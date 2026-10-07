@@ -13,6 +13,7 @@ from rag.rag_system import RAGSystem
 
 from .context_engine import ProjectContextEngine, ProjectFileRepository
 from .database import ProjectDatabase
+from .diagnostics import RequestTraceService
 from .agent_workflows import AgentWorkflowService
 from .file_tools import SafeFileTools
 from .memory import (
@@ -43,6 +44,7 @@ class RuntimeServices:
     rag_error: str | None = None
     llm_error: str | None = None
     project_error: str | None = None
+    trace_service: RequestTraceService | None = None
 
     def shutdown(self) -> None:
         self.chat_manager.save_all_sessions()
@@ -103,6 +105,10 @@ def build_runtime_services(paths: AppPaths) -> RuntimeServices:
         if project_service is not None:
             file_tools = SafeFileTools(project_service)
     agent_workflows = AgentWorkflowService(file_tools)
+    trace_service = RequestTraceService(project_database)
+    trace_service.recover_interrupted()
+    if file_tools is not None:
+        file_tools.trace_service = trace_service
     conversation_summarizer = ConversationSummarizer()
 
     chat_manager = ChatManager(
@@ -112,6 +118,7 @@ def build_runtime_services(paths: AppPaths) -> RuntimeServices:
         autosave=True,
     )
     chat_manager.load_all_sessions()
+    chat_manager.trace_service = trace_service
     if not chat_manager.get_active_session():
         chat_manager.create_session()
 
@@ -143,4 +150,5 @@ def build_runtime_services(paths: AppPaths) -> RuntimeServices:
         rag_error=rag_error,
         llm_error=llm_error,
         project_error=project_error,
+        trace_service=trace_service,
     )

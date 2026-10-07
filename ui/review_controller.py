@@ -36,6 +36,7 @@ class ReviewBatch:
     change_set: ChangeSet | None = None
     temporary_documents: set[str] = field(default_factory=set)
     conflict: str | None = None
+    request_id: str | None = None
 
     @property
     def pending_count(self):
@@ -45,11 +46,13 @@ class ReviewBatch:
 class ReviewController(QObject):
     applied = Signal(object)
     finished = Signal(str)
+    diagnostic_warning = Signal(str)
 
     def __init__(self, workspace, file_tools=None, parent=None):
         super().__init__(parent)
         self.workspace = workspace
         self.file_tools = file_tools
+        self.trace_service = getattr(file_tools, "trace_service", None)
         self.batches: dict[str, ReviewBatch] = {}
         workspace.document_closing.connect(self._document_closing)
 
@@ -64,7 +67,7 @@ class ReviewController(QObject):
             disk = session.path.read_bytes()
         return BufferSnapshot(editor.toPlainText(), editor.document().revision(), session.normalized_path, disk)
 
-    def start_change_set(self, change_set, *, agent_id=None, chat_session_id=None):
+    def start_change_set(self, change_set, *, agent_id=None, chat_session_id=None, request_id=None):
         if self.file_tools is None:
             raise FileToolError("Project file tools are unavailable")
         resolved = self.file_tools.validate(change_set)
@@ -87,6 +90,11 @@ class ReviewController(QObject):
             snapshots[session.session_id] = self._snapshot(session)
             reviews.append(ReviewSession(change_set.id, session.session_id, session.normalized_path, change, agent_id, chat_session_id))
         batch = ReviewBatch(change_set.id, tuple(reviews), snapshots, change_set, temporary)
+        batch.request_id = request_id or (self.trace_service.request_for(change_set.id) if self.trace_service else None)
+        if self.trace_service and batch.request_id:
+            for review in reviews:
+                self.trace_service.link(batch.request_id, review.id, "review")
+            self._trace(batch, "review.created", "Inline review opened; no files changed.")
         self._show(batch, change_set.description)
         return batch
 
@@ -143,6 +151,7 @@ class ReviewController(QObject):
         batch = self.batches.get(batch_id)
         if batch is None:
             return
+        self._trace(batch, "review.decisions", "Current hunk decisions saved.")
         for review in batch.reviews:
             widget = self.workspace.review_for_session(review.target_document_id)
             if widget:
@@ -171,8 +180,13 @@ class ReviewController(QObject):
             return False
         changes = tuple(change for review in batch.reviews if (change := review.final_change()) is not None)
         if not changes:
-            self.cancel(batch_id, message="All proposed changes rejected; no text or files changed.")
+            self._trace(batch, "review.rejected", "All proposed changes rejected; no files changed.", outcome="rejected")
+            self._finish(batch)
+            self.finished.emit("All proposed changes rejected; no text or files changed.")
             return True
+        states = [state.value for review in batch.reviews for state in review.states.values()]
+        self._trace(batch, "review.partially_accepted" if "rejected" in states else "review.accepted", "Review decisions confirmed; validating files before apply.")
+        file_apply_started = False
         try:
             self._validate_buffers(batch)
             if batch.change_set is not None:
@@ -180,6 +194,10 @@ class ReviewController(QObject):
                 # original preconditions in the synthesized accepted change set.
                 self.file_tools.validate(batch.change_set)
                 accepted = ChangeSet(batch.change_set.project_id, batch.change_set.description, changes)
+                if self.trace_service:
+                    self.trace_service.link(batch.request_id, accepted.id, "accepted_change_set")
+                    self._trace(batch, "review.accepted_change_set", "Prepared accepted changes.", details={"accepted_change_set_id": accepted.id})
+                file_apply_started = True
                 applied = self.file_tools.apply(accepted)
             else:
                 applied = None
@@ -191,6 +209,7 @@ class ReviewController(QObject):
                 cursor.endEditBlock()
         except (FileToolError, OSError, ValueError) as error:
             batch.conflict = str(error)
+            self._trace(batch, "notice.review_conflict", str(error), outcome=None if file_apply_started else "conflicted")
             self._refresh(batch_id)
             return False
         self._finish(batch, applied_paths={change.relative_path for change in changes})
@@ -202,6 +221,9 @@ class ReviewController(QObject):
     def cancel(self, batch_id, *, message="Review canceled; no proposed changes applied.", closing_document=None):
         batch = self.batches.get(batch_id)
         if batch is not None:
+            if batch.conflict:
+                message = "Review closed after an error. Inspect the request diagnostics and files before retrying."
+            self._trace(batch, "review.canceled", message, outcome="canceled")
             self._finish(batch, closing_document=closing_document)
             self.finished.emit(message)
 
@@ -223,3 +245,18 @@ class ReviewController(QObject):
     def cancel_all(self):
         for batch_id in tuple(self.batches):
             self.cancel(batch_id)
+
+    def _trace(self, batch, code, message, *, outcome=None, details=None):
+        if self.trace_service and batch.request_id:
+            evidence = {"proposal_id": batch.id, "reviews": [
+                {"review_id": review.id, "document_id": review.target_document_id,
+                 "path": review.change.relative_path, "before_hash": review.change.before_hash,
+                 "after_hash": review.change.after_hash,
+                 "hunks": [{"id": key, "state": state.value} for key, state in review.states.items()]}
+                for review in batch.reviews]}
+            evidence.update(details or {})
+            self.trace_service.event(batch.request_id, code, message, details=evidence)
+            if outcome:
+                self.trace_service.finish(batch.request_id, outcome)
+            if self.trace_service.storage_error:
+                self.diagnostic_warning.emit(self.trace_service.storage_error)

@@ -74,6 +74,7 @@ def test_editor_accepts_injected_runtime_services(tmp_path):
         "Redo Last Applied Change Set",
     ]
     assert [action.text() for action in editor.advanced_menu.actions()] == [
+        "Chat and Agent Diagnostics…",
         "Persistent Memory",
         "Project Context",
     ]

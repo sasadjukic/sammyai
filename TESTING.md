@@ -25,3 +25,15 @@ such as Ollama and are never part of the default CI gate:
 ```bash
 python -m pytest -m external
 ```
+
+Diagnostics regression coverage is included in the default suite. Run its core,
+context and Qt integration tests directly with:
+
+```powershell
+.\Scripts\python.exe -m pytest -q tests/diagnostics tests/context_engine/test_context_diagnostics.py tests/editor_workspace/test_diagnostics.py
+```
+
+The [diagnostics acceptance record](documentation/7_NEXT_STEPS/9_Chat_Agent_Diagnostics.md)
+contains offline wheel checks and the synthetic screenshot command. These tests
+use temporary databases/projects and mocked completions, never real providers or
+the user's application data.
