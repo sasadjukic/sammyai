@@ -1,5 +1,9 @@
 # SammyAI Feature Implementation Guide
 
+Current development version: [v0.6.1-alpha](../../RELEASE_NOTES_v0.6.1-alpha.md)
+(Release 5: Chat and agent diagnostics). Earlier release numbers below identify
+historical milestones; later numbers remain planning targets.
+
 ## Purpose
 
 This document turns the post-v0.4.2-alpha feature ideas into a sequential

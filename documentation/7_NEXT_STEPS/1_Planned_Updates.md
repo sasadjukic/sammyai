@@ -1,10 +1,11 @@
 # Strategic Roadmap and Planned Updates
 
-SammyAI v0.6.0-alpha is the current development release for project-based
+SammyAI v0.6.1-alpha is the current development release for project-based
 creative writing. It combines a multi-file editor, visible chat history, offline
 US English spell checking, project navigation, model and agent workflows,
-automatic project context, persistent memory, and inline diff review. The next
-phase will improve diagnostics and expand the everyday writing experience while
+automatic project context, persistent memory, inline diff review, chat and agent
+diagnostics, and targeted passage replacements. The next phase will add
+story-focused selection actions and expand the everyday writing experience while
 preserving the application's local-first design and user control over AI edits.
 
 This roadmap presents the intended direction at a product level. Features will
@@ -78,14 +79,20 @@ language and include text labels. See the
 
 ### v0.6.1-alpha — Chat and agent diagnostics
 
-Planned diagnostics will preserve a request timeline across context assembly,
-model calls, proposal validation, human review, and file application. Failures
-and notices will remain inspectable after restarting, with configurable local
+> **Status: Current development release — implemented; manual acceptance pending.**
+
+Diagnostics preserve a request timeline across context assembly, model calls,
+proposal validation, human review, and file application. Failures and notices
+remain inspectable after restarting, with configurable local
 content capture and diagnostic export controls.
 
-This foundation will make today's agent workflows easier to troubleshoot and
-support tracing future multi-stage workflows. Detailed scope and acceptance
-criteria are recorded in the [Feature Implementation Guide](3_Feature_Implementation_Guide.md).
+This version also supports targeted replacements in several passages of a file
+and plain-text file proposals to avoid JSON-escaping failures. See the
+[diagnostics guide](../3_USER_GUIDE/9_Chat_Agent_Diagnostics.md) and
+[agent file editing guide](../3_USER_GUIDE/10_Agent_File_Editing.md).
+
+Detailed scope and acceptance criteria are recorded in the
+[Feature Implementation Guide](3_Feature_Implementation_Guide.md).
 
 ### v0.6.2-alpha — Story-focused selection actions
 
@@ -168,6 +175,6 @@ The following priorities apply throughout every roadmap release:
   notes as each feature ships.
 
 > [!NOTE]
-> This roadmap describes the current direction as of v0.6.0-alpha. Priorities
+> This roadmap describes the current direction as of v0.6.1-alpha. Priorities
 > and release boundaries may be adjusted when testing reveals a safer or more
 > useful sequence.

@@ -1,5 +1,7 @@
 # Getting Started with SammyAI
 
+The current development version is [SammyAI v0.6.1-alpha](../../RELEASE_NOTES_v0.6.1-alpha.md).
+
 SammyAI can be installed from source or run through Docker. Source installation is the most useful path for alpha testing because it gives you direct access to the newest code and project files.
 
 ## Installation Options
