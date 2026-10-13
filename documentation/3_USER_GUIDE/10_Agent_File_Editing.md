@@ -1,7 +1,8 @@
 # Revising files with agents
 
-Brainstormer, Writer and Editor can propose coordinated revisions in several
-parts of a file. Reference the file explicitly and describe the intended changes:
+In SammyAI v0.6.1-alpha, Brainstormer, Writer and Editor can propose coordinated
+revisions in several parts of a file. Reference the file explicitly and describe
+the intended changes:
 
 > Update the character setup, Act One, Act Two and Act Three in @pilot_outline.md
 > using the four changes we agreed on. Preserve unrelated passages and show me

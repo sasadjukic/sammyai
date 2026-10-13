@@ -1,6 +1,9 @@
 # SammyAI Features
 
-SammyAI provides a project-based writing workspace with AI chat, context retrieval, persistent memory, reviewed edits, and configurable model access. The goal is to help you create with better continuity while keeping you in control of what changes.
+SammyAI v0.6.1-alpha provides a project-based writing workspace with AI chat, context retrieval, persistent memory, reviewed edits, and configurable model access. The goal is to help you create with better continuity while keeping you in control of what changes.
+
+This version adds [chat and agent diagnostics](../3_USER_GUIDE/9_Chat_Agent_Diagnostics.md)
+and [targeted passage replacements with plain-text proposals](../3_USER_GUIDE/10_Agent_File_Editing.md).
 
 ---
 

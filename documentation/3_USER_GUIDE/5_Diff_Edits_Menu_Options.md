@@ -1,6 +1,6 @@
 # Inline Diff Review
 
-SammyAI v0.6.0-alpha shows proposed edits inside the affected document tabs.
+SammyAI v0.6.1-alpha shows proposed edits inside the affected document tabs.
 Your draft stays intact until you finish reviewing and explicitly apply your decisions.
 
 ![Inline review with accepted, rejected, and pending hunks](pictures/Inline_Review.png)
@@ -49,8 +49,10 @@ Existing section headings and numbered scenes are checked for obvious duplicates
 within the same parent section;
 review remains necessary to catch narrative or semantic duplication.
 
-This release supports additions to large files. Replacing a selected section of
-an oversized file is not yet supported by the agent contract.
+This release also supports exact passage replacements, including several edits
+in one file. In a partially supplied large file, each passage must be fully visible
+in the context and match uniquely. Whole-file rewrites still require complete
+file context. See [agent file editing](10_Agent_File_Editing.md).
 
 ## Drafts, conflicts, and undo
 

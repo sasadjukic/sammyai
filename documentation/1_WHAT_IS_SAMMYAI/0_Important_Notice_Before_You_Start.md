@@ -1,10 +1,10 @@
-## **Welcome to SammyAI v0.6.0-alpha!**
+## **Welcome to SammyAI v0.6.1-alpha!**
 
-SammyAI v0.6.0-alpha is the current development release. It adds inline diff review in the affected document tabs, with controls to accept or reject individual changes before applying them. Multi-file editing, chat history, and offline US English spell checking remain available.
+SammyAI v0.6.1-alpha is the current development release. It adds persistent chat and agent diagnostics to help investigate failed requests, plus targeted passage replacements and plain-text file proposals for more reliable editing. Inline diff review, multi-file editing, chat history, and offline US English spell checking remain available.
 
 **Current Status:**
 
-* **Version:** SammyAI v0.6.0-alpha
+* **Version:** SammyAI v0.6.1-alpha
 * **Development Stage:** Alpha
 * **Projects:** SammyAI now works around normal project folders, a live Project Explorer, recent projects, project settings, and OS-managed application data.
 * **Context Engine:** Project files can be synchronized automatically for retrieval, while explicit file references, Context Injection, RAG, and memory share a bounded prompt budget.
@@ -13,8 +13,10 @@ SammyAI v0.6.0-alpha is the current development release. It adds inline diff rev
 * **Memory:** Project-scoped persistent memories and conversation summaries are available with user approval.
 * **User Interface:** The editor supports multiple independent document tabs, while the chat composer, message layout, Project Explorer, advanced menus, and dark styling share the same workspace.
 
-**Highlights of the Current v0.6.0-alpha Experience:**
+**Highlights of the Current v0.6.1-alpha Experience:**
 
+* **Chat and Agent Diagnostics:** Inspect request timelines, context warnings, rejected proposals, review decisions, and file history under **Advanced > Chat and Agent Diagnostics…**. Content capture is optional, and exports can be previewed and redacted.
+* **Targeted Passage Replacements:** Ask agents to revise several passages in one proposal without regenerating the whole file. Plain-text proposals avoid JSON escaping, and changes still require inline review.
 * **US English Spell Check:** Get spelling feedback and undoable corrections in every tab and the composer. Enable or disable checking under **Settings > Writing**.
 * **Chat History:** Browse and reopen saved conversations, start new chats, rename or delete conversations, and filter by current project, all conversations, or unassigned chats.
 * **Multi-File Editing:** Keep multiple Markdown and text documents open, switch between independent tabs, and restore project tabs after restarting.
