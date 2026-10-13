@@ -142,19 +142,19 @@ capability guessing.
 
 ## Desktop acceptance checklist
 
-- [ ] Open a test project with a breakdown larger than the context allowance.
+- [✓] Open a test project with a breakdown larger than the context allowance.
   Ask Editor to add a new scene using its exact `@file` reference. Confirm that
   partial context is reported and the proposal shows an addition for review.
-- [ ] Accept and apply. Confirm earlier scenes remain intact. Verify undo/redo.
+- [✓] Accept and apply. Confirm earlier scenes remain intact. Verify undo/redo.
   Repeat with Writer to exercise its evaluation and revision stages.
-- [ ] Ask to insert an interlude before a unique middle-scene heading. Confirm
+- [✓] Ask to insert an interlude before a unique middle-scene heading. Confirm
   the proposed location and preservation of subsequent scenes.
-- [ ] Try an existing scene number within the same act and an ambiguous heading.
+- [✓] Try an existing scene number within the same act and an ambiguous heading.
   Confirm the app explains the rejection and leaves the file unchanged. Check
   that scene numbering can restart under a different Markdown act heading.
-- [ ] Edit/save the source while a model request is running. Confirm the stale
+- [✓] Edit/save the source while a model request is running. Confirm the stale
   proposal is rejected; repeat with an external edit after review opens.
-- [ ] Verify small-file rewrites and manual comparisons still work. Try an
+- [✓] Verify small-file rewrites and manual comparisons still work. Try an
   oversized whole-file rewrite and confirm the message explains the context
   limit rather than falsely claiming that no file reference was supplied.
 

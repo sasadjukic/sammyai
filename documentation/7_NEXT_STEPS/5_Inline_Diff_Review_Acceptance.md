@@ -66,26 +66,26 @@ To reproduce the documentation screenshot without opening a desktop window:
 
 ## Windows interactive acceptance checklist
 
-- [X] Start the application with ten tabs and a long chapter. Request an Editor
+- [✓] Start the application with ten tabs and a long chapter. Request an Editor
   proposal. Confirm readable context, additions/deletions, hunk states and controls.
-- [X] Accept/reject nonadjacent hunks, including a change that inserts lines before
+- [✓] Accept/reject nonadjacent hunks, including a change that inserts lines before
   another. Reverse a decision, navigate with keyboard/mouse, then apply.
-- [X] Review multiple files, including create/delete and an empty file. Confirm
+- [✓] Review multiple files, including create/delete and an empty file. Confirm
   Apply stays disabled until all files have decisions; verify file history undo/redo.
-- [X] Switch tabs and conversations while an AI response is running. Confirm its
+- [✓] Switch tabs and conversations while an AI response is running. Confirm its
   review remains attached to its original target and origin metadata.
-- [X] Try an unsaved background tab, an external edit/delete, and a second proposal
+- [✓] Try an unsaved background tab, an external edit/delete, and a second proposal
   for a reviewed tab. Confirm there is no overwrite and conflict recovery is clear.
-- [X] Try Save, Save As, Replace, rename/delete, tab close, quit, and project switch
+- [✓] Try Save, Save As, Replace, rename/delete, tab close, quit, and project switch
   while reviewing. Cancel prompts should preserve the pending review.
-- [X] Try DBE in a clean project file, an unsaved draft, and an untitled tab. Check
+- [✓] Try DBE in a clean project file, an unsaved draft, and an untitled tab. Check
   the Apply destination label, project history or draft Undo/Redo as appropriate.
-- [X] Exercise Compare with File, Clipboard, and Patch. Find and Copy inside review;
+- [✓] Exercise Compare with File, Clipboard, and Patch. Find and Copy inside review;
   return to editing and confirm spelling/search still work without diff markers.
-- [X] Cancel and restart. No proposal text or hunk markers should have been saved.
-- [X] Check a narrow editor with chat open, high DPI, keyboard focus, long wrapped
+- [✓] Cancel and restart. No proposal text or hunk markers should have been saved.
+- [✓] Check a narrow editor with chat open, high DPI, keyboard focus, long wrapped
   lines, Unicode, and CRLF/trailing-newline changes on the actual Windows desktop.
-- [X] Install/run the complete wheel with provisioned dependencies in a clean
+- [✓] Install/run the complete wheel with provisioned dependencies in a clean
   Windows environment. Repeat a real Editor request and review/apply/history flow.
-- [X] Optionally verify `SAMMYAI_POPUP_REVIEW=1`, then remove the variable. Record
+- [✓] Optionally verify `SAMMYAI_POPUP_REVIEW=1`, then remove the variable. Record
   acceptance, mark Release 4 completed, and merge only through the maintainer workflow.

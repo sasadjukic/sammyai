@@ -79,7 +79,7 @@ language and include text labels. See the
 
 ### v0.6.1-alpha — Chat and agent diagnostics
 
-> **Status: Current development release — implemented; manual acceptance pending.**
+**Status: COMPLETED — 2026-10-13**
 
 Diagnostics preserve a request timeline across context assembly, model calls,
 proposal validation, human review, and file application. Failures and notices

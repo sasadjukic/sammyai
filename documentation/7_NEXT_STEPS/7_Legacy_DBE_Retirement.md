@@ -59,18 +59,18 @@ comparisons and agent change sets. Its generic dialog title is now **Diff Viewer
 
 ## Desktop acceptance checklist
 
-- [X] Launch SammyAI and confirm Advanced contains only Persistent Memory and
+- [✓] Launch SammyAI and confirm Advanced contains only Persistent Memory and
   Project Context, with no legacy DBE toggle or trailing separator.
-- [X] Open a project, save a chapter, choose Editor, and request a change using
+- [✓] Open a project, save a chapter, choose Editor, and request a change using
   an explicit file reference. Confirm inline review opens and the file remains
   unchanged until decisions are applied. Verify project history undo/redo.
-- [X] Send ordinary chat requests with the other agents. Confirm the selected
+- [✓] Send ordinary chat requests with the other agents. Confirm the selected
   agent responds and no cursor/selection-based DBE review opens.
-- [X] Compare an unsaved draft with clipboard text. Accept and apply, then
+- [✓] Compare an unsaved draft with clipboard text. Accept and apply, then
   verify editor undo/redo. Compare a saved project file and verify file history.
-- [X] Check file and patch comparisons, review cancellation, tab switching,
+- [✓] Check file and patch comparisons, review cancellation, tab switching,
   and protection against external changes while a proposal is open.
-- [X] Reopen an existing conversation and confirm its transcript is intact.
+- [✓] Reopen an existing conversation and confirm its transcript is intact.
   Confirm Project Context import and index inspection remain available.
 
 See the [chat guide](../3_USER_GUIDE/2_LLM_Chat.md) and

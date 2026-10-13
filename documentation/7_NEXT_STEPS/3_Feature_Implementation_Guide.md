@@ -481,7 +481,7 @@ because earlier decisions can shift later line ranges.
 
 ## Release 5: v0.6.1-alpha — Chat and agent diagnostics
 
-**Status: IN PROGRESS — 2026-10-07; implemented on `codex/chat-agent-diagnostics`, manual acceptance pending.**
+**Status: COMPLETED — 2026-10-13**
 
 See [implementation and acceptance](9_Chat_Agent_Diagnostics.md).
 

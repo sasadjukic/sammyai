@@ -13,10 +13,7 @@ existing conversation JSON and project data through an additive migration.
 
 The initial diagnostics release included no automatic repair, automatic
 acceptance, additional file-write authority, new agents, deterministic model
-replay or crash-resumable editing.
-Offline proposal inspection runs the parser only and never applies changes.
-The subsequent single-brace recovery below extends proposal handling without
-changing write authority or diff approval.
+replay or crash-resumable editing. Offline proposal inspection runs the parser only and never applies changes. The subsequent single-brace recovery below extends proposal handling without changing write authority or diff approval.
 
 ## Implemented
 
@@ -62,13 +59,13 @@ Windows acceptance with configured providers.
 
 ## Acceptance still required
 
-- [ ] Reproduce the October 6 typo / partial context / malformed proposal case.
-- [ ] Reopen the conversation and restart, including an interrupted request.
-- [ ] Exercise Writer draft/evaluate/revise and mixed-hunk review with undo/redo.
-- [ ] Verify distinct provider, stale-file and retrieval failure outcomes.
-- [ ] Inspect content-excluded and content-included exports and redact a preview.
-- [ ] Verify capture settings, retention and diagnostic deletion on Windows.
-- [ ] Complete clean packaged Windows acceptance before tagging a release.
+- [✓] Reproduce the October 6 typo / partial context / malformed proposal case.
+- [✓] Reopen the conversation and restart, including an interrupted request.
+- [✓] Exercise Writer draft/evaluate/revise and mixed-hunk review with undo/redo.
+- [✓] Verify distinct provider, stale-file and retrieval failure outcomes.
+- [✓] Inspect content-excluded and content-included exports and redact a preview.
+- [✓] Verify capture settings, retention and diagnostic deletion on Windows.
+- [✓] Complete clean packaged Windows acceptance before tagging a release.
 
 The release is not marked completed until maintainer manual acceptance.
 
