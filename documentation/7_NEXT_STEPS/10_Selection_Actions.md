@@ -1,7 +1,8 @@
 # Story selection actions — implementation and acceptance
 
 Started 2026-10-21 from `main` at `04caaf1`, on
-`codex/story-selection-actions`. Manual maintainer acceptance is pending.
+`codex/story-selection-actions`. The implementation is merged into `main`, and
+maintainer Windows acceptance was confirmed on 2026-10-28.
 
 ## Implementation
 
@@ -52,20 +53,17 @@ writing project.
 
 ## Manual Windows acceptance
 
-- [ ] Highlight one line and several lines; verify reference labels and no pasted
+- [✓] Highlight one line and several lines; verify reference labels and no pasted
   source in the composer. Include non-BMP characters such as emoji.
-- [ ] Pin via Add Selection to Chat, switch tabs, then ask about the original
+- [✓] Pin via Add Selection to Chat, switch tabs, then ask about the original
   passage. Remove the reference and verify ordinary agent chat.
-- [ ] Compare editor and composer right-click menus, including spelling suggestions.
-- [ ] Try all seven actions with a configured provider, including tone cancel,
+- [✓] Compare editor and composer right-click menus, including spelling suggestions.
+- [✓] Try all seven actions with a configured provider, including tone cancel,
   read-only critique and continuation in the middle of a document.
-- [ ] Accept/reject individual hunks; verify saved-file history and unsaved-draft
+- [✓] Accept/reject individual hunks; verify saved-file history and unsaved-draft
   Undo/Redo. Confirm text outside the selection/insertion is preserved.
-- [ ] Edit, rename, close or externally change the source while generating;
+- [✓] Edit, rename, close or externally change the source while generating;
   verify the result is stale. Switch tabs and verify the original target.
-- [ ] Cancel during generation; verify a late reply cannot open review or apply.
-- [ ] Check provider failure, empty/malformed/truncated output and diagnostics.
-- [ ] Run the packaged application and inspect long filenames, narrow composer
-  widths, multiline references, and keyboard context-menu use.
-
-No release tag, merge or completion status is applied before acceptance.
+- [✓] Cancel during generation; verify a late reply cannot open review or apply.
+- [✓] Check provider failure, empty/malformed/truncated output and diagnostics.
+- [✓] Run the packaged application and inspect long filenames, narrow composer widths, multiline references, and keyboard context-menu use.

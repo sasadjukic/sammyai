@@ -1,6 +1,6 @@
 # Revising files with agents
 
-In SammyAI v0.6.1-alpha, Brainstormer, Writer and Editor can propose coordinated
+In SammyAI v0.6.2-alpha, Brainstormer, Writer and Editor can propose coordinated
 revisions in several parts of a file. Reference the file explicitly and describe
 the intended changes:
 

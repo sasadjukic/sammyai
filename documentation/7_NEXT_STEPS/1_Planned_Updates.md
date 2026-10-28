@@ -1,11 +1,11 @@
 # Strategic Roadmap and Planned Updates
 
-SammyAI v0.6.1-alpha is the current development release for project-based
+SammyAI v0.6.2-alpha is the current development release for project-based
 creative writing. It combines a multi-file editor, visible chat history, offline
 US English spell checking, project navigation, model and agent workflows,
 automatic project context, persistent memory, inline diff review, chat and agent
-diagnostics, and targeted passage replacements. The next phase will add
-story-focused selection actions and expand the everyday writing experience while
+diagnostics, targeted passage replacements, and story-focused selection actions.
+The next phase will add writer style profiles and expand the everyday writing experience while
 preserving the application's local-first design and user control over AI edits.
 
 This roadmap presents the intended direction at a product level. Features will
@@ -96,14 +96,19 @@ Detailed scope and acceptance criteria are recorded in the
 
 ### v0.6.2-alpha — Story-focused selection actions
 
-Selected text will gain a writing-specific context menu with focused actions
+**Status: COMPLETED — 2026-10-28**
+
+Selected text has a writing-specific context menu with focused actions
 such as rewriting, tightening prose, expanding description, improving
 dialogue, changing tone, critiquing a passage, or continuing from the current
 position.
 
-Actions that modify text will produce an inline review instead of replacing
-the writer's work automatically. Read-only actions, such as critique, will
-leave the document unchanged.
+Actions that modify text produce an inline review. Read-only actions, such as
+critique, leave the document unchanged. Compact filename and line-range references
+keep selected prose out of the composer; Add Selection to Chat pins a reference
+across tab switches. The editor and composer retain separate context menus.
+See the [selection actions guide](../3_USER_GUIDE/11_Selection_Actions.md) and
+[acceptance record](10_Selection_Actions.md).
 
 ## v0.7 — Personal Writing Preferences
 
@@ -175,6 +180,6 @@ The following priorities apply throughout every roadmap release:
   notes as each feature ships.
 
 > [!NOTE]
-> This roadmap describes the current direction as of v0.6.1-alpha. Priorities
+> This roadmap describes the current direction as of v0.6.2-alpha. Priorities
 > and release boundaries may be adjusted when testing reveals a safer or more
 > useful sequence.
