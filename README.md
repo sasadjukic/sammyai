@@ -9,7 +9,7 @@
 
 # SammyAI
 
-**Development version: [v0.6.1-alpha](RELEASE_NOTES_v0.6.1-alpha.md) — manual acceptance pending**
+**Development version: [v0.6.2-alpha](RELEASE_NOTES_v0.6.2-alpha.md) — manual acceptance pending**
 
 
 https://github.com/user-attachments/assets/67d9f084-840f-433b-a37e-4b3e80dbc69d
@@ -36,6 +36,8 @@ https://github.com/user-attachments/assets/67d9f084-840f-433b-a37e-4b3e80dbc69d
 </div>
 
 ## Key Features
+
+- **Story Selection Actions**: Select a passage to rewrite, tighten, expand, improve dialogue, change tone, critique, or continue the story. Compact filename and line references keep copied prose out of the composer. Edits require inline review. See [Selection actions](documentation/3_USER_GUIDE/11_Selection_Actions.md).
 
 - **Agent Workflows**: SammyAI supports multiple writing agents: Assistant, Brainstormer, Writer, Editor, and Critic. 
 - **Chat and Agent Diagnostics**: Inspect persistent request timelines, context warnings, rejected proposals, review decisions, and file history. Optional local content capture and editable export previews help investigate failures. See [Diagnostics](documentation/3_USER_GUIDE/9_Chat_Agent_Diagnostics.md).
@@ -97,7 +99,6 @@ Read more in our [Cost, Privacy and Copyrights document](https://github.com/sasa
 ## Roadmap
 
 Planned updates include:
-- **Story-focused selection actions** - Ability to highlight wanted part of your text and perform actions only on that part of the text.
 - **Writer style profiles** - Implementing custom writing profiles
 - **Prose and screenplay modes** - Implementing specific formats
 - **PDF export** - Export stories to PDF 

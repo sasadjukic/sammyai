@@ -25,6 +25,7 @@ from sammyai_core.document_session import (
 )
 from sammyai_core.resources import asset_path
 from ui.code_editor import CodeEditor
+from ui.context_menus import ContextMenuRegistry
 
 
 class EditorWorkspace(QWidget):
@@ -41,10 +42,12 @@ class EditorWorkspace(QWidget):
     document_closing = Signal(str)
     review_changed = Signal(str)
     review_text_changed = Signal(str)
+    selection_changed = Signal(str)
 
     def __init__(self, parent=None, *, create_initial_document: bool = True, spell_hub=None) -> None:
         super().__init__(parent)
         self.spell_hub = spell_hub
+        self.context_menus = ContextMenuRegistry()
         self.setObjectName("editorWorkspace")
         self.tabs = QTabWidget(self)
         self.tabs.setObjectName("editorTabs")
@@ -266,6 +269,9 @@ class EditorWorkspace(QWidget):
 
     def _add_session(self, session: DocumentSession) -> None:
         editor = CodeEditor(self)
+        editor.context_menus = self.context_menus
+        editor.setProperty("documentSessionId", session.session_id)
+        editor.selectionChanged.connect(lambda: self.selection_changed.emit(session.session_id))
         if self.spell_hub is not None:
             from ui.spell_check import SpellCheckController
             SpellCheckController(editor, self.spell_hub)

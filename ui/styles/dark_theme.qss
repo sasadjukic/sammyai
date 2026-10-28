@@ -309,6 +309,35 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
     selection-background-color: #527b8a;
 }
 
+#selectionReference {
+    background-color: #343b3f;
+    border: 1px solid #536066;
+    border-radius: 5px;
+    padding: 2px 5px;
+}
+
+#selectionReferenceLabel {
+    color: #c6e2eb;
+    background: transparent;
+    border: none;
+}
+
+#selectionWorkflowLabel {
+    color: #b8c1c0;
+    background: transparent;
+}
+
+#selectionRemoveButton {
+    color: #c6e2eb;
+    background: transparent;
+    border: none;
+    border-radius: 3px;
+}
+
+#selectionRemoveButton:hover {
+    background: #536066;
+}
+
 #newChatButton {
     background-color: transparent;
     color: #b8c1c0;

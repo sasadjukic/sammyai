@@ -28,6 +28,7 @@ def _extract_color_from_stylesheet(
 
 
 from ui.editor_decorations import EditorDecorationManager
+from ui.context_menus import ContextMenuRegistry, show_text_context_menu
 
 
 class LineNumberArea(QWidget):
@@ -45,6 +46,7 @@ class LineNumberArea(QWidget):
 class CodeEditor(QPlainTextEdit):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
+        self.context_menus = ContextMenuRegistry()
         self.decorations = EditorDecorationManager(self)
         self.lineNumberArea = LineNumberArea(self)
         self.blockCountChanged.connect(self.updateLineNumberAreaWidth)
@@ -54,10 +56,7 @@ class CodeEditor(QPlainTextEdit):
         self.highlightCurrentLine()
 
     def contextMenuEvent(self, event):
-        if hasattr(self, "spell_check"):
-            self.spell_check.context_menu(event)
-        else:
-            super().contextMenuEvent(event)
+        show_text_context_menu(self, event, "editor")
 
     def lineNumberAreaWidth(self) -> int:
         digits = len(str(max(1, self.blockCount())))

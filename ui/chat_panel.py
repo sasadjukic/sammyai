@@ -40,6 +40,7 @@ from PySide6.QtWidgets import (
 )
 
 from sammyai_core.resources import asset_path
+from ui.context_menus import ContextMenuRegistry, show_text_context_menu
 
 
 FILE_MENTION_PATTERN = re.compile(r"(?<![\w@])@([^\s,;]*)$")
@@ -93,6 +94,7 @@ class AutoGrowingTextEdit(QTextEdit):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self.context_menus = ContextMenuRegistry()
         self._project_file_provider: Callable[[], Iterable[str]] | None = None
         self._project_files: tuple[str, ...] = ()
         self._active_mention_start: int | None = None
@@ -115,10 +117,7 @@ class AutoGrowingTextEdit(QTextEdit):
         self.update_editor_height()
 
     def contextMenuEvent(self, event):
-        if hasattr(self, "spell_check"):
-            self.spell_check.context_menu(event)
-        else:
-            super().contextMenuEvent(event)
+        show_text_context_menu(self, event, "composer")
 
     def set_project_file_provider(
         self,
@@ -519,6 +518,8 @@ class ChatPanel(QWidget):
     """Responsive chat panel for LLM and agent interaction."""
 
     message_sent = Signal(str)
+    selection_message_sent = Signal(str, object)
+    cancel_selection_requested = Signal()
     model_selected = Signal(str)
     agent_selected = Signal(str)
     new_chat_requested = Signal()
@@ -547,6 +548,10 @@ class ChatPanel(QWidget):
         self._history_project_id = None
         self._displayed_session_id = None
         self._drafts = {}
+        self._selection_drafts = {}
+        self.selection_reference = None
+        self.selection_pinned = False
+        self._selection_running = False
         self._history_busy = False
         self._welcome_text = ""
         self.setup_ui()
@@ -712,10 +717,13 @@ class ChatPanel(QWidget):
         """Restore a transcript without emitting send or new-chat signals."""
         if self._displayed_session_id:
             self._drafts[self._displayed_session_id] = self.input_field.toPlainText()
+            self._selection_drafts[self._displayed_session_id] = (self.selection_reference, self.selection_pinned)
         self.chat_display.clear()
         self._thinking_message = None
         self._displayed_session_id = session.session_id if session else None
         self.input_field.setPlainText(self._drafts.get(self._displayed_session_id, ""))
+        reference, pinned = self._selection_drafts.get(self._displayed_session_id, (None, False))
+        self.set_selection_reference(reference, pinned=pinned)
         self._set_conversation_started(bool(session and session.messages))
         if session:
             for message in sorted(session.messages, key=lambda m: m.timestamp.timestamp()):
@@ -757,6 +765,7 @@ class ChatPanel(QWidget):
             self.set_status("Could not delete the conversation. Check storage access and try again.")
             return
         self._drafts.pop(session_id, None)
+        self._selection_drafts.pop(session_id, None)
         if self._displayed_session_id == session_id:
             self._displayed_session_id = None
         if not self._history_manager.get_active_session():
@@ -822,6 +831,23 @@ class ChatPanel(QWidget):
         composer_layout.setContentsMargins(12, 10, 10, 9)
         composer_layout.setSpacing(7)
 
+        self.selection_chip = QFrame()
+        self.selection_chip.setObjectName("selectionReference")
+        chip_layout = QHBoxLayout(self.selection_chip)
+        chip_layout.setContentsMargins(0, 0, 0, 0)
+        self.selection_label = ElidedLabel()
+        self.selection_label.setObjectName("selectionReferenceLabel")
+        self.selection_remove = QPushButton("×")
+        self.selection_remove.setObjectName("selectionRemoveButton")
+        self.selection_remove.setFixedSize(26, 24)
+        self.selection_remove.setAccessibleName("Remove selected passage")
+        self.selection_remove.setToolTip("Send without the selected passage")
+        self.selection_remove.clicked.connect(lambda: self.set_selection_reference(None))
+        chip_layout.addWidget(self.selection_label, 1)
+        chip_layout.addWidget(self.selection_remove)
+        composer_layout.addWidget(self.selection_chip)
+        self.selection_chip.hide()
+
         self.input_field = AutoGrowingTextEdit()
         self.input_field.setObjectName("chatInput")
         self.input_field.setPlaceholderText("Ask SammyAI…")
@@ -883,8 +909,18 @@ class ChatPanel(QWidget):
 
         controls_layout.addWidget(self.attach_button)
         controls_layout.addWidget(self.agent_combo)
+        self.selection_workflow_label = QLabel("Selection")
+        self.selection_workflow_label.setObjectName("selectionWorkflowLabel")
+        self.selection_workflow_label.setToolTip("Ask about or revise the attached passage using the selected model")
+        self.selection_workflow_label.hide()
+        controls_layout.addWidget(self.selection_workflow_label)
         controls_layout.addStretch()
         controls_layout.addWidget(self.model_combo)
+        self.cancel_selection_button = QPushButton("Cancel")
+        self.cancel_selection_button.setToolTip("Cancel this selection request; ignore any late response")
+        self.cancel_selection_button.clicked.connect(self.cancel_selection_requested.emit)
+        self.cancel_selection_button.hide()
+        controls_layout.addWidget(self.cancel_selection_button)
         controls_layout.addWidget(self.send_button)
         composer_layout.addLayout(controls_layout)
 
@@ -983,12 +1019,45 @@ class ChatPanel(QWidget):
             return
 
     def _on_send_clicked(self) -> None:
+        if self._history_busy:
+            return
         message = self.input_field.toPlainText().strip()
         if not message:
             return
-        self.message_sent.emit(message)
+        if self.selection_reference is not None:
+            self.selection_message_sent.emit(message, self.selection_reference)
+            self.set_selection_reference(None)
+        else:
+            self.message_sent.emit(message)
         self.input_field.clear()
         self.input_field.update_editor_height()
+
+    def set_selection_reference(self, snapshot, *, pinned=False) -> None:
+        """Keep selected source outside the typed prompt and visible as a compact chip."""
+        self.selection_reference = snapshot
+        self.selection_pinned = pinned and snapshot is not None
+        self.selection_chip.setVisible(snapshot is not None)
+        self._refresh_selection_workflow()
+        if snapshot is not None:
+            self.selection_label.setText(snapshot.label)
+            self.selection_chip.setToolTip(
+                ("Pinned passage\n" if self.selection_pinned else "Active editor selection\n")
+                + f"{snapshot.path or snapshot.display_name}\nSelected passage: lines "
+                f"{snapshot.line_start}–{snapshot.line_end}\n"
+                "Sent with up to 1,500 surrounding characters on each side."
+            )
+
+    def set_selection_running(self, running) -> None:
+        self._selection_running = running
+        self.cancel_selection_button.setVisible(running)
+        self.selection_remove.setEnabled(not running)
+        self._refresh_selection_workflow()
+
+    def _refresh_selection_workflow(self) -> None:
+        selected = self.selection_reference is not None or self._selection_running
+        self.selection_workflow_label.setVisible(selected)
+        self.agent_combo.setVisible(not selected)
+        self.input_field.setPlaceholderText("Ask about this passage…" if selected else "Ask SammyAI…")
 
     def set_project_file_provider(
         self,
@@ -1036,7 +1105,9 @@ class ChatPanel(QWidget):
         self.input_field.setFocus()
         if self._displayed_session_id:
             self._drafts[self._displayed_session_id] = self.input_field.toPlainText()
+            self._selection_drafts[self._displayed_session_id] = (self.selection_reference, self.selection_pinned)
         self._displayed_session_id = None
+        self.set_selection_reference(None)
         self.input_field.clear()
         self.new_chat_requested.emit()
         self.clear_chat_requested.emit()

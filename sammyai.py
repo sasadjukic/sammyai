@@ -51,6 +51,7 @@ from ui.code_editor import (
 )
 from ui.editor_workspace import EditorWorkspace
 from ui.review_controller import ReviewController
+from ui.selection_actions import SelectionActionController
 from sammyai_core.bootstrap import RuntimeServices, build_runtime_services
 from sammyai_core.documents import DocumentService
 from sammyai_core.logging_config import configure_logging, install_exception_hook
@@ -296,6 +297,7 @@ class TextEditor(QMainWindow):
             self.file_tools.trace_service = self.trace_service
         self._active_request_id = None
         self.review_controller = ReviewController(self.editor_workspace, self.file_tools, self)
+        self.selection_actions = SelectionActionController(self)
         self.review_controller.trace_service = self.trace_service
         self.review_controller.applied.connect(self._on_inline_review_applied)
         self.review_controller.finished.connect(self._on_inline_review_finished)
@@ -548,6 +550,7 @@ class TextEditor(QMainWindow):
                 return
         self._persist_active_project_workspace()
         try:
+            self.selection_actions.cancel()
             self.task_runner.shutdown()
             self.runtime_services.shutdown()
         except Exception:
@@ -1971,6 +1974,12 @@ class TextEditor(QMainWindow):
 
 
     # --- Chat panel integration ---
+    def _show_chat_panel(self):
+        if not self.chat_dock:
+            self._create_chat_panel()
+        if self.chat_dock:
+            self.chat_dock.show()
+
     def _toggle_chat_panel(self):
         """Show or hide the chat panel dock."""
         if self.chat_dock and not self.chat_dock.isHidden():
@@ -1996,6 +2005,7 @@ class TextEditor(QMainWindow):
             self.chat_panel.bind_history(self.chat_manager, self._active_chat_project_id())
             self.chat_panel.conversation_selected.connect(self._on_conversation_selected)
             self.chat_panel.message_sent.connect(self._on_chat_message_sent)
+            self.selection_actions.bind_panel(self.chat_panel)
             # When the model selection changes in the UI, attempt to switch clients
             self.chat_panel.model_selected.connect(self._on_model_selected)
             self.chat_panel.agent_selected.connect(self._on_agent_selected)

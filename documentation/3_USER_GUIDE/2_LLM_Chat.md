@@ -36,6 +36,11 @@ The composer holds the prompt field and workflow controls.
 * **Attachment button:** Attach a temporary external reference to the conversation.
 * **Agent selector:** Choose Assistant, Brainstormer, Writer, Editor, or Critic.
 * **Model selector:** Choose one of your configured models.
+* **Selection reference:** Highlight a passage to show its filename and line range
+  above the composer. Add Selection to Chat pins it across tab switches; × removes
+  it. Attached messages use the Selection workflow with the current model, and
+  proposed edits require review. See [Story selection actions](11_Selection_Actions.md)
+  for its focused context rules and editor right-click actions.
 
 ## 4. Agents
 
@@ -65,7 +70,8 @@ for duplicate section headings and numbered scenes before preparing the addition
 
 Partial context may omit story facts, so provide relevant references or request a
 smaller task when continuity needs more context. Updating an existing passage in an
-oversized file remains a separate future feature; an insertion never replaces text.
+oversized file is also available through [selection actions](11_Selection_Actions.md)
+or [exact passage proposals](10_Agent_File_Editing.md); an insertion never replaces text.
 
 ## 5. Project Context
 
