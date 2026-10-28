@@ -98,7 +98,7 @@ class ReviewController(QObject):
         self._show(batch, change_set.description)
         return batch
 
-    def start_buffer(self, document_id, original, proposed, description, *, agent_id=None, chat_session_id=None):
+    def start_buffer(self, document_id, original, proposed, description, *, agent_id=None, chat_session_id=None, request_id=None):
         session = self.workspace.session(document_id)
         editor = self.workspace.editor_for_session(document_id)
         if session is None or editor is None:
@@ -128,11 +128,18 @@ class ReviewController(QObject):
                 )
                 if source.changes[0].before_content != raw_original:
                     raise FileToolError("The file changed while the review was opening")
-                return self.start_change_set(source, agent_id=agent_id, chat_session_id=chat_session_id)
+                if self.trace_service and request_id:
+                    self.trace_service.link(request_id, source.id, "proposal")
+                return self.start_change_set(source, agent_id=agent_id, chat_session_id=chat_session_id, request_id=request_id)
         change = FileChange(session.display_name, FileChangeKind.UPDATE, original, proposed, content_hash(original), content_hash(proposed))
         batch_id = str(uuid4())
         review = ReviewSession(batch_id, document_id, session.normalized_path, change, agent_id, chat_session_id)
         batch = ReviewBatch(batch_id, (review,), {document_id: self._snapshot(session, capture_disk=True)})
+        batch.request_id = request_id
+        if self.trace_service and request_id:
+            self.trace_service.link(request_id, batch.id, "proposal")
+            self.trace_service.link(request_id, review.id, "review")
+            self._trace(batch, "review.created", "Inline draft review opened; no text changed.")
         self._show(batch, description)
         return batch
 
@@ -213,6 +220,8 @@ class ReviewController(QObject):
             self._refresh(batch_id)
             return False
         self._finish(batch, applied_paths={change.relative_path for change in changes})
+        if applied is None:
+            self._trace(batch, "review.applied", "Reviewed changes applied to the draft.", outcome="applied")
         if applied is not None:
             self.applied.emit(applied)
         self.finished.emit("Reviewed changes applied. Use change-set history to undo." if applied else "Reviewed changes applied to the draft. Use Undo to revert.")

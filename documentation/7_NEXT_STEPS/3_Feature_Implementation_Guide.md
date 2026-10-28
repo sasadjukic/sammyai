@@ -1,7 +1,7 @@
 # SammyAI Feature Implementation Guide
 
-Current development version: [v0.6.1-alpha](../../RELEASE_NOTES_v0.6.1-alpha.md)
-(Release 5: Chat and agent diagnostics). Earlier release numbers below identify
+Current development version: [v0.6.2-alpha](../../RELEASE_NOTES_v0.6.2-alpha.md)
+(Release 6: Story-focused selection actions). Earlier release numbers below identify
 historical milestones; later numbers remain planning targets.
 
 ## Purpose
@@ -623,6 +623,13 @@ can reconstruct app behavior without promising deterministic model replay.
 ---
 
 ## Release 6: v0.6.2-alpha — Story-focused selection actions
+
+Implementation is available on `codex/story-selection-actions`; maintainer Windows
+acceptance is pending. See [implementation and acceptance](10_Selection_Actions.md).
+The editor and composer use surface-scoped context-menu contributions. Selecting
+a passage displays a compact filename and line/range reference in the composer;
+Add Selection to Chat pins it across tab switches. Passage text stays outside the
+typed message, and all proposed edits still require inline review.
 
 ### Goal
 

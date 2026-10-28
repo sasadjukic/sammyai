@@ -9,7 +9,8 @@ import zipfile
 
 wheel = Path(sys.argv[1]).resolve()
 with zipfile.ZipFile(wheel) as archive:
-    for name in ("sammyai_core/diagnostics.py", "sammyai_core/proposal_protocol.py", "ui/diagnostics.py"):
+    for name in ("sammyai_core/diagnostics.py", "sammyai_core/proposal_protocol.py", "ui/diagnostics.py",
+                 "sammyai_core/selection_actions.py", "ui/selection_actions.py", "ui/context_menus.py"):
         assert name in archive.namelist(), name
 
 with tempfile.TemporaryDirectory(prefix="sammyai-diagnostics-package-") as temporary:
@@ -28,7 +29,14 @@ from sammyai_core.diagnostics import RequestTraceService, inspect_proposal
 from sammyai_core.agent_workflows import AgentWorkflowService
 socket.socket.connect = lambda *args: (_ for _ in ()).throw(AssertionError("Network forbidden"))
 assert Path(sammyai_core.diagnostics.__file__).is_relative_to(Path(__import__('sys').prefix))
-assert version("sammyai") == "0.6.1a0"
+assert version("sammyai") == "0.6.2a0"
+from sammyai_core.selection_actions import SelectionSnapshot, SelectionActionRequest, SelectionAction, parse_result
+snapshot = SelectionSnapshot('doc', None, 'Untitled 1', '', 'Before.\nOld.\nAfter.', 1, None, 8, 12, 'plain_text')
+request = SelectionActionRequest(snapshot, SelectionAction.REWRITE, 'chat', None)
+result = parse_result('{"kind":"replacement","text":"New."}', request)
+assert result.proposed_text(request) == 'Before.\nNew.\nAfter.'
+assert snapshot.label == 'Untitled 1:2'
+assert 'Old.' in request.messages()[0]['content']
 database = ProjectDatabase("state.sqlite3")
 database.migrate(4)
 with database.transaction() as db:
@@ -48,7 +56,7 @@ trace = RequestTraceService(database)
 trace.recover_interrupted()
 data = trace.detail(identity.request_id, include_content=True)
 assert data["request"]["outcome"] == "proposal_rejected"
-assert data["request"]["metadata"]["app_version"] == "0.6.1a0"
+assert data["request"]["metadata"]["app_version"] == "0.6.2a0"
 assert any(item["text"] == source for item in data["content"])
 assert not data["request"]["incomplete"]
 assert database.connection.execute("SELECT value FROM application_state WHERE key='existing'").fetchone()[0] == "preserved"
