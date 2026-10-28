@@ -1,6 +1,6 @@
 # Chat and Agent Diagnostics
 
-SammyAI v0.6.1-alpha provides persistent request timelines and optional local
+SammyAI v0.6.2-alpha provides persistent request timelines and optional local
 content capture to help investigate chat and agent failures.
 
 ![Diagnostics timeline with synthetic example evidence](pictures/Diagnostics.png)

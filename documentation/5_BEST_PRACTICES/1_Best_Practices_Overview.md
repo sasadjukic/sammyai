@@ -62,4 +62,4 @@ Always review generated content before treating it as final.
 
 ## Next Steps
 
-Read the guides for Projects, LLM Chat, Project Context, Attached References, Diff Review, Agent File Editing, and Chat and Agent Diagnostics to understand how the v0.6.1-alpha workflow fits together.
+Read the guides for Projects, LLM Chat, Project Context, Attached References, Diff Review, Agent File Editing, Selection Actions, and Chat and Agent Diagnostics to understand how the v0.6.2-alpha workflow fits together.

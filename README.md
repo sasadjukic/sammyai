@@ -9,7 +9,7 @@
 
 # SammyAI
 
-**Development version: [v0.6.2-alpha](RELEASE_NOTES_v0.6.2-alpha.md) — manual acceptance pending**
+**Development version: [v0.6.2-alpha](RELEASE_NOTES_v0.6.2-alpha.md) — accepted 2026-10-28**
 
 
 https://github.com/user-attachments/assets/67d9f084-840f-433b-a37e-4b3e80dbc69d

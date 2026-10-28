@@ -1,7 +1,8 @@
 # v0.6.2-alpha — Story-focused selection actions
 
-Development branch: `codex/story-selection-actions`. Python package version:
-`0.6.2a0`. Maintainer Windows acceptance and release tagging are pending.
+Implemented on `codex/story-selection-actions` and merged into `main`. Python
+package version: `0.6.2a0`. Maintainer Windows acceptance was confirmed on
+2026-10-28. Release tagging remains pending.
 
 - Editor right-click actions: Rewrite Selection, Tighten Prose, Expand Description,
   Improve Dialogue, Change Tone, Critique Selection, and Continue From Here.

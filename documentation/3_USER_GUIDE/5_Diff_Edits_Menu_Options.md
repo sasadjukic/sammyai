@@ -1,6 +1,6 @@
 # Inline Diff Review
 
-SammyAI v0.6.1-alpha shows proposed edits inside the affected document tabs.
+SammyAI v0.6.2-alpha shows proposed edits inside the affected document tabs.
 Your draft stays intact until you finish reviewing and explicitly apply your decisions.
 
 ![Inline review with accepted, rejected, and pending hunks](pictures/Inline_Review.png)

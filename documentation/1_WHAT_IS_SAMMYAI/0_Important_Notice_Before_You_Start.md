@@ -1,10 +1,10 @@
-## **Welcome to SammyAI v0.6.1-alpha!**
+## **Welcome to SammyAI v0.6.2-alpha!**
 
-SammyAI v0.6.1-alpha is the current development release. It adds persistent chat and agent diagnostics to help investigate failed requests, plus targeted passage replacements and plain-text file proposals for more reliable editing. Inline diff review, multi-file editing, chat history, and offline US English spell checking remain available.
+SammyAI v0.6.2-alpha is the current development release. It adds story-focused selection actions and compact filename/line references in the composer, so you can work on a passage without copying and pasting it. Proposed edits require inline review. Chat and agent diagnostics, targeted passage replacements, multi-file editing, chat history, and offline US English spell checking remain available.
 
 **Current Status:**
 
-* **Version:** SammyAI v0.6.1-alpha
+* **Version:** SammyAI v0.6.2-alpha
 * **Development Stage:** Alpha
 * **Projects:** SammyAI now works around normal project folders, a live Project Explorer, recent projects, project settings, and OS-managed application data.
 * **Context Engine:** Project files can be synchronized automatically for retrieval, while explicit file references, Context Injection, RAG, and memory share a bounded prompt budget.
@@ -13,7 +13,9 @@ SammyAI v0.6.1-alpha is the current development release. It adds persistent chat
 * **Memory:** Project-scoped persistent memories and conversation summaries are available with user approval.
 * **User Interface:** The editor supports multiple independent document tabs, while the chat composer, message layout, Project Explorer, advanced menus, and dark styling share the same workspace.
 
-**Highlights of the Current v0.6.1-alpha Experience:**
+**Highlights of the Current v0.6.2-alpha Experience:**
+
+* **Story Selection Actions:** Right-click a passage to rewrite, tighten, expand, improve dialogue, change tone, critique, or continue the story. Compact composer references keep selected text out of your typed message. See [Selection actions](../3_USER_GUIDE/11_Selection_Actions.md).
 
 * **Chat and Agent Diagnostics:** Inspect request timelines, context warnings, rejected proposals, review decisions, and file history under **Advanced > Chat and Agent Diagnostics…**. Content capture is optional, and exports can be previewed and redacted.
 * **Targeted Passage Replacements:** Ask agents to revise several passages in one proposal without regenerating the whole file. Plain-text proposals avoid JSON escaping, and changes still require inline review.
