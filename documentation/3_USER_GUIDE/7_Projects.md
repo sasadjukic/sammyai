@@ -36,6 +36,23 @@ no restorable files still has a blank editor ready for writing.
 * Use **Ctrl+Shift+E** to show or hide the Project Explorer.
 * The active project name appears in the window title.
 
+### Many Open Files
+
+When the editor narrows, such as when agent chat opens, tabs stay in one
+scrollable row. Long filenames shorten in the middle; hover over a tab for its
+full path. The **Scroll tabs left/right** arrows reveal more tabs without
+changing the active document.
+
+![Readable tabs with scroll arrows and the Open tabs button](pictures/Tab_Overflow.png)
+
+Use the down-chevron **Open tabs** button at the right edge to choose any open
+document by its full filename. The active file is bold and marked as selected;
+unsaved-change dots and pending-review labels also appear in this menu. Hover
+over a menu entry for its full path. Tab dragging, close buttons and keyboard
+navigation continue to work.
+
+![Open tabs menu with full filenames and the active draft in bold](pictures/Open_Tabs_Menu.png)
+
 ## Close a Project
 
 Choose **File > Close Project** to close the open files inside that project's

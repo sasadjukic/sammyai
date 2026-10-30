@@ -11,6 +11,8 @@ from PySide6.QtWidgets import (
     QApplication,
     QFileIconProvider,
     QLabel,
+    QMenu,
+    QSizePolicy,
     QStyle,
     QTabBar,
     QTabWidget,
@@ -26,6 +28,12 @@ from sammyai_core.document_session import (
 from sammyai_core.resources import asset_path
 from ui.code_editor import CodeEditor
 from ui.context_menus import ContextMenuRegistry
+
+
+class _TabsMenuButton(QToolButton):
+    def sizeHint(self) -> QSize:
+        # QTabWidget reserves corner space from sizeHint, not fixedSize.
+        return QSize(32, 37)
 
 
 class EditorWorkspace(QWidget):
@@ -55,7 +63,39 @@ class EditorWorkspace(QWidget):
         self.tabs.setMovable(True)
         self.tabs.setDocumentMode(True)
         self.tabs.setUsesScrollButtons(True)
-        self.tabs.tabBar().setElideMode(Qt.ElideNone)
+        bar = self.tabs.tabBar()
+        bar.setElideMode(Qt.ElideMiddle)
+        bar.setExpanding(False)
+        # Qt's native scroll buttons inherit the global toolbar padding unless
+        # styled separately. Explicit icons also remain legible in the dark theme.
+        for name, direction in (("ScrollLeftButton", "left"), ("ScrollRightButton", "right")):
+            button = bar.findChild(QToolButton, name)
+            if button is not None:
+                icon_path = asset_path("icons", f"chevron_{direction}.svg")
+                button.setIcon(QIcon(str(icon_path)))
+                button.setIconSize(QSize(16, 16))
+                # QTabBar resets arrowType during layout; style that arrow too.
+                button.setStyleSheet(
+                    f'QToolButton::{direction}-arrow {{ image: url("{icon_path.as_posix()}"); '
+                    'width: 16px; height: 16px; }'
+                )
+                button.setToolTip(f"Scroll tabs {direction}")
+                button.setAccessibleName(f"Scroll tabs {direction}")
+
+        self.tabs_menu_button = _TabsMenuButton(self.tabs)
+        self.tabs_menu_button.setObjectName("editorTabsMenuButton")
+        self.tabs_menu_button.setIcon(QIcon(str(asset_path("icons", "chevron_down.svg"))))
+        self.tabs_menu_button.setIconSize(QSize(16, 16))
+        self.tabs_menu_button.setToolTip("Open tabs")
+        self.tabs_menu_button.setAccessibleName("Open tabs")
+        self.tabs_menu_button.setFocusPolicy(Qt.StrongFocus)
+        self.tabs_menu_button.setFixedSize(32, 37)
+        self.tabs_menu_button.setPopupMode(QToolButton.InstantPopup)
+        self.tabs_menu = QMenu(self.tabs_menu_button)
+        self.tabs_menu.setToolTipsVisible(True)
+        self.tabs_menu.aboutToShow.connect(self._populate_tabs_menu)
+        self.tabs_menu_button.setMenu(self.tabs_menu)
+        self.tabs.setCornerWidget(self.tabs_menu_button, Qt.TopRightCorner)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -76,6 +116,23 @@ class EditorWorkspace(QWidget):
         self.tabs.tabCloseRequested.connect(self._on_tab_close_requested)
         if create_initial_document:
             self.new_document(placeholder=True)
+
+    def _populate_tabs_menu(self) -> None:
+        self.tabs_menu.clear()
+        active = self.active_session()
+        for index, session in enumerate(self.sessions()):
+            label = self.tabs.tabText(index).replace("&", "&&")
+            action = self.tabs_menu.addAction(self.tabs.tabIcon(index), label)
+            action.setCheckable(True)
+            action.setChecked(session is active)
+            font = action.font()
+            font.setBold(session is active)
+            action.setFont(font)
+            action.setToolTip(str(session.path) if session.path else session.display_name)
+            action.setData(session.session_id)
+            action.triggered.connect(
+                lambda _checked=False, session_id=session.session_id: self.activate_document(session_id)
+            )
 
     def active_session(self) -> DocumentSession | None:
         return self.session_at(self.tabs.currentIndex())
@@ -302,6 +359,7 @@ class EditorWorkspace(QWidget):
 
         breadcrumb = QLabel(self)
         breadcrumb.setObjectName("editorBreadcrumb")
+        breadcrumb.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         breadcrumb.setTextInteractionFlags(Qt.TextSelectableByMouse)
         page = QWidget(self.tabs)
         page.setProperty("documentSessionId", session.session_id)

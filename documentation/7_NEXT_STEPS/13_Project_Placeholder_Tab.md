@@ -1,10 +1,14 @@
 # Automatic Untitled tab maintenance
 
-**Status: IMPLEMENTED — awaiting maintainer Windows acceptance**
+**Status: COMPLETED — 2026-10-30**
 
 Branch: `codex/project-placeholder-tab`, based on accepted v0.6.2-alpha and the
 merged project-close/switching fix (PR #33, baseline `aaa567f`). Implementation
 date: 2026-10-30. Package version remains `0.6.2a0`; no release number is assigned.
+
+The maintainer confirmed that the fix works and pushed the changes on
+2026-10-30. It is merged into `main` in PR #34 (`dbbb4bc`). Acceptance records
+that report; it does not claim independent observation of each checklist step.
 
 ## Problem and resulting behavior
 
@@ -68,7 +72,9 @@ $env:TMP = $env:TEMP
 .\Scripts\python.exe -B -u tests/change_sets/check_packaged_review.py build/placeholder-wheel/sammyai-0.6.2a0-py3-none-any.whl
 ```
 
-## Maintainer Windows acceptance
+## Windows regression checklist
+
+Retained for future regression runs following maintainer acceptance.
 
 - [ ] Open Shelf Life with a saved set of file tabs. Only those files restore,
   with the correct active file and no automatic Untitled tab. Restart SammyAI
@@ -83,5 +89,4 @@ $env:TMP = $env:TEMP
   file and verify that the untouched automatic blank disappears.
 - [ ] Close the last tab. One blank editor appears; opening a file replaces it.
 
-Record maintainer acceptance before marking this fix COMPLETED. Commit, push,
-merge and tagging remain maintainer actions.
+The accepted fix is merged. Release tagging remains a maintainer action.

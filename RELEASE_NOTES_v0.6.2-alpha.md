@@ -71,8 +71,9 @@ No database migration or new dependency is required. See the
 
 ## Unreleased maintenance — Unwanted automatic Untitled tab
 
-Implemented on `codex/project-placeholder-tab` on 2026-10-30. Maintainer Windows
-acceptance is pending; package version remains `0.6.2a0`.
+Implemented and accepted by the maintainer on 2026-10-30 on
+`codex/project-placeholder-tab`, then merged into `main` in PR #34.
+Package version remains `0.6.2a0`.
 
 - Restoring project files removes the unused automatic blank tab, including on
   startup, reopening and direct project switching. Opening a file manually uses
@@ -84,3 +85,22 @@ acceptance is pending; package version remains `0.6.2a0`.
 
 No database migration or new dependency is required. See the
 [maintenance acceptance checklist](documentation/7_NEXT_STEPS/13_Project_Placeholder_Tab.md).
+
+## Unreleased maintenance — Editor tab overflow
+
+Implemented on `codex/editor-tab-overflow` on 2026-10-30. Maintainer Windows
+acceptance is pending; package version remains `0.6.2a0`.
+
+- Tab-scroll arrows have dedicated spacing and clear chevron icons. The general
+  toolbar padding no longer obscures them when chat narrows the editor.
+- Tabs retain a readable minimum width and shorten long labels in the middle;
+  hover reveals the full path.
+- An Open tabs menu lists full filenames, marks the active file and preserves
+  unsaved/review indicators. Entries follow tab order and activate documents by
+  stable identity after reordering.
+- Long breadcrumb paths can shrink with the editor instead of forcing a wider
+  window; their full paths remain available on hover.
+
+No database migration or dependency change is required. See the
+[project guide](documentation/3_USER_GUIDE/7_Projects.md#many-open-files) and
+[acceptance checklist](documentation/7_NEXT_STEPS/14_Editor_Tab_Overflow.md).

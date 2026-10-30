@@ -59,7 +59,8 @@ QPlainTextEdit {
     border: none;
     border-right: 1px solid #181818;
     border-top: 1px solid transparent;
-    min-width: 120px;
+    min-width: 160px;
+    max-width: 230px;
     min-height: 30px;
     padding: 3px 10px;
 }
@@ -87,6 +88,36 @@ QPlainTextEdit {
 #editorTabCloseButton:hover {
     background-color: #454545;
     color: #ffffff;
+}
+
+/* Keep overflow controls clear of the global toolbar button padding. */
+#editorTabs QTabBar::scroller {
+    width: 64px;
+}
+
+#editorTabs QToolButton#ScrollLeftButton,
+#editorTabs QToolButton#ScrollRightButton,
+#editorTabsMenuButton {
+    padding: 0;
+    border: none;
+    border-left: 1px solid #181818;
+    border-radius: 0;
+    background-color: #252526;
+}
+
+#editorTabs QToolButton#ScrollLeftButton:hover,
+#editorTabs QToolButton#ScrollRightButton:hover,
+#editorTabsMenuButton:hover {
+    background-color: #3a3a3a;
+}
+
+#editorTabsMenuButton:focus {
+    border: 1px solid #65c0e0;
+}
+
+#editorTabsMenuButton::menu-indicator {
+    image: none;
+    width: 0;
 }
 
 #editorBreadcrumb {
