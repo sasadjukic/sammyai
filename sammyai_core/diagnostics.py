@@ -318,7 +318,7 @@ class RequestTraceService:
         # in the full timeline, or in chat if their friendly notice was not saved.
         return [dict(row) for row in rows
                 if row["code"].startswith(("notice.", "error.", "request.interrupted"))
-                and not (row["code"] in {"error.proposal_parse", "error.proposal_validation"}
+                and not (row["code"] in {"error.proposal_parse", "error.proposal_validation", "error.proposal_missing"}
                          and (row["request_id"], row["step_id"]) in proposal_notices)]
 
     @best_effort

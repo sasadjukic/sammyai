@@ -161,7 +161,7 @@ def test_offline_parser_never_applies_a_valid_write(tmp_path):
     assert not target.exists()
 
 
-@pytest.mark.parametrize("error_code", ["error.proposal_parse", "error.proposal_validation"])
+@pytest.mark.parametrize("error_code", ["error.proposal_parse", "error.proposal_validation", "error.proposal_missing"])
 def test_restored_chat_prefers_friendly_notice_but_preserves_technical_evidence(trace, error_code):
     first = trace.begin("chat", None, agent="editor")
     step = trace.start_step(first.request_id, "proposal.validation")

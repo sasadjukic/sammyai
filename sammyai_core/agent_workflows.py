@@ -30,6 +30,7 @@ from llm.system_prompt import SYSTEM_PROMPT
 
 from .file_tools import FileToolError, SafeFileTools
 from .file_edit_context import AdditionPolicy, FileEditSnapshot, estimate_tokens
+from .writer_file_contract import WriterFileContract
 from .proposal_protocol import (
     OPERATIONS,
     PROPOSAL_MARKER_PATTERN,
@@ -259,6 +260,11 @@ class AgentWorkflowService:
             )})
         run_id = identity.run_id if identity else str(uuid4())
         request_id = identity.request_id if identity else None
+        writer_contract = WriterFileContract.from_request(user_request, snapshots) if selected == AgentType.WRITER else None
+        if trace and writer_contract is not None:
+            trace.event(request_id, "writer.file_request", "Writer file destinations and operations captured before drafting.", details={
+                "targets": [{"path": target.path, "operations": target.operations} for target in writer_contract.targets],
+            })
         events: list[AgentRunEvent] = []
         provider_complete = complete
         call_number = 0
@@ -309,12 +315,15 @@ class AgentWorkflowService:
         record("context", "Project and conversation context prepared")
 
         if selected == AgentType.WRITER:
-            raw_response, calls = self._run_writer(
+            raw_response, calls, writer_contract = self._run_writer(
                 definition,
                 user_request,
                 messages,
                 complete,
                 record,
+                writer_contract,
+                snapshots,
+                policy,
             )
         else:
             prompt = self._compose_prompt(definition)
@@ -368,6 +377,14 @@ class AgentWorkflowService:
             notices.append("The model returned an empty or truncated stage. No file proposal will be applied; retry the request or adjust model limits.")
             directive = None
 
+        if writer_contract is not None and directive is None and not notices:
+            try:
+                writer_contract.validate(None)
+            except ValueError as error:
+                notices.append(f"File proposal rejected: {error}")
+                if trace:
+                    trace.exception(request_id, "error.proposal_missing", error, step_id=validation_step)
+
         if directive is not None:
             if not definition.can_propose_file_changes:
                 notices.append(
@@ -380,6 +397,8 @@ class AgentWorkflowService:
                 )
             else:
                 try:
+                    if writer_contract is not None:
+                        writer_contract.validate(directive)
                     prepared_change_set = self._prepare_change_set(
                         directive,
                         file_snapshots=snapshots,
@@ -400,6 +419,13 @@ class AgentWorkflowService:
         outcome = "pending_review" if change_set else "proposal_rejected" if notices else "responded"
         if incomplete_response:
             outcome = "incomplete_response"
+        if selected == AgentType.WRITER:
+            if change_set:
+                record("completed", "Writer proposal ready for review; no files changed")
+            elif outcome == "responded":
+                record("completed", "Writer workflow completed")
+            else:
+                record("failed", "Writer failed to prepare a valid result; no files changed")
         if recovered_syntax and change_set is not None:
             notices.append(
                 "File proposal formatting corrected: restored one missing closing brace. "
@@ -416,7 +442,9 @@ class AgentWorkflowService:
                 operations.append(operation if isinstance(operation, str) and operation in OPERATIONS else "unsupported")
             trace.event(request_id, "proposal.validation", "Validating proposal against request evidence and edit policy.", step_id=validation_step,
                         details={"max_added_tokens": policy.max_added_tokens, "max_files": policy.max_files,
-                                 "proposal_format": proposal_format, "operations": operations})
+                                 "proposal_format": proposal_format, "operations": operations,
+                                 "writer_targets": [{"path": target.path, "operations": target.operations}
+                                                    for target in writer_contract.targets] if writer_contract else []})
             for notice in notices:
                 trace.event(request_id, "notice.proposal", notice, step_id=validation_step)
             if notices or recovered_syntax:
@@ -435,6 +463,14 @@ class AgentWorkflowService:
                 "The proposal was rejected; no files were changed. See request diagnostics for details."
                 if notices else "The model did not return displayable text. Please try again or switch models."
             )
+        if selected == AgentType.WRITER and change_set is None and notices and (
+            writer_contract.targets or PROPOSAL_MARKER_PATTERN.search(raw_response)
+        ):
+            # Persist the failure with the assistant message itself, so history
+            # remains truthful even if diagnostics are unavailable or pruned.
+            failure = ("Writer could not prepare the requested file change. No files were changed. "
+                       "Regenerate the request. See request diagnostics for the reason.")
+            visible_response = failure + ("\n\nUnapplied Writer response:\n" + response.strip() if response.strip() else "")
 
         return AgentRunResult(
             run_id=run_id,
@@ -457,15 +493,29 @@ class AgentWorkflowService:
         messages: list[dict[str, str]],
         complete: LLMCompletion,
         record: Callable[[str, str], None],
-    ) -> tuple[str, int]:
-        writer_prompt = self._compose_prompt(definition)
+        contract: WriterFileContract,
+        snapshots: tuple[FileEditSnapshot, ...],
+        policy: AdditionPolicy,
+    ) -> tuple[str, int, WriterFileContract]:
+        writer_prompt = self._compose_prompt(definition, run_instruction=contract.prompt())
         draft = complete(messages, writer_prompt)
         record("draft", "Writer produced a first draft")
+
+        draft_check = "No draft file proposal; the final response must still fulfill the original request."
+        try:
+            _, draft_directive = self._extract_change_directive(draft)
+            if draft_directive is not None:
+                contract.validate(draft_directive)
+                self._prepare_change_set(draft_directive, file_snapshots=snapshots, policy=policy)
+                contract = contract.preserve_draft(draft_directive)
+                draft_check = "Draft proposal validated but NOT applied. Preserve its destinations and operations in the final proposal."
+        except (ValueError, FileToolError, ChangeSetError) as error:
+            draft_check = f"Draft proposal is invalid and has NOT been applied: {error}. Correct it against the original request and file snapshots."
 
         evaluation_messages = self._replace_last_user_message(
             messages,
             "ORIGINAL REQUEST:\n"
-            f"{user_request}\n\nDRAFT TO EVALUATE:\n{draft}",
+            f"{user_request}\n\nDRAFT TO EVALUATE:\n{draft}\n\nDRAFT FILE PROPOSAL CHECK:\n{draft_check}",
         )
         evaluator_definition = AgentDefinition(
             type=AgentType.WRITER,
@@ -477,7 +527,7 @@ class AgentWorkflowService:
         )
         evaluation = complete(
             evaluation_messages,
-            self._compose_prompt(evaluator_definition, read_only=True),
+            self._compose_prompt(evaluator_definition, read_only=True, run_instruction=contract.prompt()),
         )
         record("evaluation", "Evaluator reviewed the draft")
 
@@ -485,26 +535,24 @@ class AgentWorkflowService:
             messages,
             "ORIGINAL REQUEST:\n"
             f"{user_request}\n\nFIRST DRAFT:\n{draft}\n\n"
-            f"EVALUATOR BRIEF:\n{evaluation}",
+            f"EVALUATOR BRIEF:\n{evaluation}\n\nDRAFT FILE PROPOSAL CHECK:\n{draft_check}",
         )
         final_response = complete(
             revision_messages,
             self._compose_prompt(
                 definition,
-                run_instruction=REVISION_PROMPT,
+                run_instruction=REVISION_PROMPT + "\n" + contract.prompt(),
             ),
         )
-        if not final_response.strip() and draft.strip():
+        if not final_response.strip() and draft.strip() and not contract.targets:
             record(
                 "revision",
                 "Writer revision returned no text; showing the first draft",
             )
-            record("completed", "Writer workflow completed")
-            return draft, 3
+            return draft, 3, contract
 
-        record("revision", "Writer revised the draft")
-        record("completed", "Writer workflow completed")
-        return final_response, 3
+        record("revision", "Writer revision returned; validating the result")
+        return final_response, 3, contract
 
     @staticmethod
     def _replace_last_user_message(

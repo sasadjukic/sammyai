@@ -23,3 +23,23 @@ No database migration or new dependency is required. See the
 [user guide](documentation/3_USER_GUIDE/11_Selection_Actions.md) for context limits
 and the [acceptance record](documentation/7_NEXT_STEPS/10_Selection_Actions.md)
 for verification and the manual checklist.
+
+## Unreleased maintenance — Writer file operations
+
+Implemented and accepted by the maintainer on 2026-10-29 on
+`codex/writer-file-operation`. Car Show testing covered workflow mechanics and
+execution; writing quality was not evaluated. The saved traces confirm both
+empty-file and populated-file appends through review and application. GitHub
+push/merge and tagging remain maintainer actions; the package version remains
+`0.6.2a0` until a maintenance release is assigned.
+
+- Writer carries explicit file destinations and operations through its three
+  stages. Drafts are explicitly unsaved, and an append must return the complete
+  revised new material, including when the destination is empty.
+- Final proposals that change the requested operation/target or omit the file
+  change fail visibly. The saved assistant reply states that no files changed;
+  diagnostics retain the reason and existing opt-in content capture behavior.
+- Existing source validation, inline review, apply and undo remain required.
+  There are no new dependencies, migrations, automatic retries or model calls.
+
+See the [maintenance acceptance record](documentation/7_NEXT_STEPS/11_Writer_File_Operations.md).
