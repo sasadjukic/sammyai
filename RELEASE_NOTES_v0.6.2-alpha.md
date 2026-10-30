@@ -48,8 +48,9 @@ See the [maintenance acceptance record](documentation/7_NEXT_STEPS/11_Writer_Fil
 
 Implemented on `codex/close-project-tabs` on 2026-10-30. The maintainer passed
 the Close Project checklist using Car Show. Direct project switching was then
-added after testing exposed retained Car Show tabs when opening Shelf Life;
-Windows acceptance of this extension is pending. Package version remains `0.6.2a0`.
+added after testing exposed retained Car Show tabs when opening Shelf Life.
+The maintainer accepted the switching fix and merged it into `main` in PR #33.
+Package version remains `0.6.2a0`.
 
 - Close Project removes all open file tabs inside the project's folder,
   including nested files. Untitled drafts and standalone files stay open.
@@ -67,3 +68,19 @@ Windows acceptance of this extension is pending. Package version remains `0.6.2a
 No database migration or new dependency is required. See the
 [project guide](documentation/3_USER_GUIDE/7_Projects.md#close-a-project) and
 [maintenance acceptance checklist](documentation/7_NEXT_STEPS/12_Project_Close_Tabs.md).
+
+## Unreleased maintenance — Unwanted automatic Untitled tab
+
+Implemented on `codex/project-placeholder-tab` on 2026-10-30. Maintainer Windows
+acceptance is pending; package version remains `0.6.2a0`.
+
+- Restoring project files removes the unused automatic blank tab, including on
+  startup, reopening and direct project switching. Opening a file manually uses
+  the same behavior.
+- New File drafts, edited tabs (including text undone back to empty), named
+  empty files and pending reviews are preserved.
+- If no file can be restored or the last tab is closed, an empty editor remains
+  available. Its untouched placeholder disappears when a file opens successfully.
+
+No database migration or new dependency is required. See the
+[maintenance acceptance checklist](documentation/7_NEXT_STEPS/13_Project_Placeholder_Tab.md).

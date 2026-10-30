@@ -22,6 +22,12 @@ project stay open. Cancel, a failed save, or a failed project open keeps the
 current project and its buffers open. Selecting the already-open project leaves
 its tabs, unsaved edits and pending reviews alone.
 
+When project files restore, the unused automatic **Untitled** tab disappears.
+The same applies when opening the first file from the explorer or Open File.
+Tabs created explicitly with **New File**, drafts you have edited (even if undo
+returns them to empty), and tabs with a pending review are kept. A project with
+no restorable files still has a blank editor ready for writing.
+
 ## Work with Project Files
 
 * Double-click a file in the Project Explorer to open it.

@@ -69,12 +69,13 @@ class EditorWorkspace(QWidget):
         self._reviews: dict[str, QWidget] = {}
         self._path_to_session: dict[str, str] = {}
         self._untitled_counter = 0
+        self._placeholder_session_id: str | None = None
         self._icon_provider = QFileIconProvider()
 
         self.tabs.currentChanged.connect(self._on_current_changed)
         self.tabs.tabCloseRequested.connect(self._on_tab_close_requested)
         if create_initial_document:
-            self.new_document()
+            self.new_document(placeholder=True)
 
     def active_session(self) -> DocumentSession | None:
         return self.session_at(self.tabs.currentIndex())
@@ -166,20 +167,37 @@ class EditorWorkspace(QWidget):
             )
         )
 
-    def new_document(self) -> DocumentSession:
+    def new_document(self, *, placeholder: bool = False) -> DocumentSession:
         self._untitled_counter += 1
         session = DocumentSession.untitled(self._untitled_counter)
+        if placeholder:
+            self._placeholder_session_id = session.session_id
         self._add_session(session)
         return session
 
     def open_document(self, path: str | Path, content: str) -> DocumentSession:
         existing = self.sessions_for_path(path)
         if existing:
-            self.activate_document(existing[0].session_id)
-            return existing[0]
-        session = DocumentSession.from_path(path, content)
-        self._add_session(session)
+            session = existing[0]
+            self.activate_document(session.session_id)
+        else:
+            session = DocumentSession.from_path(path, content)
+            self._add_session(session)
+        self._close_unused_placeholder()
         return session
+
+    def _close_unused_placeholder(self) -> None:
+        """Replace only an automatic, untouched blank after a file opens."""
+        session = self._sessions.get(self._placeholder_session_id)
+        if (
+            session is not None
+            and len(self._sessions) > 1
+            and session.path is None
+            and not session.content
+            and not self.is_modified(session.session_id)
+            and session.session_id not in self._reviews
+        ):
+            self.close_document(session.session_id, ensure_document=False)
 
     def activate_document(self, session_id: str) -> bool:
         page = self._pages.get(session_id)
@@ -202,6 +220,8 @@ class EditorWorkspace(QWidget):
         if session.normalized_path is not None:
             self._path_to_session.pop(session.normalized_path, None)
         session.assign_path(path)
+        if self._placeholder_session_id == session_id:
+            self._placeholder_session_id = None
         self._path_to_session[normalized] = session_id
         self._refresh_session_chrome(session_id)
 
@@ -247,13 +267,15 @@ class EditorWorkspace(QWidget):
         if session.normalized_path is not None:
             self._path_to_session.pop(session.normalized_path, None)
         self._sessions.pop(session_id, None)
+        if self._placeholder_session_id == session_id:
+            self._placeholder_session_id = None
         self._editors.pop(session_id, None)
         self._pages.pop(session_id, None)
         self._breadcrumbs.pop(session_id, None)
         self.tabs.removeTab(index)
         page.deleteLater()
         if ensure_document and not self._sessions:
-            self.new_document()
+            self.new_document(placeholder=True)
         return True
 
     def close_documents(
@@ -265,7 +287,7 @@ class EditorWorkspace(QWidget):
         for session_id in tuple(session_ids):
             self.close_document(session_id, ensure_document=False)
         if ensure_document and not self._sessions:
-            self.new_document()
+            self.new_document(placeholder=True)
 
     def _add_session(self, session: DocumentSession) -> None:
         editor = CodeEditor(self)
@@ -392,7 +414,11 @@ class EditorWorkspace(QWidget):
         if session is None or editor is None:
             return
         was_modified = session.is_modified
-        session.update_content(editor.toPlainText())
+        content = editor.toPlainText()
+        if self._placeholder_session_id == session_id and content != session.content:
+            # Once used as a draft, retain it even after undo returns it to empty.
+            self._placeholder_session_id = None
+        session.update_content(content)
         is_modified = session.is_modified
         editor.document().setModified(is_modified)
         if was_modified != is_modified:
