@@ -10,7 +10,8 @@ import zipfile
 wheel = Path(sys.argv[1]).resolve()
 with zipfile.ZipFile(wheel) as archive:
     for name in ("sammyai_core/diagnostics.py", "sammyai_core/proposal_protocol.py", "ui/diagnostics.py",
-                 "sammyai_core/selection_actions.py", "ui/selection_actions.py", "ui/context_menus.py"):
+                 "sammyai_core/selection_actions.py", "ui/selection_actions.py", "ui/context_menus.py",
+                 "sammyai_core/writer_file_contract.py"):
         assert name in archive.namelist(), name
 
 with tempfile.TemporaryDirectory(prefix="sammyai-diagnostics-package-") as temporary:
@@ -96,7 +97,26 @@ result = AgentWorkflowService(file_tools).run('editor', user_request='Revise @ch
 assert result.outcome == 'pending_review', result.notices
 assert path.read_bytes() == original.encode()
 assert result.change_set.changes[0].after_content == original.replace('First old', 'First "new"').replace('Second old passage.', r'Second new passage with literal \n and backslashes.')
+
+# Writer must retain append on an empty file through all three stages.
+empty = project.root_path / 'draft.md'
+empty.write_bytes(b'')
+addition = '<sammyai_edits>\nsummary: Scene\nfile: draft.md\noperation: append\n<<<SAMMYAI_CONTENT>>>\nNew scene.\n<<<SAMMYAI_END>>>\n</sammyai_edits>'
+replies = iter([addition, 'Improve the scene.', addition])
+result = AgentWorkflowService(file_tools).run('writer', user_request='Append Scene 1 to @draft.md', messages=[],
+    authorized_files=('draft.md',), complete=lambda *_: next(replies))
+assert result.outcome == 'pending_review', result.notices
+assert empty.read_bytes() == b''
+file_tools.apply(result.change_set)
+assert empty.read_bytes() == b'New scene.'
+file_tools.undo_last()
+assert empty.read_bytes() == b''
+replies = iter([addition, 'Improve the scene.', 'I saved the scene.'])
+result = AgentWorkflowService(file_tools).run('writer', user_request='Append Scene 1 to @draft.md', messages=[],
+    authorized_files=('draft.md',), complete=lambda *_: next(replies))
+assert result.outcome == 'proposal_rejected' and result.change_set is None
+assert 'No files were changed.' in result.response and empty.read_bytes() == b''
 database.close()
-print("Packaged diagnostics and raw-text multi-passage review preparation passed; network blocked")
+print("Packaged diagnostics, raw-text proposals and Writer file contracts passed; network blocked")
 '''
     subprocess.run([str(python), "-I", "-c", code], cwd=root, check=True)

@@ -37,6 +37,31 @@ proposals remain supported for compatibility.
 Assistant and Critic remain read-only. Writer keeps the original file snapshot
 through drafting, evaluation and revision.
 
+## Writer file requests
+
+Name the destination and the operation you want, for example:
+
+> Use @story_outline.md to write Scene 1, then append it to @story_draft.md.
+
+An empty Markdown or text file is a valid append destination. You do not need to
+add a placeholder sentence first. Writer carries the requested destination and
+operation through drafting, evaluation and revision. Intermediate drafts have
+not been saved: the final append proposal must contain the complete revised new
+scene, not a replacement for a sentence that exists only in the generated draft.
+
+SammyAI checks the final proposal against the request and any validated draft
+proposal. A changed operation, changed or missing destination, missing proposal,
+or invalid source edit cannot proceed to review. A failed file request starts
+its saved reply with **"Writer could not prepare the requested file change.
+No files were changed."** Any remaining model prose is labeled as unapplied.
+The failure remains visible when the chat is reopened, including after diagnostic
+retention removes the detailed trace. Regenerate the request after checking the
+reason in diagnostics.
+
+Writer still uses three model calls. It does not retry automatically, reinterpret
+an invalid replacement as an append, or apply an intermediate draft. A valid final
+proposal still requires your normal inline review and acceptance.
+
 ## If a proposal is rejected
 
 An ambiguous search needs a longer exact passage, usually including a nearby

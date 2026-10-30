@@ -25,6 +25,36 @@ def setup_chat(window, monkeypatch, reply):
         ProjectFileRepository(window.project_service.repository.database), None)
 
 
+@pytest.mark.parametrize("final", [
+    "I saved the scene.",
+    '<sammyai_edits>\nsummary: Revise draft\nfile: draft.md\noperation: replace\n'
+    '<<<SAMMYAI_SEARCH>>>\nUnsaved draft sentence.\n<<<SAMMYAI_REPLACEMENT>>>\n'
+    'Better sentence.\n<<<SAMMYAI_END>>>\n</sammyai_edits>',
+])
+def test_writer_failure_remains_visible_after_reopening_chat_and_removing_diagnostics(review_window, monkeypatch, final):
+    from llm.chat_manager import ChatSession
+
+    window, root = review_window
+    path = root / "draft.md"
+    path.write_bytes(b"")
+    setup_chat(window, monkeypatch, final)
+    window.chat_panel.agent_combo.setCurrentIndex(window.chat_panel.agent_combo.findData("writer"))
+    replies = iter(["Unsaved draft sentence.", "Improve the sentence.", final])
+    window.llm_client.chat = lambda *_: next(replies)
+    window._on_chat_message_sent("Write Scene 1 and append it to @draft.md")
+    row = window.trace_service.list_requests()[0]
+    assert row["outcome"] == "proposal_rejected"
+    assert not window.review_controller.batches
+    assert path.read_bytes() == b""
+    session = window.chat_manager.get_active_session()
+    assert session.messages[-1].content.startswith("Writer could not prepare the requested file change.")
+    window.trace_service.delete(row["id"])
+    window.chat_panel.load_session(ChatSession.from_dict(session.to_dict()))
+    rendered = window.chat_panel.chat_display.toPlainText()
+    assert "No files were changed." in rendered
+    assert "SAMMYAI_SEARCH" not in rendered
+
+
 def test_october_6_failure_retains_typo_partial_context_and_malformed_proposal(review_window, monkeypatch):
     window, root = review_window
     source = "".join(f"## Scene {i}\n" + "Existing material. " * 100 + "\n" for i in range(1, 20))

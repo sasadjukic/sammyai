@@ -7,12 +7,30 @@ from test_trace_service import trace
 from sammyai_core.agent_workflows import AgentWorkflowService
 
 
-def run(trace, responses, *, agent="general", metadata=None):
+def run(trace, responses, *, agent="general", metadata=None, user_request="Help"):
     identity = trace.begin("chat", "project", agent=agent)
     replies = iter(responses)
-    result = AgentWorkflowService(None).run(agent, user_request="Help", messages=[{"role": "user", "content": "Help"}],
+    result = AgentWorkflowService(None).run(agent, user_request=user_request, messages=[{"role": "user", "content": user_request}],
         complete=lambda *_: next(replies), trace=trace, identity=identity, response_metadata=lambda: metadata or {})
     return result, trace.detail(identity.request_id, include_content=True)
+
+
+@pytest.mark.parametrize("capture", [False, True])
+def test_writer_missing_file_proposal_is_durable_without_automatic_content_capture(trace, capture):
+    trace.save_settings(replace(trace.settings, failed_proposals=capture))
+    final = "PRIVATE SCENE without a file proposal"
+    result, data = run(trace, ["Draft", "Evaluation", final], agent="writer", user_request="Append Scene 1 to @draft.md")
+    assert result.outcome == data["request"]["outcome"] == "proposal_rejected"
+    assert result.change_set is None
+    assert "No files were changed." in result.response
+    assert any(e["code"] == "error.proposal_missing" for e in data["events"])
+    assert any(e["code"] == "agent.failed" for e in data["events"])
+    assert not any(e["code"] == "agent.completed" for e in data["events"])
+    assert "PRIVATE SCENE" not in json.dumps(data["events"])
+    saved = next(c for c in data["content"] if c["kind"] == "failed_proposals")
+    assert saved["text"] == (final if capture else None)
+    assert any("did not return a file-change proposal" in notice["message"]
+               for notice in trace.conversation_notices("chat"))
 
 
 def test_writer_stages_and_configurable_evidence_survive_reload(trace):
