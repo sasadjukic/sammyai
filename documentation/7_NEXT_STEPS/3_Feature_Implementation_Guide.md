@@ -705,9 +705,14 @@ selection or an insertion at the cursor.
 The [Writer file-operation maintenance fix](11_Writer_File_Operations.md) was
 completed and accepted by the maintainer on 2026-10-29 after Car Show testing.
 Acceptance covers mechanics and execution, not writing quality. It addresses
-the October 28 empty-file incident and missing Writer proposals. Its GitHub
-push/merge remains pending; begin this feature from the accepted, merged baseline
-under the branch rules above.
+the October 28 empty-file incident and missing Writer proposals. It is merged
+into `main` in PR #32.
+
+The [project-close and switching tab fix](12_Project_Close_Tabs.md) is implemented
+on `codex/close-project-tabs`. The maintainer accepted the Close Project checks
+using Car Show; direct switching was subsequently added and awaits Windows
+acceptance. Complete this maintenance checkpoint before starting Writer style
+profiles, then begin from the accepted, merged baseline under the branch rules above.
 
 ### Goal
 

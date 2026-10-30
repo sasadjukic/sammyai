@@ -29,9 +29,9 @@ for verification and the manual checklist.
 Implemented and accepted by the maintainer on 2026-10-29 on
 `codex/writer-file-operation`. Car Show testing covered workflow mechanics and
 execution; writing quality was not evaluated. The saved traces confirm both
-empty-file and populated-file appends through review and application. GitHub
-push/merge and tagging remain maintainer actions; the package version remains
-`0.6.2a0` until a maintenance release is assigned.
+empty-file and populated-file appends through review and application. The fix
+was merged into `main` in PR #32. Tagging remains a maintainer action; the package
+version remains `0.6.2a0` until a maintenance release is assigned.
 
 - Writer carries explicit file destinations and operations through its three
   stages. Drafts are explicitly unsaved, and an append must return the complete
@@ -43,3 +43,27 @@ push/merge and tagging remain maintainer actions; the package version remains
   There are no new dependencies, migrations, automatic retries or model calls.
 
 See the [maintenance acceptance record](documentation/7_NEXT_STEPS/11_Writer_File_Operations.md).
+
+## Unreleased maintenance — Close and switch project file tabs
+
+Implemented on `codex/close-project-tabs` on 2026-10-30. The maintainer passed
+the Close Project checklist using Car Show. Direct project switching was then
+added after testing exposed retained Car Show tabs when opening Shelf Life;
+Windows acceptance of this extension is pending. Package version remains `0.6.2a0`.
+
+- Close Project removes all open file tabs inside the project's folder,
+  including nested files. Untitled drafts and standalone files stay open.
+- Open Project, Open Recent Project, New Project and Locate Moved Folder share
+  the outgoing-project tab cleanup. Each project's saved workspace is retained.
+  Failed destination opens preserve the current project and buffers; selecting
+  the already-open project leaves its current work alone.
+- Modified project files prompt for Save, Discard, or Cancel before tabs close.
+  Cancel or a failed save keeps the project open. Pending reviews retain their
+  explicit discard/cancel prompt.
+- Reopening restores the project's saved file tabs and active file. Closing
+  clears references to closed files, including a pinned selection, and cancels a running
+  selection request so a late response cannot open a review.
+
+No database migration or new dependency is required. See the
+[project guide](documentation/3_USER_GUIDE/7_Projects.md#close-a-project) and
+[maintenance acceptance checklist](documentation/7_NEXT_STEPS/12_Project_Close_Tabs.md).

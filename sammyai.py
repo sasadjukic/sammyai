@@ -275,6 +275,7 @@ class TextEditor(QMainWindow):
             self._on_workspace_close_requested
         )
         self._rag_active_file: str | None = None
+        self._closing_project_tabs = False
         self.update_window_title()
 
         # --- Initialize application services outside of the UI layer ---
@@ -454,6 +455,8 @@ class TextEditor(QMainWindow):
         self._rag_active_file = path
 
     def _persist_active_project_workspace(self) -> None:
+        if self._closing_project_tabs:
+            return
         project_service = getattr(self, "project_service", None)
         project = project_service.active_project if project_service else None
         if project is None or not hasattr(project_service, "set_project_setting"):
@@ -902,8 +905,6 @@ class TextEditor(QMainWindow):
             self._set_active_project(project)
 
     def _create_project(self) -> None:
-        if not self._confirm_reviews_can_cancel():
-            return
         if self.project_service is None:
             return
         parent = QFileDialog.getExistingDirectory(
@@ -929,6 +930,9 @@ class TextEditor(QMainWindow):
             )
             return
 
+        project_tabs = self._prepare_project_departure()
+        if project_tabs is None:
+            return
         try:
             project = self.project_service.create_project(
                 Path(parent) / name,
@@ -937,6 +941,7 @@ class TextEditor(QMainWindow):
         except ProjectError as error:
             QMessageBox.critical(self, "Unable to Create Project", str(error))
             return
+        self._close_project_tabs(project_tabs)
         self._set_active_project(project)
 
     def _open_project(self) -> None:
@@ -950,19 +955,31 @@ class TextEditor(QMainWindow):
     def _open_project_path(self, path: str | Path) -> None:
         if self.project_service is None:
             return
-        if not self._confirm_reviews_can_cancel():
+        current = self.project_service.active_project
+        try:
+            if current is not None and Path(path).expanduser().resolve() == current.root_path:
+                return
+        except OSError:
+            pass  # Let ProjectService report an invalid destination below.
+        project_tabs = self._prepare_project_departure()
+        if project_tabs is None:
             return
         try:
             project = self.project_service.open_project(path)
         except ProjectError as error:
             QMessageBox.critical(self, "Unable to Open Project", str(error))
             return
+        self._close_project_tabs(project_tabs)
         self._set_active_project(project)
 
     def _open_registered_project(self, project_id: str) -> None:
         if self.project_service is None:
             return
-        if not self._confirm_reviews_can_cancel():
+        current = self.project_service.active_project
+        if current is not None and current.id == project_id:
+            return
+        project_tabs = self._prepare_project_departure()
+        if project_tabs is None:
             return
         try:
             project = self.project_service.open_registered_project(project_id)
@@ -970,6 +987,7 @@ class TextEditor(QMainWindow):
             QMessageBox.critical(self, "Unable to Open Project", str(error))
             self._populate_recent_projects_menu()
             return
+        self._close_project_tabs(project_tabs)
         self._set_active_project(project)
 
     def _set_active_project(
@@ -1085,13 +1103,51 @@ class TextEditor(QMainWindow):
                 self.STATUS_ERROR,
             )
 
-    def _close_project(self) -> None:
-        if self.project_service is None:
-            return
+    def _prepare_project_departure(self) -> tuple[str, ...] | None:
+        """Resolve unsaved work and remember tabs without removing any buffers."""
+        project = self.project_service.active_project if self.project_service else None
+        root = project.root_path.resolve() if project else None
+        project_tabs = tuple(
+            session.session_id
+            for session in self.editor_workspace.sessions()
+            if root is not None and session.path is not None
+            and session.path.resolve(strict=False).is_relative_to(root)
+        )
+        # Resolve every dirty tab before removing any, including background tabs.
+        for session_id in project_tabs:
+            if self.editor_workspace.is_modified(session_id):
+                if not self._confirm_session_can_close(session_id):
+                    return None
         if not self._confirm_reviews_can_cancel():
-            return
+            return None
         self._persist_active_project_workspace()
+        return project_tabs
+
+    def _close_project_tabs(self, project_tabs: tuple[str, ...]) -> None:
+        # The destination may already be active. Intermediate tab signals must
+        # not overwrite its saved workspace before restoration reads it.
+        self._closing_project_tabs = True
+        try:
+            self.selection_actions.cancel()
+            self.editor_workspace.close_documents(project_tabs)
+            panel = getattr(self, "chat_panel", None)
+            if (
+                panel is not None
+                and panel.selection_reference is not None
+                and panel.selection_reference.document_id in project_tabs
+            ):
+                panel.set_selection_reference(None)
+        finally:
+            self._closing_project_tabs = False
+
+    def _close_project(self) -> None:
+        if self.project_service is None or self.project_service.active_project is None:
+            return
+        project_tabs = self._prepare_project_departure()
+        if project_tabs is None:
+            return
         self.project_service.close_project()
+        self._close_project_tabs(project_tabs)
         if self.project_explorer is not None:
             self.project_explorer.clear_project()
         self._chat_panel_safe(
@@ -1174,11 +1230,15 @@ class TextEditor(QMainWindow):
         )
         if not path:
             return
+        project_tabs = self._prepare_project_departure()
+        if project_tabs is None:
+            return
         try:
             relocated = self.project_service.relocate_project(project_id, path)
         except ProjectError as error:
             QMessageBox.critical(self, "Unable to Relocate Project", str(error))
             return
+        self._close_project_tabs(project_tabs)
 
         cleanup_warning = ""
         if self.rag_system is not None:
