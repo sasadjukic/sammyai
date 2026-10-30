@@ -14,6 +14,14 @@ SammyAI creates the folder, registers it in the local project database, opens th
 
 Choose **File > Open Project** or press **Ctrl+Shift+O**, then select a folder. The folder is registered the first time it is opened. Afterwards it appears under **File > Open Recent Project**.
 
+If a different project is already open, SammyAI checks its modified files with
+Save/Discard/Cancel prompts, closes its project file tabs, and restores the
+destination project's saved tabs and active file. This also applies to New
+Project and Locate Moved Folder. Untitled drafts and files outside the outgoing
+project stay open. Cancel, a failed save, or a failed project open keeps the
+current project and its buffers open. Selecting the already-open project leaves
+its tabs, unsaved edits and pending reviews alone.
+
 ## Work with Project Files
 
 * Double-click a file in the Project Explorer to open it.
@@ -22,7 +30,23 @@ Choose **File > Open Project** or press **Ctrl+Shift+O**, then select a folder. 
 * Use **Ctrl+Shift+E** to show or hide the Project Explorer.
 * The active project name appears in the window title.
 
-Closing a project hides the explorer and clears the active-project state. It does not delete the folder, remove recent-project history, or close the currently displayed document.
+## Close a Project
+
+Choose **File > Close Project** to close the open files inside that project's
+folder, including files in subfolders. SammyAI also hides the explorer and clears
+the active-project state. The files stay on disk and the project stays in recent
+history.
+
+If a project file has unsaved changes, choose **Save**, **Discard**, or **Cancel**.
+All modified project tabs are checked before the project closes, including
+background tabs. Cancel or a failed save keeps the project open; a Save already
+completed during this attempt remains saved. Pending AI reviews must also be
+resolved or explicitly discarded before closing.
+
+Untitled drafts and files outside the project folder stay open. If no tabs
+remain, SammyAI opens an empty untitled document. The project's saved file-tab
+list and active file are retained for reopening it. A running selection request
+is canceled on close, and a pinned selection from a closed file is cleared.
 
 ## Project Context
 
