@@ -708,11 +708,13 @@ Acceptance covers mechanics and execution, not writing quality. It addresses
 the October 28 empty-file incident and missing Writer proposals. It is merged
 into `main` in PR #32.
 
-The [project-close and switching tab fix](12_Project_Close_Tabs.md) is implemented
-on `codex/close-project-tabs`. The maintainer accepted the Close Project checks
-using Car Show; direct switching was subsequently added and awaits Windows
-acceptance. Complete this maintenance checkpoint before starting Writer style
-profiles, then begin from the accepted, merged baseline under the branch rules above.
+The [project-close and switching tab fix](12_Project_Close_Tabs.md) was accepted
+by the maintainer on 2026-10-30 and merged into `main` in PR #33.
+
+The [automatic Untitled tab fix](13_Project_Placeholder_Tab.md) is implemented
+on `codex/project-placeholder-tab` and awaits Windows acceptance. Complete this
+maintenance checkpoint before starting Writer style profiles, then begin from
+the accepted, merged baseline under the branch rules above.
 
 ### Goal
 

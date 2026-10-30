@@ -1,6 +1,6 @@
 # Project-close and switching tab maintenance
 
-**Status: IMPLEMENTED — Close Project accepted; switching awaits Windows acceptance**
+**Status: COMPLETED — 2026-10-30**
 
 Branch: `codex/close-project-tabs`, based on accepted v0.6.2-alpha and the merged
 Writer file-operation fix (PR #32, baseline `9191556`). Implementation date:
@@ -9,7 +9,10 @@ Writer file-operation fix (PR #32, baseline `9191556`). Implementation date:
 On 2026-10-30 the maintainer confirmed that every original Close Project
 acceptance check passed using **Car Show**. A further test opened **Shelf Life**
 directly while Car Show was open and exposed retained outgoing file tabs. This
-record includes the switching extension; its manual acceptance is still pending.
+record includes the switching extension. The maintainer subsequently confirmed
+that the fix works and pushed the changes. Both fixes are merged into `main`
+through PR #33 (`aaa567f`). Acceptance records the maintainer's report; it does
+not claim independent observation of every additional checklist step.
 
 ## Problem and resulting behavior
 
@@ -126,7 +129,9 @@ mechanics and file preservation; no model-quality evaluation is needed.
 These results record the maintainer's report; the application or saved chats were
 not independently inspected for this acceptance run.
 
-## Additional Windows acceptance — direct switching
+## Direct switching regression checklist
+
+Retained for future regression runs following maintainer acceptance.
 
 - [ ] With Car Show files open, open Shelf Life directly through Open Project.
   Car Show's file tabs disappear and Shelf Life's saved files/active tab restore.
@@ -141,5 +146,4 @@ not independently inspected for this acceptance run.
 - [ ] With a pending review in Car Show, try opening Shelf Life. Cancel leaves
   the project/review open; explicit Discard switches without applying the proposal.
 
-Record switching acceptance before marking this fix COMPLETED. Commit, push,
-merge and tagging remain maintainer actions.
+The accepted fix is merged. Release tagging remains a maintainer action.

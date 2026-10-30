@@ -276,6 +276,7 @@ def test_project_restoration_skips_missing_files_and_restores_active_tab(tmp_pat
             if session.path is not None
         }
         assert restored_paths == {first_path.resolve(), second_path.resolve()}
+        assert len(second_window.editor_workspace.sessions()) == 2
         assert second_window.current_file == str(second_path.resolve())
     finally:
         second_window.close()
