@@ -41,6 +41,7 @@ from PySide6.QtWidgets import (
 
 from sammyai_core.resources import asset_path
 from ui.context_menus import ContextMenuRegistry, show_text_context_menu
+from ui.style_profiles import StyleComboBox
 
 
 FILE_MENTION_PATTERN = re.compile(r"(?<![\w@])@([^\s,;]*)$")
@@ -854,6 +855,25 @@ class ChatPanel(QWidget):
         self.input_field.installEventFilter(self)
         composer_layout.addWidget(self.input_field)
 
+        style_controls = QHBoxLayout()
+        style_label = QLabel("Style")
+        style_label.setObjectName("writerStyleLabel")
+        style_controls.addWidget(style_label)
+        self.style_combo = StyleComboBox()
+        self.style_combo.setObjectName("styleSelector")
+        self.style_combo.setAccessibleName("Writer style profile")
+        self.style_combo.setMinimumWidth(100)
+        self.style_combo.setMinimumContentsLength(12)
+        self.style_combo.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
+        self.style_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.style_combo.addItem("No style profile")
+        style_controls.addWidget(self.style_combo, 1)
+        self.manage_styles_button = QPushButton("Manage…")
+        self.manage_styles_button.setObjectName("manageStylesButton")
+        self.manage_styles_button.setAccessibleName("Manage writer style profiles")
+        style_controls.addWidget(self.manage_styles_button)
+        composer_layout.addLayout(style_controls)
+
         controls_layout = QHBoxLayout()
         controls_layout.setContentsMargins(0, 0, 0, 0)
         controls_layout.setSpacing(7)
@@ -1129,6 +1149,17 @@ class ChatPanel(QWidget):
     def add_system_message(self, message: str) -> None:
         self._ensure_conversation_started()
         self.chat_display.add_message("system", message, copyable=False)
+
+    def set_last_message_style(self, metadata: dict) -> None:
+        """Attach captured run details to the displayed result, including live replies."""
+        if metadata and self.chat_display.messages:
+            widget = self.chat_display.messages[-1]
+            if metadata.get("state") == "selected":
+                label = f"Style used: {metadata.get('name')} · revision {metadata.get('revision')} ({metadata.get('mode')})"
+            else:
+                label = "Style: not used by this workflow" if metadata.get("state") == "not_applicable" else "Style used: No style profile"
+            widget.setToolTip(label + "\n" + "\n".join(f"{key}: {value}" for key, value in metadata.items()))
+            widget.setAccessibleDescription(label)
 
     def append_to_last_message(self, text: str) -> None:
         self.chat_display.append_to_last_message(text)

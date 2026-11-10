@@ -1,10 +1,15 @@
-## **Welcome to SammyAI v0.6.2-alpha!**
+## **Welcome to SammyAI v0.7.0-alpha!**
 
-SammyAI v0.6.2-alpha is the current development release. It adds story-focused selection actions and compact filename/line references in the composer, so you can work on a passage without copying and pasting it. Proposed edits require inline review. Chat and agent diagnostics, targeted passage replacements, multi-file editing, chat history, and offline US English spell checking remain available.
+SammyAI v0.7.0-alpha adds [writer style profiles](../3_USER_GUIDE/12_Writer_Style_Profiles.md)
+to Writer, Editor, and story-focused selection workflows. Manual writing tests
+have passed with Gemma and Luna; broader Windows acceptance checks remain open.
+Proposed edits require inline review. Chat and agent
+diagnostics, targeted passage replacements, multi-file editing, chat history,
+and offline US English spell checking remain available.
 
 **Current Status:**
 
-* **Version:** SammyAI v0.6.2-alpha
+* **Version:** SammyAI v0.7.0-alpha
 * **Development Stage:** Alpha
 * **Projects:** SammyAI now works around normal project folders, a live Project Explorer, recent projects, project settings, and OS-managed application data.
 * **Context Engine:** Project files can be synchronized automatically for retrieval, while explicit file references, Context Injection, RAG, and memory share a bounded prompt budget.
@@ -13,7 +18,7 @@ SammyAI v0.6.2-alpha is the current development release. It adds story-focused s
 * **Memory:** Project-scoped persistent memories and conversation summaries are available with user approval.
 * **User Interface:** The editor supports multiple independent document tabs, while the chat composer, message layout, Project Explorer, advanced menus, and dark styling share the same workspace.
 
-**Highlights of the Current v0.6.2-alpha Experience:**
+**Highlights of the Current v0.7.0-alpha Experience:**
 
 * **Story Selection Actions:** Right-click a passage to rewrite, tighten, expand, improve dialogue, change tone, critique, or continue the story. Compact composer references keep selected text out of your typed message. See [Selection actions](../3_USER_GUIDE/11_Selection_Actions.md).
 

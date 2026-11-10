@@ -8,7 +8,7 @@ reported that the acceptance tasks executed without issues in the **Car Show**
 project. Acceptance covers workflow mechanics and execution, including file
 operations and review; writing quality was explicitly not evaluated.
 
-This maintenance fix is complete before v0.7.0 Writer style profiles. GitHub
+This maintenance fix is complete before v0.7.0-alpha Writer style profiles. GitHub
 push/merge and any release tag remain maintainer actions. The package version
 remains `0.6.2a0`; this record does not assign a new release number.
 

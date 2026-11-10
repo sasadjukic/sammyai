@@ -52,6 +52,8 @@ from ui.code_editor import (
 from ui.editor_workspace import EditorWorkspace
 from ui.review_controller import ReviewController
 from ui.selection_actions import SelectionActionController
+from ui.style_profiles import StyleProfileController
+from sammyai_core.style_profiles import StyleProfileRepository, StyleProfileService
 from sammyai_core.bootstrap import RuntimeServices, build_runtime_services
 from sammyai_core.documents import DocumentService
 from sammyai_core.logging_config import configure_logging, install_exception_hook
@@ -291,6 +293,11 @@ class TextEditor(QMainWindow):
             None,
         )
         self.file_tools = getattr(self.runtime_services, "file_tools", None)
+        self.style_service = getattr(self.runtime_services, "style_service", None)
+        style_database = getattr(getattr(self.project_service, "repository", None), "database", None)
+        if self.style_service is None and style_database is not None:
+            self.style_service = StyleProfileService(StyleProfileRepository(style_database))
+        self.style_controller = StyleProfileController(self, self.style_service)
         self.trace_service = getattr(self.runtime_services, "trace_service", None) or RequestTraceService(
             getattr(getattr(self.project_service, "repository", None), "database", None))
         self.chat_manager.trace_service = self.trace_service
@@ -1007,6 +1014,8 @@ class TextEditor(QMainWindow):
         )
         self._chat_panel_safe("set_project_name", project.name)
         self._chat_panel_safe("set_history_project", project.id)
+        if getattr(self, "style_controller", None):
+            self.style_controller.refresh()
         if self.project_dock is not None:
             self.project_dock.show()
             self.project_dock.raise_()
@@ -1156,6 +1165,8 @@ class TextEditor(QMainWindow):
         )
         self._chat_panel_safe("set_project_name", None)
         self._chat_panel_safe("set_history_project", None)
+        if getattr(self, "style_controller", None):
+            self.style_controller.refresh()
         if self.project_dock is not None:
             self.project_dock.hide()
         self.close_project_action.setEnabled(False)
@@ -2066,6 +2077,7 @@ class TextEditor(QMainWindow):
             self.chat_panel.conversation_selected.connect(self._on_conversation_selected)
             self.chat_panel.message_sent.connect(self._on_chat_message_sent)
             self.selection_actions.bind_panel(self.chat_panel)
+            self.style_controller.bind_panel(self.chat_panel)
             # When the model selection changes in the UI, attempt to switch clients
             self.chat_panel.model_selected.connect(self._on_model_selected)
             self.chat_panel.agent_selected.connect(self._on_agent_selected)
@@ -2223,6 +2235,15 @@ class TextEditor(QMainWindow):
         client = self.llm_client
         request_project_id = self._active_chat_project_id()
         request_chat_session_id = self.chat_manager.active_session_id
+        try:
+            uses_style = selected_agent in {AgentType.WRITER, AgentType.EDITOR, AgentType.CRITIC}
+            request_style = self.style_controller.capture(request_project_id) if uses_style and getattr(self, "style_controller", None) else None
+        except Exception:
+            self._chat_panel_safe("add_system_message", "Could not load the selected style. No model request was sent. Check the project database and try again.")
+            self._chat_panel_safe("set_thinking", False)
+            if identity and getattr(self, "trace_service", None):
+                self.trace_service.finish(identity.request_id, "style_failed")
+            return
         trace = getattr(self, "trace_service", None)
         if identity is None and trace:
             identity = trace.begin(request_chat_session_id, request_project_id, agent=selected_agent.value)
@@ -2278,6 +2299,7 @@ class TextEditor(QMainWindow):
                     messages=msgs,
                     complete=complete,
                     file_snapshots=getattr(context_result, "file_snapshots", ()),
+                    style_snapshot=request_style,
                     trace=trace, identity=identity, response_metadata=lambda: call_metadata,
                     on_event=lambda event: self.agent_progress.emit(
                         RequestUpdate(identity, event.message) if identity else event.message
@@ -2307,6 +2329,7 @@ class TextEditor(QMainWindow):
                     "model_calls": result.model_calls,
                     "request_id": request_id,
                     "message_id": str(uuid4()),
+                    "style_used": result.style_used,
                 }
                 if request_project_id is not None:
                     response_metadata["project_id"] = request_project_id
@@ -2359,6 +2382,7 @@ class TextEditor(QMainWindow):
             self._chat_panel_safe("set_thinking", False)
         if visible:
             self._chat_panel_safe("add_assistant_message", result.response)
+            self._chat_panel_safe("set_last_message_style", result.style_used)
             if current:
                 self._chat_panel_safe("set_status", f"{result.agent_type.display_name}: {result.outcome.replace('_', ' ')} ({result.model_calls} model calls)")
             for notice in result.notices:

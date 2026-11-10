@@ -9,7 +9,7 @@
 
 # SammyAI
 
-**Development version: [v0.6.2-alpha](RELEASE_NOTES_v0.6.2-alpha.md) — accepted 2026-10-28**
+**Current development version: [v0.7.0-alpha](RELEASE_NOTES_v0.7.0-alpha.md)**
 
 
 https://github.com/user-attachments/assets/67d9f084-840f-433b-a37e-4b3e80dbc69d
@@ -36,6 +36,8 @@ https://github.com/user-attachments/assets/67d9f084-840f-433b-a37e-4b3e80dbc69d
 </div>
 
 ## Key Features
+
+- **Writer Style Profiles**: Save global or project writing preferences and approved examples. Writer, Editor, and story selection edits use the chosen style; critiques assess adherence. See the [step-by-step guide, template, and sample profiles](documentation/3_USER_GUIDE/12_Writer_Style_Profiles.md).
 
 - **Story Selection Actions**: Select a passage to rewrite, tighten, expand, improve dialogue, change tone, critique, or continue the story. Compact filename and line references keep copied prose out of the composer. Edits require inline review. See [Selection actions](documentation/3_USER_GUIDE/11_Selection_Actions.md).
 
@@ -98,8 +100,9 @@ Read more in our [Cost, Privacy and Copyrights document](https://github.com/sasa
 
 ## Roadmap
 
-Planned updates include:
-- **Writer style profiles** - Implementing custom writing profiles
+Current milestone and planned updates:
+
+- **Writer style profiles** - Implemented in v0.7.0-alpha; manual writing tests passed with Gemma and Luna, with broader Windows checks still open
 - **Prose and screenplay modes** - Implementing specific formats
 - **PDF export** - Export stories to PDF 
 

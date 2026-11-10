@@ -24,6 +24,8 @@ with tempfile.TemporaryDirectory(prefix="sammyai-tabs-package-") as temporary:
     tests.mkdir()
     (root / "pytest.ini").write_text("[pytest]\n", encoding="utf-8")
     shutil.copy2(tests_source / "test_tab_overflow.py", tests / "test_tab_overflow.py")
+    for name in ("test_writer_styles.py", "test_inline_review.py", "test_main_window_multifile.py", "test_selection_actions.py"):
+        shutil.copy2(tests_source / name, tests / name)
     code = r'''
 import os, socket, sys
 from pathlib import Path
@@ -32,8 +34,10 @@ os.environ["QT_QPA_PLATFORM"] = "offscreen"
 os.environ["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
 socket.socket.connect = lambda *args: (_ for _ in ()).throw(AssertionError("Network forbidden"))
 import ui.editor_workspace
+import ui.style_profiles
 from sammyai_core.resources import asset_path
 assert Path(ui.editor_workspace.__file__).is_relative_to(Path(sys.prefix))
+assert Path(ui.style_profiles.__file__).is_relative_to(Path(sys.prefix))
 for parts in (("ui", "styles", "dark_theme.qss"), ("icons", "chevron_left.svg"),
               ("icons", "chevron_right.svg"), ("icons", "chevron_down.svg")):
     path = asset_path(*parts)
@@ -41,7 +45,7 @@ for parts in (("ui", "styles", "dark_theme.qss"), ("icons", "chevron_left.svg"),
 import pytest
 raise SystemExit(pytest.main([
     "-q", "-c", "pytest.ini", "--rootdir=.", "--confcutdir=.",
-    "tests/test_tab_overflow.py", "--basetemp=pytest-tmp",
+    "tests/test_tab_overflow.py", "tests/test_writer_styles.py", "--basetemp=pytest-tmp",
 ]))
 '''
     subprocess.run([str(python), "-B", "-I", "-u", "-c", code, dependencies], cwd=root, check=True)

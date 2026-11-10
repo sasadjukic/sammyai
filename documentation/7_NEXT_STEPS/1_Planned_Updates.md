@@ -1,12 +1,14 @@
 # Strategic Roadmap and Planned Updates
 
-SammyAI v0.6.2-alpha is the current development release for project-based
+SammyAI v0.7.0-alpha is the current development release for project-based
 creative writing. It combines a multi-file editor, visible chat history, offline
 US English spell checking, project navigation, model and agent workflows,
 automatic project context, persistent memory, inline diff review, chat and agent
-diagnostics, targeted passage replacements, and story-focused selection actions.
-The next phase will add writer style profiles and expand the everyday writing experience while
-preserving the application's local-first design and user control over AI edits.
+diagnostics, targeted passage replacements, story-focused selection actions, and
+writer style profiles. Manual profile tests have passed with Gemma and Luna;
+broader Windows acceptance checks and prose-quality comparisons continue.
+Later releases expand authoring formats while preserving the application's
+local-first design and user control over AI edits.
 
 This roadmap presents the intended direction at a product level. Features will
 be developed one at a time, and the next feature will begin only after the
@@ -114,14 +116,21 @@ See the [selection actions guide](../3_USER_GUIDE/11_Selection_Actions.md) and
 
 ### v0.7.0-alpha — Writer style profiles
 
-Writers will be able to create and select explicit style profiles for a project
+Writers can create and select explicit style profiles for a project
 or across projects. A profile may describe preferences for voice, tone,
 sentence rhythm, description, dialogue, pacing, and other craft choices.
 
-Unlike general project memory, the active style profile will be applied
-consistently and visibly to appropriate Writer and Editor workflows. Current
-user instructions and document-format requirements will continue to take
-precedence when they conflict with a saved preference.
+Unlike general project memory, the active style profile is applied
+consistently and visibly to Writer, Editor, and story-focused selection edits,
+including custom edits requested through an attached passage. Critic and
+Critique Selection assess style adherence without adopting that voice.
+Current user instructions, including a requested tone change, and document-format
+requirements continue to take precedence when they conflict with a saved
+preference. Each request retains the profile it started with throughout
+generation and review.
+
+The [writer style implementation plan](15_Writer_Style_Profiles.md) defines the
+v0.7.0-alpha approach and acceptance criteria.
 
 ## v0.8 — Authoring Formats and Finished Output
 
@@ -180,6 +189,6 @@ The following priorities apply throughout every roadmap release:
   notes as each feature ships.
 
 > [!NOTE]
-> This roadmap describes the current direction as of v0.6.2-alpha. Priorities
+> This roadmap describes the current direction as of v0.7.0-alpha. Priorities
 > and release boundaries may be adjusted when testing reveals a safer or more
 > useful sequence.

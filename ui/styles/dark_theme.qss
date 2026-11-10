@@ -431,6 +431,7 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
     margin: 0px;
 }
 
+#styleSelector,
 #agentSelector,
 #modelSelector {
     background-color: transparent;
@@ -441,6 +442,8 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
     min-height: 20px;
 }
 
+#styleSelector:hover,
+#styleSelector:on,
 #agentSelector:hover,
 #modelSelector:hover,
 #agentSelector:on,
@@ -449,12 +452,14 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
     color: #eeeeee;
 }
 
+#styleSelector::drop-down,
 #agentSelector::drop-down,
 #modelSelector::drop-down {
     border: none;
     width: 20px;
 }
 
+#styleSelector QAbstractItemView,
 #agentSelector QAbstractItemView,
 #modelSelector QAbstractItemView {
     background-color: #2d2d2d;
@@ -1060,3 +1065,40 @@ QDialog#diagnosticsDialog { background-color: #1e1e1e; }
 #diagnosticsDialog QPushButton:focus, #diagnosticsDialog QSpinBox:focus {
     border: 1px solid #65c0e0;
 }
+
+/* Writer profile controls use the same quiet palette as the composer. */
+#writerStyleLabel { color: #b9c1c3; font-size: 9pt; }
+#manageStylesButton {
+    color: #c8d2d6; background-color: #373b3d; border: 1px solid #4a5357;
+    border-radius: 5px; padding: 5px 10px; font-size: 9pt;
+}
+#manageStylesButton:hover { background-color: #444c50; }
+#manageStylesButton:focus { border-color: #65c0e0; }
+QDialog[styleProfileDialog="true"] { background-color: #252526; }
+QDialog[styleProfileDialog="true"] QLabel,
+QDialog[styleProfileDialog="true"] QCheckBox {
+    color: #d4d4d4; font-family: "Segoe UI"; font-size: 10pt;
+}
+QDialog[styleProfileDialog="true"] QPlainTextEdit,
+QDialog[styleProfileDialog="true"] QLineEdit,
+QDialog[styleProfileDialog="true"] QComboBox,
+QDialog[styleProfileDialog="true"] QListWidget {
+    color: #dddddd; background-color: #1e1e1e; border: 1px solid #485056;
+    border-radius: 4px; padding: 7px; font-family: "Segoe UI"; font-size: 10pt;
+    selection-background-color: #344e5b; selection-color: #ffffff;
+}
+QDialog[styleProfileDialog="true"] QComboBox QAbstractItemView {
+    color: #dddddd; background-color: #252526; selection-background-color: #344e5b;
+}
+QDialog[styleProfileDialog="true"] QComboBox:disabled { color: #a9afb1; }
+QDialog[styleProfileDialog="true"] QListWidget::item { padding: 8px 3px; }
+QDialog[styleProfileDialog="true"] QListWidget::item:selected { background-color: #344e5b; }
+QDialog[styleProfileDialog="true"] QPushButton {
+    color: #dddddd; background-color: #33383b; border: 1px solid #485056;
+    border-radius: 4px; padding: 6px 10px; font-family: "Segoe UI"; font-size: 9pt;
+}
+QDialog[styleProfileDialog="true"] QPushButton:hover { background-color: #424d52; }
+QDialog[styleProfileDialog="true"] QPushButton:disabled { color: #858a8d; }
+QDialog[styleProfileDialog="true"] QPushButton:focus,
+QDialog[styleProfileDialog="true"] QPlainTextEdit:focus,
+QDialog[styleProfileDialog="true"] QLineEdit:focus { border-color: #65c0e0; }

@@ -32,11 +32,18 @@ The more specific your prompt is, the more useful the response becomes.
 | A short reference should be active now | Attached Reference or CIN |
 | Large project knowledge is needed | Project Context or RAG |
 | A durable fact should keep mattering | Persistent Memory |
+| Reusable voice and craft preferences | [Writer style profile](../3_USER_GUIDE/12_Writer_Style_Profiles.md) |
 | A file should be changed safely | Editor agent with reviewed change set |
 
 ---
 
 ## Review AI Work
+
+For a personal style, begin with a short passage of your own writing and describe
+5–8 observable choices. Keep story facts separate, add a short approved example,
+and compare the same task with and without the profile. Refine one or two rules
+at a time. The [style guide](../3_USER_GUIDE/12_Writer_Style_Profiles.md) includes
+a reusable template, three complete sample profiles, and a testing method.
 
 Always review generated content before treating it as final.
 
@@ -62,4 +69,4 @@ Always review generated content before treating it as final.
 
 ## Next Steps
 
-Read the guides for Projects, LLM Chat, Project Context, Attached References, Diff Review, Agent File Editing, Selection Actions, and Chat and Agent Diagnostics to understand how the v0.6.2-alpha workflow fits together.
+Read the guides for Projects, LLM Chat, Project Context, Attached References, Diff Review, Agent File Editing, Selection Actions, and Chat and Agent Diagnostics to understand how the v0.7.0-alpha workflow fits together.

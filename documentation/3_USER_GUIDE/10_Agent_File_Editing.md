@@ -1,6 +1,11 @@
 # Revising files with agents
 
-In SammyAI v0.6.2-alpha, Brainstormer, Writer and Editor can propose coordinated
+Writer and Editor use the selected [writer style profile](12_Writer_Style_Profiles.md)
+within your requested edit scope. Profiles guide the prose; file authorization,
+output validation, and review requirements still apply. The Writer evaluator
+checks the captured profile, and all three Writer stages use the same snapshot.
+
+In SammyAI v0.7.0-alpha, Brainstormer, Writer and Editor can propose coordinated
 revisions in several parts of a file. Reference the file explicitly and describe
 the intended changes:
 

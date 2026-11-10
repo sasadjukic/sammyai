@@ -11,7 +11,8 @@ wheel = Path(sys.argv[1]).resolve()
 with zipfile.ZipFile(wheel) as archive:
     for name in ("sammyai_core/diagnostics.py", "sammyai_core/proposal_protocol.py", "ui/diagnostics.py",
                  "sammyai_core/selection_actions.py", "ui/selection_actions.py", "ui/context_menus.py",
-                 "sammyai_core/writer_file_contract.py"):
+                 "sammyai_core/writer_file_contract.py", "sammyai_core/style_profiles.py",
+                 "llm/style_prompt.py", "ui/style_profiles.py"):
         assert name in archive.namelist(), name
 
 with tempfile.TemporaryDirectory(prefix="sammyai-diagnostics-package-") as temporary:
@@ -30,7 +31,7 @@ from sammyai_core.diagnostics import RequestTraceService, inspect_proposal
 from sammyai_core.agent_workflows import AgentWorkflowService
 socket.socket.connect = lambda *args: (_ for _ in ()).throw(AssertionError("Network forbidden"))
 assert Path(sammyai_core.diagnostics.__file__).is_relative_to(Path(__import__('sys').prefix))
-assert version("sammyai") == "0.6.2a0"
+assert version("sammyai") == "0.7.0a0"
 from sammyai_core.selection_actions import SelectionSnapshot, SelectionActionRequest, SelectionAction, parse_result
 snapshot = SelectionSnapshot('doc', None, 'Untitled 1', '', 'Before.\nOld.\nAfter.', 1, None, 8, 12, 'plain_text')
 request = SelectionActionRequest(snapshot, SelectionAction.REWRITE, 'chat', None)
@@ -43,6 +44,22 @@ database.migrate(4)
 with database.transaction() as db:
     db.execute("INSERT INTO application_state VALUES ('existing','preserved','now')")
 database.migrate()
+from sammyai_core.style_profiles import StyleProfileRepository, StyleProfileService, StyleSelection
+profiles = StyleProfileService(StyleProfileRepository(database))
+profile = profiles.repository.create('Packaged style', 'PACKAGED_STYLE_RULE', 'An approved example.')
+profiles.select(None, StyleSelection('profile', profile.id))
+captured = profiles.resolve().snapshot
+assert database.current_version == 6 and captured.id == profile.id
+styled = SelectionActionRequest(snapshot, SelectionAction.REWRITE, 'chat', None, style_snapshot=captured)
+assert styled.system_prompt().count('PACKAGED_STYLE_RULE') == 1
+prompts = []
+styled_result = AgentWorkflowService(None).run('writer', user_request='Write a paragraph.', messages=[],
+    style_snapshot=captured, complete=lambda messages, prompt: prompts.append(prompt) or 'A paragraph.')
+assert len(prompts) == 3 and all(p.count('PACKAGED_STYLE_RULE') == 1 for p in prompts)
+assert styled_result.style_used['content_hash'] == captured.content_hash
+profiles.repository.delete(profile.id, expected_revision=1)
+assert profiles.resolve().snapshot is None
+assert styled.system_prompt().count('PACKAGED_STYLE_RULE') == 1
 trace = RequestTraceService(database)
 trace.save_settings(replace(trace.settings, failed_proposals=True))
 identity = trace.begin("chat", None, agent="editor")
@@ -57,7 +74,7 @@ trace = RequestTraceService(database)
 trace.recover_interrupted()
 data = trace.detail(identity.request_id, include_content=True)
 assert data["request"]["outcome"] == "proposal_rejected"
-assert data["request"]["metadata"]["app_version"] == "0.6.2a0"
+assert data["request"]["metadata"]["app_version"] == "0.7.0a0"
 assert any(item["text"] == source for item in data["content"])
 assert not data["request"]["incomplete"]
 assert database.connection.execute("SELECT value FROM application_state WHERE key='existing'").fetchone()[0] == "preserved"
