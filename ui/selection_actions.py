@@ -13,6 +13,8 @@ from PySide6.QtWidgets import QInputDialog
 
 from editing.change_sets import content_hash
 from llm.chat_manager import MessageRole
+from sammyai_core.file_edit_context import estimate_tokens
+from ui.style_profiles import style_label
 from sammyai_core.selection_actions import (
     SelectionAction, SelectionActionRequest, SelectionSnapshot, parse_result,
 )
@@ -90,6 +92,17 @@ class SelectionActionController(QObject):
         available = not editor.isReadOnly() and not (panel and panel._history_busy)
         selected = editor.textCursor().hasSelection()
         menu.addSeparator()
+        styles = getattr(self.window, "style_controller", None)
+        if styles and styles.service:
+            try:
+                resolved = styles.service.resolve(self.window._active_chat_project_id())
+                label = menu.addAction("Style: " + style_label(resolved.snapshot))
+                label.setEnabled(False)
+                if resolved.notice:
+                    label.setToolTip(resolved.notice)
+                menu.addAction("Manage writer styles…", styles.manage)
+            except Exception:
+                menu.addAction("Styles unavailable").setEnabled(False)
         attach = menu.addAction("Add Selection to Chat")
         attach.setEnabled(available and selected)
         attach.triggered.connect(lambda: self.attach(document_id))
@@ -153,7 +166,13 @@ class SelectionActionController(QObject):
             return
         if window.chat_manager.get_active_session() is None:
             window._on_new_chat_requested()
-        request = SelectionActionRequest(snapshot, action, window.chat_manager.active_session_id, project_id, instruction)
+        try:
+            style = window.style_controller.capture(project_id) if getattr(window, "style_controller", None) else None
+        except Exception:
+            panel.add_system_message("Could not load the selected style. No model request was sent. Check the project database and try again.")
+            return
+        request = SelectionActionRequest(snapshot, action, window.chat_manager.active_session_id, project_id,
+                                         instruction, style_snapshot=style)
         client, trace = window.llm_client, window.trace_service
         trace.register_secret(getattr(client, "api_key", None))
         identity = trace.begin(request.chat_session_id, project_id, agent="selection",
@@ -192,8 +211,11 @@ class SelectionActionController(QObject):
                     step = trace.start_step(identity.request_id, "model.selection")
                     started = time.monotonic()
                     prompt, messages = request.system_prompt(), request.messages()
+                    trace.event(identity.request_id, "style.used", "Style captured for this selection action.",
+                                step_id=step, details=request.style_used)
                     trace.capture(identity.request_id, "prompts", json.dumps({"system_prompt": prompt, "messages": messages}, ensure_ascii=False), step_id=step)
-                    trace.event(identity.request_id, "model.started", "Generating selection result.", step_id=step)
+                    trace.event(identity.request_id, "model.started", "Generating selection result.", step_id=step,
+                                details={"estimated_input_tokens": estimate_tokens(prompt) + sum(estimate_tokens(m["content"]) for m in messages)})
                     original_prompt = client.system_prompt
                     try:
                         client.system_prompt = prompt
@@ -232,6 +254,7 @@ class SelectionActionController(QObject):
             "agent_run_id": identity.run_id, "message_id": message_id,
             "request_id": identity.request_id, "document_id": request.selection.document_id,
             "selection_reference": request.selection.label, "project_id": request.project_id,
+            "style_used": request.style_used,
         })
         if message is None:
             raise ValueError("The originating conversation is no longer available.")
@@ -285,6 +308,7 @@ class SelectionActionController(QObject):
                 panel.add_assistant_message(message)
             else:
                 panel.add_system_message(message)
+            panel.set_last_message_style(request.style_used)
         panel.refresh_history()
         if trace.storage_error:
             panel.add_system_message(trace.storage_error)

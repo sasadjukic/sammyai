@@ -1,8 +1,9 @@
 # SammyAI Feature Implementation Guide
 
-Current development version: [v0.6.2-alpha](../../RELEASE_NOTES_v0.6.2-alpha.md)
-(Release 6: Story-focused selection actions). Earlier release numbers below identify
-historical milestones; later numbers remain planning targets.
+Current development version: [v0.7.0-alpha](../../RELEASE_NOTES_v0.7.0-alpha.md)
+(Release 7: Writer style profiles; manual model tests passed, broader Windows
+acceptance checks remain open). Earlier release numbers below identify historical
+milestones; later numbers remain planning targets.
 
 ## Purpose
 
@@ -81,7 +82,9 @@ DocumentFormatRegistry -> prose/screenplay rendering -> PDF export
 
 ChatManager -> conversation list model -> chat history UI
 
-StyleProfileRepository -> style prompt layer -> writer/editor workflows
+StyleProfileRepository -> immutable request style -> shared style prompt layer
+                                                   |             |
+                                           writer/editor    selection actions
 
 RequestTraceService -> context / model calls / validation / review / file operations
          |
@@ -714,10 +717,17 @@ by the maintainer on 2026-10-30 and merged into `main` in PR #33.
 The [automatic Untitled tab fix](13_Project_Placeholder_Tab.md) was accepted
 on 2026-10-30 and merged into `main` in PR #34.
 
-The [editor tab-overflow fix](14_Editor_Tab_Overflow.md) is implemented on
-`codex/editor-tab-overflow` and awaits Windows acceptance. Complete this
-maintenance checkpoint before starting Writer style profiles, then begin from
-the accepted, merged baseline under the branch rules above.
+The [editor tab-overflow fix](14_Editor_Tab_Overflow.md) is merged into `main`
+in PR #35 (`67650fb`). Its acceptance record still has unchecked manual items;
+the merge does not supply an acceptance date for those items.
+
+At the maintainer's request, writer-style planning started on 2026-11-01 on
+`codex/writer-style-profiles`, from `67650fb`. See the
+[implementation plan](15_Writer_Style_Profiles.md) for repository integration
+points, selection-action behavior, scope resolution, and acceptance criteria.
+Implementation is now on this branch. The maintainer confirmed successful profile
+editing with `gemma4:31b` and `gpt-6-luna`, especially on selected passages.
+Broader Windows acceptance checks and prose-quality comparisons remain open.
 
 ### Goal
 
@@ -731,6 +741,12 @@ Automatic imitation of a named author or automatic extraction from large
 writing samples is a separate future enhancement and should not block a useful,
 controllable first version.
 
+Story-focused selection actions from v0.6.2-alpha are part of this release's
+required scope. Rewrite, Tighten, Expand, Improve Dialogue, Change Tone, and
+Continue must use the selected profile. Critique assesses adherence without
+adopting the profile's voice. Custom requests through an attached passage use
+the same rules according to whether they request an edit or feedback.
+
 ### Recommended model
 
 Add a database migration for a `style_profiles` table with fields such as:
@@ -740,8 +756,13 @@ Add a database migration for a `style_profiles` table with fields such as:
 - profile name;
 - style instructions;
 - optional short approved examples;
-- active/default flags or an explicit active-profile setting;
+- revision and archived state;
 - created and updated timestamps.
+
+Keep active selection in settings rather than on profile rows. Distinguish
+inheriting the global default, selecting a specific profile, and explicitly
+choosing no profile. Resolve once when a request is submitted and capture an
+immutable snapshot containing the profile content, identity, revision, and hash.
 
 Generic memories with kind `STYLE` can remain useful evidence, but the active
 profile should be injected deterministically through a named prompt layer.
@@ -752,25 +773,37 @@ profile should be injected deterministically through a named prompt layer.
    - system safety and output contracts are never overridden;
    - the user's current explicit request overrides style preferences;
    - the active document format overrides incompatible style formatting;
-   - the active style profile guides voice and craft where no conflict exists.
+   - the active style profile guides voice and craft where no conflict exists;
+   - conflicting generic style memories and built-in creative defaults yield
+     to the selected profile; story facts and character identities remain intact
+     unless the current request changes them.
 2. Add the database migration, repository, service, and dataclasses.
 3. Support global profiles and project-specific profiles.
 4. Add create, edit, duplicate, archive/delete, set active, and preview UI.
 5. Add a style selector near the agent selector or in project settings. Make
-   “No style profile” an explicit choice.
+   “No style profile” an explicit choice. Keep it visible when an attached
+   passage replaces the agent selector with the Selection workflow label.
 6. Add a `STYLE` prompt layer between the agent role and workflow/output
    instructions, or another documented stable location.
-7. Apply the profile by default to Writer and Editor operations. Decide
-   separately whether Assistant and Brainstormer should receive it; Critic
-   should be able to evaluate adherence without adopting the voice itself.
-8. Include the active profile in selection action requests and Writer
-   draft/evaluate/revise stages.
+7. Apply the profile by default to Writer and Editor operations. Assistant and
+   Brainstormer retain existing behavior in this first release; Critic evaluates
+   adherence without adopting the voice itself.
+8. Include the captured profile in every selection action request and Writer
+   draft/evaluate/revise stage. Share the style renderer across these workflows;
+   a profile ID alone is insufficient. Profile edits, deletion, and selection
+   changes after submission must not alter an in-flight request.
 9. Prevent evaluator prompts from accidentally rewriting the style profile.
-10. Optionally offer a one-time conversion of existing approved style memories
-    into profiles, with user confirmation and no deletion of the source memory.
+10. Leave existing style memories intact. Defer an optional, user-confirmed
+    conversion into profiles until after the first profile release.
 11. Add an inspectable “style used” entry to agent run metadata and the request
     trace, including profile identity and version/hash for every Writer stage.
 12. Document examples of effective style instructions and conflicting rules.
+    Include setup steps, a personal-style worksheet, a reusable template, complete
+    sample profiles, and a method for comparing/refining results on the same passage.
+13. Preserve selection output contracts, bounded passage context, stale-result
+    checks, cancellation, inline review, and undo/redo. A selected tone overrides
+    a conflicting profile tone for that request, while other compatible profile
+    preferences still apply.
 
 ### Automated tests
 
@@ -781,12 +814,24 @@ profile should be injected deterministically through a named prompt layer.
 - Explicit current-run instructions can override a style preference.
 - Writer draft and revision stages receive the same intended profile.
 - Critic can assess style without being told to reproduce it.
+- Every mutating selection action receives the captured profile; Critique and
+  custom feedback remain read-only and evaluate style where relevant.
+- Changing tone overrides only conflicting preferences, not output contracts.
+- Editing, switching, archiving, or deleting a profile during generation cannot
+  change the profile used by later Writer stages or pending selection results.
+- Project switching, explicit no-profile selection, and deleted-profile
+  handling never select an unrelated profile implicitly.
+- Style metadata survives chat/trace reload without leaking instructions or
+  approved examples into diagnostics when content capture is disabled.
 - No-profile mode reproduces pre-feature prompt composition.
 
 ### Definition of done
 
 - Users can reliably see which style profile is active.
-- The same profile produces the same prompt layer across supported workflows.
+- The same captured profile produces the same canonical style content across
+  supported workflows, with explicit apply/evaluate behavior.
+- All seven story actions and custom attached-passage requests honor the style
+  rules without changing their review or read-only guarantees.
 - Existing style memories and projects remain compatible.
 - Migration, prompt-layer, workflow, and full-suite tests pass.
 

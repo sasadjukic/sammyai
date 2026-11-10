@@ -10,6 +10,7 @@ from typing import Iterable
 class PromptLayerOrder(IntEnum):
     CORE = 10
     AGENT = 20
+    STYLE = 25
     WORKFLOW = 30
     OUTPUT = 40
     RUN = 50

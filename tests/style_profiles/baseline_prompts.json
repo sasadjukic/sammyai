@@ -1,0 +1,27 @@
+{
+  "general": [
+    "b8840b286b545ce03121368e50c888f7abac2bae7d3298889021068355bd1015"
+  ],
+  "brainstormer": [
+    "0ff3365234747f22429640dbd36e5b1fd79e9edf200f88dea3d2e383a249c804"
+  ],
+  "writer": [
+    "6f92b0845ebc8b33ff25e03f92f66a745324b6f8e0ca20cffc0ae53588fb479c",
+    "920366f82d46df5a9db8a397ef3af2d62793722e25a5b5872bf0e39debef0c2a",
+    "ff9ebff07ac947c54760e89d34e0e01911b15f24f0346ffc732e0b2536d25aaa"
+  ],
+  "editor": [
+    "299478e7b1d6971f6ab7dde9eb9d13f80f05ccdc88f6e047d62a01026862a061"
+  ],
+  "critic": [
+    "b90d6481fd6347f65409b6509fd8c5f673aa9d80426ef5ec947ae3d7bc0861e9"
+  ],
+  "selection_rewrite": "9b5f59df889354ae93bf58d2b3120d30cbe167e5a59b334e7c8a4ddee5f5db40",
+  "selection_tighten": "4a1b0050b373d73ae6a0f7db0fe6a8c00c0956d0fd6add6dcc6badec510bc655",
+  "selection_expand": "0c5f0346123fdf2e949b8f8cbac236359743f73294aed4130592887b638db3e0",
+  "selection_dialogue": "ab1478906fc3d5faeb74d47d1ced2d7bb4d7ff6cad7d31a9aca449f156871750",
+  "selection_tone": "4c907931dba1554988746054aba5f31a91719b9a1f1030bc1bc6169fd69c4d8b",
+  "selection_critique": "c317d9e73a2c481912ef4ff53258a7b3ac387cd214e40cdfbd098589acda2403",
+  "selection_continue": "a7ad3936cb4212f9909f21a62515889535e804e6132d816f4d470f50d9e947bc",
+  "selection_custom": "0096a9ed020004674533f4a804b04981fb000851625010e27756f17c9f7a373d"
+}

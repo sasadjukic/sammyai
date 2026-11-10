@@ -23,6 +23,7 @@ from .memory import (
 )
 from .paths import AppPaths
 from .projects import ProjectRepository, ProjectService
+from .style_profiles import StyleProfileRepository, StyleProfileService
 
 
 logger = logging.getLogger(__name__)
@@ -45,6 +46,7 @@ class RuntimeServices:
     llm_error: str | None = None
     project_error: str | None = None
     trace_service: RequestTraceService | None = None
+    style_service: StyleProfileService | None = None
 
     def shutdown(self) -> None:
         self.chat_manager.save_all_sessions()
@@ -151,4 +153,5 @@ def build_runtime_services(paths: AppPaths) -> RuntimeServices:
         llm_error=llm_error,
         project_error=project_error,
         trace_service=trace_service,
+        style_service=StyleProfileService(StyleProfileRepository(project_database)) if project_database else None,
     )

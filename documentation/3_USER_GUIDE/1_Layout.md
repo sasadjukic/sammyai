@@ -1,6 +1,6 @@
 # SammyAI Workspace Layout
 
-SammyAI v0.6.2-alpha uses a project-based, multi-file workspace with a writing editor, Project Explorer, chat panel, and menu commands for context, memory, reviewed edits, and diagnostics.
+SammyAI v0.7.0-alpha uses a project-based, multi-file workspace with a writing editor, Project Explorer, chat panel, and menu commands for context, memory, reviewed edits, and diagnostics.
 
 ---
 
@@ -63,6 +63,9 @@ The chat panel is used for model and agent workflows.
 
 * The composer is centered before the first message and moves to the bottom after the conversation starts.
 * The composer includes attachment, agent, model, and send controls.
+* **Style** selects a global or project writer profile; **Manage…** opens profile
+  creation and editing. Style stays visible in Selection mode. See
+  [writer profiles, sample styles, and a step-by-step guide](12_Writer_Style_Profiles.md).
 * Each message has its own copy button.
 * New Chat starts a fresh session and is disabled while generation is running.
 

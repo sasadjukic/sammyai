@@ -68,9 +68,17 @@ silently shortened, so a very large selection can exceed your model's context li
 
 This focused workflow does not include the rest of the document, previous chat
 messages, CIN attachments, retrieved project files, or project memories. It does
-not yet apply a writer style profile. Mention necessary story facts or tone in
-your instruction. Normal chat without a selection reference retains its existing
-context and agent behavior.
+include the selected [writer style profile](12_Writer_Style_Profiles.md), with its
+instructions and approved examples. All editing actions use that style; Critique
+assesses it without adopting its voice. Custom passage requests apply it to edits
+and assess it where relevant to feedback. Your explicit request, including a tone
+change, overrides conflicting preferences. The Style selector remains visible
+in Selection mode. Mention necessary story facts in your instruction.
+
+Each request keeps the profile captured when it started, even if you edit,
+switch, archive, or delete the profile while it runs. The captured identity and
+revision remain inspectable in the result message and diagnostics. Normal chat
+without a selection reference retains its existing context and agent behavior.
 
 Chat history stores the compact reference, instruction, action metadata and result
 summary (or critique). Optional diagnostic prompt/response capture follows the

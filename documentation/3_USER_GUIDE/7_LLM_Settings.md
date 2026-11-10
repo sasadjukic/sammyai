@@ -2,6 +2,18 @@
 
 The LLM Settings panel controls how the selected model responds in future messages. These settings are useful for moving between brainstorming, drafting, critique, and polishing.
 
+Parameter support depends on the provider and model. For OpenAI GPT-5, GPT-6,
+and o1/o3/o4 families, SammyAI currently uses the provider's default reasoning
+and sampling behavior: temperature, top-p, and seed are not sent. Saved slider
+values and presets still apply when you switch to a model that uses them, such
+as Gemma through Ollama or older OpenAI chat models. Writer style profiles are
+prompt instructions and continue to apply independently of these controls.
+
+For a completed request, **Diagnostics** records the generation parameters
+actually sent under `effective_settings`. An empty object means SammyAI sent no
+generation overrides; the model used its provider defaults. This does not mean
+the style profile was omitted. Profile delivery is recorded separately.
+
 ---
 
 ![SammyAI LLM Settings Panel](pictures/sammyai_llm_settings_panel.png)

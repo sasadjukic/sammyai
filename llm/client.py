@@ -9,6 +9,7 @@ from google import genai
 # Use a package-relative import so importing `llm.client` works when the package
 # is loaded as `llm` (avoids ModuleNotFoundError when running from project root)
 from .system_prompt import SYSTEM_PROMPT
+from .openai_parameters import openai_chat_parameters
 # Import API key manager so we can pick up a stored key by default
 from api_key_manager import APIKeyManager
 
@@ -372,18 +373,28 @@ class LLMClient:
         """Chat using OpenAI SDK."""
         try:
             prepared_messages = self._prepare_messages(messages, include_system)
-            response = self._openai_client.chat.completions.create(
-                model=self.model_name,
-                messages=prepared_messages,
+            parameters = openai_chat_parameters(
+                self.model_name,
                 max_tokens=max_tokens,
                 temperature=temperature if temperature is not None else self.temperature,
                 top_p=top_p if top_p is not None else self.top_p,
-                seed=seed if seed is not None else self.seed
+                seed=seed if seed is not None else self.seed,
+            )
+            # Record the serialized settings, including on failure; omitted
+            # values are controlled by the provider, not SammyAI's sliders.
+            self.last_response_metadata = {
+                **getattr(self, "last_response_metadata", {}),
+                "effective_settings": dict(parameters),
+            }
+            response = self._openai_client.chat.completions.create(
+                model=self.model_name,
+                messages=prepared_messages,
+                **parameters,
             )
             self._record_response_metadata(response, "openai")
             return response.choices[0].message.content
         except Exception as e:
-            raise RuntimeError(f"Error during OpenAI chat: {e}")
+            raise RuntimeError(f"Error during OpenAI chat: {e}") from e
 
     
     def _record_response_metadata(self, response, provider):

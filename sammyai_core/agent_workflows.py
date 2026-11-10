@@ -27,6 +27,8 @@ from llm.prompt_layers import (
     PromptLayerOrder,
 )
 from llm.system_prompt import SYSTEM_PROMPT
+from llm.style_prompt import agent_style_mode, style_layer, style_metadata
+from .style_profiles import StyleProfileSnapshot
 
 from .file_tools import FileToolError, SafeFileTools
 from .file_edit_context import AdditionPolicy, FileEditSnapshot, estimate_tokens
@@ -100,6 +102,7 @@ class AgentRunResult:
     request_id: str | None = None
     outcome: str = "responded"
     originating_project_id: str | None = None
+    style_used: dict = field(default_factory=dict)
 
 
 LLMCompletion = Callable[[list[dict[str, str]], str], str]
@@ -236,9 +239,12 @@ class AgentWorkflowService:
         trace=None,
         identity=None,
         response_metadata: Callable[[], dict] | None = None,
+        style_snapshot: StyleProfileSnapshot | None = None,
     ) -> AgentRunResult:
         selected = AgentType(agent_type)
         definition = AGENT_DEFINITIONS[selected]
+        style_mode = agent_style_mode(selected.value)
+        used_style = style_metadata(style_snapshot, style_mode)
         # Immutable request evidence survives arbitrary draft/review stages.
         # Legacy trusted callers may still authorize complete files by name;
         # capture their sources BEFORE invoking the model, never afterward.
@@ -277,8 +283,12 @@ class AgentWorkflowService:
             step = trace.start_step(request_id, f"model.{stage}") if trace else None
             started = time.monotonic()
             if trace:
+                stage_style = style_metadata(style_snapshot, "evaluate" if stage == "evaluation" else style_mode)
+                trace.event(request_id, "style.used", "Style preferences captured for this model call.",
+                            step_id=step, details=stage_style)
                 trace.event(request_id, "model.started", f"Model call: {stage}", step_id=step,
-                            details={"prompt_hash": hashlib.sha256(prompt.encode()).hexdigest(), "call_number": call_number})
+                            details={"prompt_hash": hashlib.sha256(prompt.encode()).hexdigest(), "call_number": call_number,
+                                     "estimated_input_tokens": estimate_tokens(prompt) + sum(estimate_tokens(m.get("content", "")) for m in call_messages)})
                 trace.capture(request_id, "prompts", json.dumps({"system_prompt": prompt, "messages": call_messages}, ensure_ascii=False), step_id=step)
             try:
                 text = provider_complete(call_messages, prompt) or ""
@@ -324,9 +334,10 @@ class AgentWorkflowService:
                 writer_contract,
                 snapshots,
                 policy,
+                style_snapshot,
             )
         else:
-            prompt = self._compose_prompt(definition)
+            prompt = self._compose_prompt(definition, style_snapshot=style_snapshot, style_mode=style_mode)
             raw_response = complete(messages, prompt)
             calls = 1
             record("completed", f"{selected.display_name} responded")
@@ -484,6 +495,7 @@ class AgentWorkflowService:
             request_id=request_id,
             outcome=outcome,
             originating_project_id=identity.project_id if identity else None,
+            style_used=used_style,
         )
 
     def _run_writer(
@@ -496,8 +508,9 @@ class AgentWorkflowService:
         contract: WriterFileContract,
         snapshots: tuple[FileEditSnapshot, ...],
         policy: AdditionPolicy,
+        style_snapshot: StyleProfileSnapshot | None = None,
     ) -> tuple[str, int, WriterFileContract]:
-        writer_prompt = self._compose_prompt(definition, run_instruction=contract.prompt())
+        writer_prompt = self._compose_prompt(definition, run_instruction=contract.prompt(), style_snapshot=style_snapshot)
         draft = complete(messages, writer_prompt)
         record("draft", "Writer produced a first draft")
 
@@ -527,7 +540,8 @@ class AgentWorkflowService:
         )
         evaluation = complete(
             evaluation_messages,
-            self._compose_prompt(evaluator_definition, read_only=True, run_instruction=contract.prompt()),
+            self._compose_prompt(evaluator_definition, read_only=True, run_instruction=contract.prompt(),
+                                 style_snapshot=style_snapshot, style_mode="evaluate"),
         )
         record("evaluation", "Evaluator reviewed the draft")
 
@@ -542,6 +556,7 @@ class AgentWorkflowService:
             self._compose_prompt(
                 definition,
                 run_instruction=REVISION_PROMPT + "\n" + contract.prompt(),
+                style_snapshot=style_snapshot,
             ),
         )
         if not final_response.strip() and draft.strip() and not contract.targets:
@@ -573,6 +588,8 @@ class AgentWorkflowService:
         *,
         read_only: bool | None = None,
         run_instruction: str | None = None,
+        style_snapshot: StyleProfileSnapshot | None = None,
+        style_mode: str = "apply",
     ) -> str:
         allow_changes = (
             definition.can_propose_file_changes
@@ -597,6 +614,9 @@ class AgentWorkflowService:
                 PromptLayerOrder.OUTPUT,
             ),
         ]
+        layer = style_layer(style_snapshot, style_mode)
+        if layer is not None:
+            layers.append(layer)
         if run_instruction:
             layers.append(
                 PromptLayer(

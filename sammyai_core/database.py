@@ -205,6 +205,23 @@ MIGRATIONS += (
     )),
 )
 
+MIGRATIONS += (
+    Migration(6, "create_writer_style_profiles", (
+        """CREATE TABLE style_profiles (
+            id TEXT PRIMARY KEY,
+            project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+            name TEXT NOT NULL CHECK(length(trim(name)) BETWEEN 1 AND 120),
+            instructions TEXT NOT NULL CHECK(length(trim(instructions)) > 0 AND length(instructions) <= 6000),
+            examples TEXT NOT NULL DEFAULT '' CHECK(length(examples) <= 3000),
+            revision INTEGER NOT NULL DEFAULT 1 CHECK(revision > 0),
+            archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN (0, 1)),
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )""",
+        "CREATE INDEX style_profiles_scope_idx ON style_profiles(project_id, archived, name)",
+    )),
+)
+
 LATEST_SCHEMA_VERSION = MIGRATIONS[-1].version
 
 

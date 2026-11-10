@@ -15,7 +15,9 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     for item in items:
         path = Path(str(item.path))
         parts = set(path.parts)
-        if "llm_tests" in parts and path.name != "test_system_prompt_delivery.py":
+        if "llm_tests" in parts and path.name not in {
+            "test_system_prompt_delivery.py", "test_openai_adapter.py",
+        }:
             item.add_marker(pytest.mark.external)
         if "integration_tests" in parts:
             item.add_marker(pytest.mark.integration)

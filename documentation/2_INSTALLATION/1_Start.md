@@ -1,6 +1,6 @@
 # Getting Started with SammyAI
 
-The current development version is [SammyAI v0.6.2-alpha](../../RELEASE_NOTES_v0.6.2-alpha.md).
+The current development version is [SammyAI v0.7.0-alpha](../../RELEASE_NOTES_v0.7.0-alpha.md).
 
 SammyAI can be installed from source or run through Docker. Source installation is the most useful path for alpha testing because it gives you direct access to the newest code and project files.
 
@@ -19,3 +19,16 @@ Detailed instructions:
 
 * [Install from Source](2_From_Source.md)
 * [Run with Docker](3_Docker.md)
+
+## Runtime data and upgrades
+
+On Windows, the default project database is
+`%LOCALAPPDATA%\SammyAI\data\sammyai.sqlite3`, and conversations are under
+`%LOCALAPPDATA%\SammyAI\data\sessions`. Configuration files use
+`%APPDATA%\SammyAI`. API settings are saved separately through Windows QSettings.
+
+`SAMMYAI_DATA_DIR`, `SAMMYAI_CONFIG_DIR`, `SAMMYAI_CACHE_DIR`, and
+`SAMMYAI_LOG_DIR` can override the corresponding locations. Back up the actual
+data directory with SammyAI closed before a database upgrade. Keep a pre-upgrade
+backup for rollback; an older app cannot automatically downgrade a newer schema.
+See [v0.7.0-alpha upgrade notes](../../RELEASE_NOTES_v0.7.0-alpha.md#upgrade-and-rollback).
